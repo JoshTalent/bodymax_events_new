@@ -14,6 +14,7 @@ const PATH_MAP = {
   '/registrations/bulk': '/registrations-bulk',
   '/weighins/record': '/weighins-record',
   '/draws/manual': '/draws-manual',
+  '/draws/delete': '/draws-delete',
   '/draws/get': '/draws-get',
   '/draws/boxer': '/draws-boxer',
   '/draws/boxer-update': '/draws-boxer-update',

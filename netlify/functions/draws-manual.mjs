@@ -7,7 +7,7 @@ import Bout from './_shared/models/Bout.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 
-const ELIGIBLE = { $in: ['approved', 'eligible', 'payment_confirmed', 'weighed'] }
+const ELIGIBLE = { $in: ['approved', 'eligible', 'payment_confirmed', 'weighed', 'completed'] }
 
 export default async (event) => {
   event = await normalizeRequest(event)
@@ -54,8 +54,15 @@ export default async (event) => {
     }).lean()
 
     const validSet = new Set(valid.map((r) => String(r._id)))
+
+    // Boxers already placed in this event's draw keep their slots when re-saving
+    const existing = await Bout.find({ eventId }).select('boxerAId boxerBId').lean()
+    const existingIds = new Set(
+      existing.flatMap((b) => [b.boxerAId, b.boxerBId]).filter(Boolean).map((x) => String(x))
+    )
+
     for (const pid of usedIds) {
-      if (!validSet.has(String(pid))) {
+      if (!validSet.has(String(pid)) && !existingIds.has(String(pid))) {
         return errorResponse({ message: 'One of the selected boxers is not eligible for this category', status: 400 })
       }
     }

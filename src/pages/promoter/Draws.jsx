@@ -453,6 +453,25 @@ export default function Draws() {
     }
   }
 
+  const deleteDraw = async () => {
+    const n = ordered.length
+    const scope = weight ? ` for ${weight}${age ? ` · ${age}` : ''}` : ''
+    if (!window.confirm(`Delete ${n} bout${n === 1 ? '' : 's'} from this draw${scope}? Completed results will also be removed.`)) return
+    setActing(true)
+    try {
+      const d = await api(`/draws/delete?eventId=${id}`, {
+        method: 'POST',
+        body: { boutIds: ordered.map((b) => b._id) },
+      })
+      toast(d.message || 'Draw deleted')
+      await reloadDraw()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setActing(false)
+    }
+  }
+
   const openEditBoxer = (reg) => {
     setEditBoxer(reg)
     setEditForm({
@@ -524,6 +543,11 @@ export default function Draws() {
           <Button onClick={openManual} disabled={eligible.length < 1}>
             {hasDraw ? 'Update Draw' : 'Create Draw'}
           </Button>
+          {hasDraw && (
+            <Button variant="danger" onClick={deleteDraw} disabled={acting}>
+              Delete Draw
+            </Button>
+          )}
           <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
             {eligible.length} eligible
           </span>
