@@ -1,6 +1,7 @@
 import { connectDB } from './_shared/db.js'
 import Bout from './_shared/models/Bout.js'
 import Registration from './_shared/models/Registration.js'
+import Boxer from './_shared/models/Boxer.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 
