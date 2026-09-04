@@ -20,27 +20,38 @@ function BoutCard({ bout, index }) {
 
   const slot = (reg, name, club) => {
     const isWinner = winnerId && String(winnerId) === String(reg?._id)
+    const notEligible = reg?.status === 'not_eligible'
     return (
       <div className={cn(
         'flex flex-1 items-center gap-3 rounded-xl border px-3 py-2',
-        isWinner
-          ? 'border-emerald-200 bg-emerald-50'
-          : bout.status === 'completed'
-            ? 'border-slate-200 bg-slate-50'
-            : 'border-slate-200 bg-white'
+        notEligible
+          ? 'border-rose-300 bg-rose-50'
+          : isWinner
+            ? 'border-emerald-200 bg-emerald-50'
+            : bout.status === 'completed'
+              ? 'border-slate-200 bg-slate-50'
+              : 'border-slate-200 bg-white'
       )}>
         <span className={cn(
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-          isWinner ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+          notEligible
+            ? 'bg-rose-600 text-white'
+            : isWinner
+              ? 'bg-emerald-600 text-white'
+              : 'bg-slate-100 text-slate-600'
         )}>
           {name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'}
         </span>
         <span className="min-w-0">
-          <span className={cn('block truncate text-sm font-semibold', isWinner ? 'text-emerald-900' : 'text-slate-900')}>
+          <span className={cn(
+            'block truncate text-sm font-semibold',
+            notEligible ? 'text-rose-700 line-through decoration-rose-400' : isWinner ? 'text-emerald-900' : 'text-slate-900'
+          )}>
             {name || <span className="italic text-slate-400">Bye</span>}
-            {isWinner && <span className="ml-1.5 text-xs font-bold text-emerald-600">WINNER</span>}
+            {isWinner && !notEligible && <span className="ml-1.5 text-xs font-bold text-emerald-600">WINNER</span>}
+            {notEligible && <span className="ml-1.5 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Not Eligible</span>}
           </span>
-          <span className="block truncate text-xs text-slate-500">{club || 'Guest'}</span>
+          <span className={cn('block truncate text-xs', notEligible ? 'text-rose-500' : 'text-slate-500')}>{club || 'Guest'}</span>
         </span>
       </div>
     )
@@ -71,9 +82,9 @@ function BoutCard({ bout, index }) {
         {slot(b, bName, bClub)}
       </div>
 
-      {bout.status === 'completed' && (
+      {(bout.status === 'completed' || bout.status === 'walkover') && (
         <p className="mt-2 text-xs text-emerald-700">
-          Result: {bout.result?.method || 'Decision'}{bout.result?.round ? ` · ${bout.result.round}` : ''}
+          Result: {bout.result?.method || bout.status === 'walkover' ? 'Walkover' : 'Decision'}{bout.result?.round ? ` · ${bout.result.round}` : ''}
         </p>
       )}
     </li>
