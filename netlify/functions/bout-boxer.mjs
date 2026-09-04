@@ -62,6 +62,67 @@ export default async (event) => {
       return success({ bout: fresh })
     }
 
+    if (action === 'assign') {
+      // Fill an empty slot ("Bye") with a registered boxer.
+      if (side !== 'A' && side !== 'B') return errorResponse({ message: 'side must be A or B', status: 400 })
+
+      const { registrationId } = body
+      if (!registrationId) return errorResponse({ message: 'registrationId required', status: 400 })
+
+      const target = side === 'A' ? bout.boxerAId : bout.boxerBId
+      if (target) return errorResponse({ message: 'That slot already has a boxer', status: 400 })
+
+      const other = side === 'A' ? bout.boxerBId : bout.boxerAId
+      if (other && String(other) === String(registrationId)) {
+        return errorResponse({ message: 'This boxer is already on the other side', status: 400 })
+      }
+
+      const reg = await Registration.findOne({ _id: registrationId, eventId: bout.eventId })
+      if (!reg) return errorResponse({ message: 'Selected boxer is not registered in this event', status: 400 })
+
+      // A boxer can only occupy one slot per event (any bout).
+      const alreadyPlaced = await Bout.exists({
+        eventId: bout.eventId,
+        _id: { $ne: bout._id },
+        $or: [{ boxerAId: registrationId }, { boxerBId: registrationId }],
+      })
+      if (alreadyPlaced) {
+        return errorResponse({ message: 'This boxer is already placed in another bout', status: 400 })
+      }
+
+      if (side === 'A') bout.boxerAId = registrationId
+      else bout.boxerBId = registrationId
+
+      if (bout.boxerAId && bout.boxerBId) {
+        // Both slots filled — back to a real scheduled bout.
+        bout.status = 'scheduled'
+        bout.winnerId = null
+        bout.loserId = null
+        bout.result = null
+      } else {
+        // Still a bye — the lone boxer takes the walkover.
+        const lone = bout.boxerAId || bout.boxerBId
+        bout.status = 'walkover'
+        bout.winnerId = lone
+        bout.loserId = null
+        bout.result = {
+          winnerId: lone,
+          method: 'Walkover',
+          round: null,
+          notes: 'Bye in draw',
+          recordedAt: new Date(),
+        }
+      }
+      await bout.save()
+
+      const fresh = await Bout.findById(boutId)
+        .populate({ path: 'boxerAId', populate: { path: 'boxerId' } })
+        .populate({ path: 'boxerBId', populate: { path: 'boxerId' } })
+        .populate({ path: 'winnerId', populate: { path: 'boxerId' } })
+        .lean()
+      return success({ bout: fresh })
+    }
+
     if (action === 'swap') {
       // Swap the two boxers in this bout (A<->B).
       const tmp = bout.boxerAId
