@@ -24,7 +24,7 @@ export default async (event) => {
     if (gender) query['category.gender'] = gender
 
     const bouts = await Bout.find(query)
-      .sort({ round: 1, bracketPosition: 1 })
+      .sort({ sortOrder: 1, round: 1, bracketPosition: 1 })
       .populate({
         path: 'boxerAId',
         populate: { path: 'boxerId' },

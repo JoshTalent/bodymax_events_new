@@ -16,6 +16,8 @@ const PATH_MAP = {
   '/draws/manual': '/draws-manual',
   '/draws/get': '/draws-get',
   '/draws/boxer': '/draws-boxer',
+  '/draws/boxer-update': '/draws-boxer-update',
+  '/bout/boxer': '/bout-boxer',
   '/results/record': '/results-record',
   '/role-links': '/role-links',
   '/portal': '/role-portal',

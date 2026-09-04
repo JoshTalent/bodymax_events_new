@@ -9,7 +9,7 @@ import { Select, Input } from '../../components/Field.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { cn } from '../../utils/cn.js'
 
-function BoutCard({ bout, index }) {
+function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, disabled }) {
   const a = bout.boxerAId
   const b = bout.boxerBId
   const aName = a?.boxerId?.fullName
@@ -18,12 +18,12 @@ function BoutCard({ bout, index }) {
   const bClub = b?.boxerId?.clubName || b?.clubId?.name
   const winnerId = bout.winnerId
 
-  const slot = (reg, name, club) => {
+  const slot = (reg, name, club, side) => {
     const isWinner = winnerId && String(winnerId) === String(reg?._id)
     const notEligible = reg?.status === 'not_eligible'
     return (
       <div className={cn(
-        'flex flex-1 items-center gap-3 rounded-xl border px-3 py-2',
+        'relative flex flex-1 items-center gap-3 rounded-xl border px-3 py-2',
         notEligible
           ? 'border-rose-300 bg-rose-50'
           : isWinner
@@ -42,7 +42,7 @@ function BoutCard({ bout, index }) {
         )}>
           {name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'}
         </span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className={cn(
             'block truncate text-sm font-semibold',
             notEligible ? 'text-rose-700 line-through decoration-rose-400' : isWinner ? 'text-emerald-900' : 'text-slate-900'
@@ -53,6 +53,32 @@ function BoutCard({ bout, index }) {
           </span>
           <span className={cn('block truncate text-xs', notEligible ? 'text-rose-500' : 'text-slate-500')}>{club || 'Guest'}</span>
         </span>
+        {reg && (
+          <span className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              title="Edit boxer"
+              onClick={() => onEditBoxer(reg, bout)}
+              disabled={disabled}
+              className="rounded-md p-1 text-slate-400 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-30"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              title="Remove boxer from draw"
+              onClick={() => onRemoveBoxer(bout, side)}
+              disabled={disabled}
+              className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+        )}
       </div>
     )
   }
@@ -73,18 +99,42 @@ function BoutCard({ bout, index }) {
             </p>
           </div>
         </div>
-        <StatusPill status={bout.status} />
+        <div className="flex items-center gap-2">
+          <div className="mr-1 flex items-center" title="Reorder">
+            <button
+              type="button"
+              onClick={() => onMove(index, -1)}
+              disabled={disabled || index === 0}
+              className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => onMove(index, 1)}
+              disabled={disabled || index === total - 1}
+              className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+            </button>
+          </div>
+          {a && b && (
+            <Button size="sm" variant="secondary" onClick={() => onSwap(bout)} disabled={disabled}>Swap</Button>
+          )}
+          <StatusPill status={bout.status} />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        {slot(a, aName, aClub)}
+        {slot(a, aName, aClub, 'A')}
         <span className="px-1 text-center text-xs font-bold uppercase tracking-widest text-slate-300">vs</span>
-        {slot(b, bName, bClub)}
+        {slot(b, bName, bClub, 'B')}
       </div>
 
       {(bout.status === 'completed' || bout.status === 'walkover') && (
         <p className="mt-2 text-xs text-emerald-700">
           Result: {bout.result?.method || bout.status === 'walkover' ? 'Walkover' : 'Decision'}{bout.result?.round ? ` · ${bout.result.round}` : ''}
+          {bout.result?.notes ? ` — ${bout.result.notes}` : ''}
         </p>
       )}
     </li>
@@ -172,6 +222,11 @@ export default function Draws() {
   const [addingBoxer, setAddingBoxer] = useState(false)
   const [addForm, setAddForm] = useState({ fullName: '', gender: '', weight: '', age: '' })
 
+  const [editBoxer, setEditBoxer] = useState(null)
+  const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1 })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [acting, setActing] = useState(false)
+
   const loadEvent = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
     api(`/registrations?eventId=${id}`).then((d) => setRegistrations(d.registrations)).catch(() => {})
@@ -226,9 +281,8 @@ export default function Draws() {
 
   const openManual = () => {
     const r1 = hasDraw
-      ? (bouts || [])
+      ? ordered
           .slice()
-          .sort((a, b) => a.boutNumber - b.boutNumber)
           .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '' }))
       : []
     setManualPairs(r1.length ? r1 : [{ a: '', b: '' }])
@@ -342,7 +396,102 @@ export default function Draws() {
     }
   }
 
-  const ordered = (bouts || []).slice().sort((a, b) => a.boutNumber - b.boutNumber)
+  const ordered = (bouts || []).slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
+
+  const reloadDraw = async () => {
+    await loadDraw(id, weight, age)
+    await loadEvent()
+  }
+
+  const persistOrder = async (next) => {
+    setActing(true)
+    try {
+      const d = await api(`/bouts?eventId=${id}`, { method: 'POST', body: { order: next.map((b) => b._id) } })
+      setBouts(d.bouts)
+    } catch (err) {
+      toast(err.message, 'error')
+      await reloadDraw()
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const move = (i, dir) => {
+    const j = i + dir
+    if (j < 0 || j >= ordered.length) return
+    const next = ordered.slice()
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setBouts(next)
+    persistOrder(next)
+  }
+
+  const swap = async (bout) => {
+    setActing(true)
+    try {
+      await api(`/bout/boxer?boutId=${bout._id}`, { method: 'POST', body: { action: 'swap' } })
+      toast('Sides swapped')
+      await reloadDraw()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const removeBoxer = async (bout, side) => {
+    const name = side === 'A' ? bout.boxerAId?.boxerId?.fullName : bout.boxerBId?.boxerId?.fullName
+    if (!window.confirm(`Remove ${name || 'this boxer'} from Bout #${bout.boutNumber}? The bout becomes a walkover for the remaining boxer.`)) return
+    setActing(true)
+    try {
+      await api(`/bout/boxer?boutId=${bout._id}`, { method: 'POST', body: { action: 'remove', side } })
+      toast('Boxer removed — walkover awarded')
+      await reloadDraw()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const openEditBoxer = (reg) => {
+    setEditBoxer(reg)
+    setEditForm({
+      fullName: reg?.boxerId?.fullName || '',
+      clubName: reg?.clubName || reg?.boxerId?.clubName || '',
+      gender: reg?.boxerId?.gender || reg?.category?.gender || '',
+      weight: reg?.category?.weight || reg?.boxerId?.weightCategory || '',
+      age: reg?.category?.age || reg?.boxerId?.ageCategory || '',
+      numberOfBouts: reg?.numberOfBouts || 1,
+    })
+  }
+
+  const saveEditBoxer = async () => {
+    if (!editForm.fullName.trim()) {
+      toast('Boxer name is required', 'error')
+      return
+    }
+    setSavingEdit(true)
+    try {
+      await api(`/draws/boxer-update?registrationId=${editBoxer._id}`, {
+        method: 'POST',
+        body: {
+          fullName: editForm.fullName,
+          clubName: editForm.clubName,
+          gender: editForm.gender || '',
+          weight: editForm.weight || '',
+          age: editForm.age || '',
+          numberOfBouts: editForm.numberOfBouts,
+        },
+      })
+      toast('Boxer details updated')
+      setEditBoxer(null)
+      await reloadDraw()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   return (
     <div>
@@ -394,7 +543,17 @@ export default function Draws() {
           <CardBody>
             <ul className="divide-y divide-slate-200">
               {ordered.map((b, i) => (
-                <BoutCard key={b._id} bout={b} index={i} />
+                <BoutCard
+                  key={b._id}
+                  bout={b}
+                  index={i}
+                  total={ordered.length}
+                  onEditBoxer={openEditBoxer}
+                  onRemoveBoxer={removeBoxer}
+                  onSwap={swap}
+                  onMove={move}
+                  disabled={acting}
+                />
               ))}
             </ul>
           </CardBody>
@@ -543,6 +702,55 @@ export default function Draws() {
               ))}
             </div>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!editBoxer}
+        onClose={() => setEditBoxer(null)}
+        title={`Edit Boxer — ${editBoxer?.boxerId?.fullName || ''}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditBoxer(null)}>Cancel</Button>
+            <Button onClick={saveEditBoxer} disabled={savingEdit}>
+              {savingEdit ? <Spinner className="h-4 w-4 border-white" /> : 'Save Changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Full Name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} required />
+          <Input label="Club / Team" value={editForm.clubName} onChange={(e) => setEditForm({ ...editForm, clubName: e.target.value })} placeholder="e.g. Midlands Boxing Club" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Weight Category</label>
+              <select value={editForm.weight} onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })} className={selectClass}>
+                <option value="">—</option>
+                {event.weightCategories?.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Age Category</label>
+              <select value={editForm.age} onChange={(e) => setEditForm({ ...editForm, age: e.target.value })} className={selectClass}>
+                <option value="">—</option>
+                {ageCats.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Gender</label>
+              <select value={editForm.gender} onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })} className={selectClass}>
+                <option value="">—</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+            </div>
+            <Input label="Number of Bouts" type="number" min="1" value={editForm.numberOfBouts} onChange={(e) => setEditForm({ ...editForm, numberOfBouts: e.target.value })} />
+          </div>
+          <p className="text-xs text-slate-400">
+            Changes update the boxer's profile and this event's registration. Use the Update Draw option to re-pair boxers after changing weights.
+          </p>
         </div>
       </Modal>
     </div>
