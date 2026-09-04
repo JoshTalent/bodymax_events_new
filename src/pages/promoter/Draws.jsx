@@ -258,6 +258,9 @@ export default function Draws() {
   const [assignTarget, setAssignTarget] = useState(null)
   const [assignId, setAssignId] = useState('')
   const [savingAssign, setSavingAssign] = useState(false)
+  const [assignForm, setAssignForm] = useState({ fullName: '', gender: '', weight: '', age: '' })
+  const [showAddAssign, setShowAddAssign] = useState(false)
+  const [addingAssign, setAddingAssign] = useState(false)
 
   const loadEvent = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
@@ -527,6 +530,8 @@ export default function Draws() {
 
   const openAssign = (bout, side) => {
     setAssignId('')
+    setAssignForm({ fullName: '', gender: '', weight: '', age: '' })
+    setShowAddAssign(false)
     setAssignTarget({ bout, side })
   }
 
@@ -546,6 +551,36 @@ export default function Draws() {
       toast(err.message, 'error')
     } finally {
       setSavingAssign(false)
+    }
+  }
+
+  const addAndAssign = async () => {
+    if (!assignForm.fullName.trim()) {
+      toast('Enter the boxer full name', 'error')
+      return
+    }
+    setAddingAssign(true)
+    try {
+      const d = await api(`/draws/boxer?eventId=${id}`, {
+        method: 'POST',
+        body: {
+          fullName: assignForm.fullName.trim(),
+          gender: assignForm.gender || '',
+          weight: assignForm.weight || weight || '',
+          age: assignForm.age || age || '',
+        },
+      })
+      await api(`/bout/boxer?boutId=${assignTarget.bout._id}`, {
+        method: 'POST',
+        body: { action: 'assign', side: assignTarget.side, registrationId: d.registration._id },
+      })
+      toast('Boxer added and placed in the bout')
+      setAssignTarget(null)
+      await reloadDraw()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setAddingAssign(false)
     }
   }
 
@@ -871,13 +906,16 @@ export default function Draws() {
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Fill the empty slot with a boxer. Boxers already placed in this draw are hidden. The bout becomes scheduled once both sides are filled.
-          </p>
           {assignable.length === 0 ? (
-            <Empty title="No boxers available" message="Every registered boxer is already placed in this draw." />
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <span className="text-amber-600">!</span>
+              <p>Every registered boxer is already placed in this draw. Add a brand new boxer below to fill the slot.</p>
+            </div>
           ) : (
             <div>
+              <p className="mb-3 text-sm text-slate-600">
+                Fill the empty slot with a boxer. Boxers already placed in this draw are hidden. The bout becomes scheduled once both sides are filled.
+              </p>
               <label className="mb-1 block text-sm font-medium text-slate-700">Select Boxer</label>
               <select value={assignId} onChange={(e) => setAssignId(e.target.value)} className={selectClass}>
                 <option value="">— Select a boxer —</option>
@@ -892,6 +930,62 @@ export default function Draws() {
               </select>
             </div>
           )}
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60">
+            <button
+              type="button"
+              onClick={() => setShowAddAssign((v) => !v)}
+              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold text-brand-700 transition hover:bg-brand-50/50"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add a new boxer manually
+              </span>
+              <span className="text-lg leading-none text-slate-400">{showAddAssign ? '−' : '+'}</span>
+            </button>
+
+            {showAddAssign && (
+              <div className="space-y-3 px-3 pb-3">
+                <p className="text-xs text-slate-500">Creates a registration in this event, then places the boxer in the empty slot.</p>
+                <Input label="Full Name" value={assignForm.fullName} onChange={(e) => setAssignForm({ ...assignForm, fullName: e.target.value })} placeholder="e.g. Kevin Otieno" />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
+                    <select value={assignForm.gender} onChange={(e) => setAssignForm({ ...assignForm, gender: e.target.value })} className={selectClass}>
+                      <option value="">—</option>
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weight Category</label>
+                    {event.weightCategories?.length ? (
+                      <select value={assignForm.weight} onChange={(e) => setAssignForm({ ...assignForm, weight: e.target.value })} className={selectClass}>
+                        <option value="">—</option>
+                        {event.weightCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    ) : (
+                      <Input value={assignForm.weight} onChange={(e) => setAssignForm({ ...assignForm, weight: e.target.value })} placeholder="e.g. 60kg" />
+                    )}
+                  </div>
+                  {ageCats.length > 0 && (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Age Category</label>
+                      <select value={assignForm.age} onChange={(e) => setAssignForm({ ...assignForm, age: e.target.value })} className={selectClass}>
+                        <option value="">—</option>
+                        {ageCats.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <Button size="sm" onClick={addAndAssign} disabled={addingAssign}>
+                  {addingAssign ? <Spinner className="h-4 w-4 border-white" /> : 'Add Boxer & Assign to Bout'}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </div>
