@@ -46,12 +46,37 @@ export default function Bouts() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ ring: '', scheduledDate: '', scheduledTime: '', status: 'scheduled' })
   const [busy, setBusy] = useState(false)
+  const [reordering, setReordering] = useState(false)
 
   const load = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
     api(`/bouts?eventId=${id}`).then((d) => setBouts(d.bouts)).catch(() => setBouts([]))
   }
   useEffect(load, [id])
+
+  const ordered = (bouts || []).slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
+
+  const persistOrder = async (next) => {
+    setReordering(true)
+    try {
+      const d = await api(`/bouts?eventId=${id}`, { method: 'POST', body: { order: next.map((b) => b._id) } })
+      setBouts(d.bouts)
+    } catch (err) {
+      toast(err.message, 'error')
+      load()
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  const move = (i, dir) => {
+    const j = i + dir
+    if (j < 0 || j >= ordered.length) return
+    const next = ordered.slice()
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setBouts(next)
+    persistOrder(next)
+  }
 
   const openEdit = (b) => {
     setEditing(b)
@@ -87,14 +112,12 @@ export default function Bouts() {
 
   if (!event || !bouts) return <Loading />
 
-  const ordered = [...bouts].sort((a, b) => (a.round - b.round) || (a.boutNumber - b.boutNumber))
-
   return (
     <div>
       <div className="mb-6">
         <button onClick={() => navigate(`/app/events/${id}`)} className="mb-1 text-sm text-brand-600 hover:underline">← Back to Event</button>
         <h1 className="text-2xl font-bold text-slate-900">Bout Schedule</h1>
-        <p className="text-sm text-slate-500">{event.name} · single-evening bout schedule</p>
+        <p className="text-sm text-slate-500">{event.name} · use the arrows to arrange the fight order</p>
       </div>
 
       {ordered.length === 0 ? (
@@ -105,7 +128,7 @@ export default function Bouts() {
         <Card>
           <div className="p-0">
             <ul className="divide-y divide-slate-200">
-              {ordered.map((b) => (
+              {ordered.map((b, i) => (
                 <li key={b._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-sm">
@@ -125,6 +148,24 @@ export default function Bouts() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1" title="Reorder">
+                      <button
+                        type="button"
+                        onClick={() => move(i, -1)}
+                        disabled={reordering || i === 0}
+                        className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(i, 1)}
+                        disabled={reordering || i === ordered.length - 1}
+                        className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                      </button>
+                    </div>
                     <StatusPill status={b.status} />
                     <Button size="sm" variant="secondary" onClick={() => openEdit(b)}>Schedule</Button>
                   </div>

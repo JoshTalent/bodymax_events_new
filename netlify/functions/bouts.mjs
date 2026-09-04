@@ -24,7 +24,36 @@ export default async (event) => {
       const query = { eventId, 'category.weight': weight }
       if (round) query.round = Number(round)
       const bouts = await Bout.find(query)
-        .sort({ round: 1, bracketPosition: 1 })
+        .sort({ sortOrder: 1, boutNumber: 1 })
+        .populate({ path: 'boxerAId', populate: { path: 'boxerId' } })
+        .populate({ path: 'boxerBId', populate: { path: 'boxerId' } })
+        .populate({ path: 'winnerId', populate: { path: 'boxerId' } })
+        .lean()
+      return success({ bouts })
+    }
+
+    if (event.httpMethod === 'POST') {
+      if (user.role !== 'promoter') {
+        return errorResponse({ message: 'Forbidden', status: 403 })
+      }
+      // Reorder an event's bouts by setting sortOrder from the provided order of ids.
+      const { eventId } = params
+      if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
+      const body = JSON.parse(event.body || '{}')
+      const { order } = body
+      if (!Array.isArray(order)) return errorResponse({ message: 'order array required', status: 400 })
+
+      const ops = order.map((boutId, idx) => ({
+        updateOne: {
+          filter: { _id: boutId },
+          update: { $set: { sortOrder: idx } },
+        },
+      }))
+
+      await Bout.bulkWrite(ops)
+
+      const bouts = await Bout.find({ eventId })
+        .sort({ sortOrder: 1, boutNumber: 1 })
         .populate({ path: 'boxerAId', populate: { path: 'boxerId' } })
         .populate({ path: 'boxerBId', populate: { path: 'boxerId' } })
         .populate({ path: 'winnerId', populate: { path: 'boxerId' } })

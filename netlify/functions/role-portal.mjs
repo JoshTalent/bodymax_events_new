@@ -31,7 +31,7 @@ export default async (event) => {
     if (!evt) return errorResponse({ message: 'Event not found', status: 404 })
 
     const schedule = await Bout.find({ eventId: link.eventId, status: { $nin: ['cancelled'] } })
-      .sort({ boutNumber: 1 })
+      .sort({ sortOrder: 1, boutNumber: 1 })
       .populate({ path: 'boxerAId', populate: { path: 'boxerId' } })
       .populate({ path: 'boxerBId', populate: { path: 'boxerId' } })
       .populate({ path: 'winnerId', populate: { path: 'boxerId' } })

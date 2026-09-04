@@ -18,6 +18,7 @@ const BoutSchema = new mongoose.Schema(
     roundName: { type: String, default: '' }, // 'Preliminary', 'Quarter-final', etc.
 
     boutNumber: { type: Number, default: 0 },
+    sortOrder: { type: Number, default: 0 },
     ring: { type: String, default: '' },
     scheduledDate: { type: Date, default: null },
     scheduledTime: { type: String, default: '' },
