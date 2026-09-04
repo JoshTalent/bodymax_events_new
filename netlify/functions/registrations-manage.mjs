@@ -1,5 +1,6 @@
 ﻿import { connectDB } from './_shared/db.js'
 import Registration from './_shared/models/Registration.js'
+import Bout from './_shared/models/Bout.js'
 import Event from './_shared/models/Event.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
@@ -60,7 +61,33 @@ export default async (event) => {
       reg.weighIn.status = reg.weighIn?.officialWeightKg ? 'outside_category' : 'requires_review'
       reg.weighIn.notes = feedback || reg.weighIn?.notes || ''
       await reg.save()
-      return success({ registration: reg })
+
+      // Award a walkover to the opponent in any live bout containing this boxer.
+      const liveBouts = await Bout.find({
+        eventId: reg.eventId,
+        status: { $in: ['scheduled', 'ready', 'in_progress'] },
+        $or: [{ boxerAId: reg._id }, { boxerBId: reg._id }],
+      })
+      for (const bout of liveBouts) {
+        const opponentId =
+          bout.boxerAId && String(bout.boxerAId) === String(reg._id) ? bout.boxerBId : bout.boxerAId
+        bout.winnerId = opponentId || null
+        bout.loserId = reg._id
+        bout.status = 'walkover'
+        bout.result = {
+          winnerId: opponentId || null,
+          method: 'Walkover',
+          round: null,
+          notes: 'Opponent ineligible after weigh-in',
+          recordedAt: new Date(),
+        }
+        if (opponentId) {
+          await Registration.updateOne({ _id: opponentId }, { $set: { status: 'completed' } })
+        }
+        await bout.save()
+      }
+
+      return success({ registration: reg, walkovers: liveBouts.length })
     }
 
     if (action === 'set_awaiting_weighin') {
