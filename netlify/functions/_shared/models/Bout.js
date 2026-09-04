@@ -1,4 +1,7 @@
 import mongoose from 'mongoose'
+import './Registration.js'
+import './Event.js'
+import './User.js'
 
 const BoutSchema = new mongoose.Schema(
   {

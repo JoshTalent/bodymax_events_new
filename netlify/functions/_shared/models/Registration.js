@@ -1,4 +1,7 @@
 import mongoose from 'mongoose'
+import './Boxer.js'
+import './Event.js'
+import './User.js'
 
 const RegistrationSchema = new mongoose.Schema(
   {
