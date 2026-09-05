@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
 import { Button } from '../../components/Button.jsx'
+import { Modal } from '../../components/Modal.jsx'
 import { Input, Select } from '../../components/Field.jsx'
 
 const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
@@ -57,6 +58,12 @@ export default function EventRegister() {
     }
   }
 
+  const closeThankYou = () => {
+    setDone(false)
+    setBoxers([{ ...EMPTY_BOXER }])
+    setClubName('')
+  }
+
   if (loading) return <Loading />
 
   if (error && !event) {
@@ -65,26 +72,6 @@ export default function EventRegister() {
         <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-xl font-bold text-slate-900">Registration link unavailable</h1>
           <p className="mt-2 text-sm text-slate-500">{error}</p>
-          <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← Back to Bodymax</Link>
-        </div>
-      </div>
-    )
-  }
-
-  if (done) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-            <svg className="h-7 w-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="mt-4 text-xl font-bold text-slate-900">Registration submitted</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Your boxer(s) have been registered for <span className="font-medium text-slate-900">{event?.name}</span>. The event
-            promoter will review and confirm each entry. You can close this page.
-          </p>
           <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← Back to Bodymax</Link>
         </div>
       </div>
@@ -292,6 +279,30 @@ export default function EventRegister() {
         >
           {submitButton}
         </div>
-      )}    </div>
+      )}
+
+      <Modal
+        open={done}
+        onClose={closeThankYou}
+        title="Registration submitted"
+        footer={
+          <Button onClick={closeThankYou} className="w-full py-2.5">Close</Button>
+        }
+      >
+        <div className="py-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="mt-5 text-2xl font-bold text-slate-900">Thank you!</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
+            Your boxer(s) have been registered for{' '}
+            <span className="font-semibold text-slate-900">{event?.name}</span>. The event promoter will review and confirm
+            each entry.
+          </p>
+        </div>
+      </Modal>
+    </div>
   )
 }
