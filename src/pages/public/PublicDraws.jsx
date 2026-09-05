@@ -6,13 +6,13 @@ import { cn } from '../../utils/cn.js'
 
 function StatusPill({ status }) {
   const map = {
-    scheduled: 'bg-blue-100 text-blue-800',
-    ready: 'bg-blue-100 text-blue-800',
-    in_progress: 'bg-amber-100 text-amber-800',
-    walkover: 'bg-amber-100 text-amber-800',
-    completed: 'bg-emerald-100 text-emerald-800',
-    postponed: 'bg-slate-100 text-slate-600',
-    cancelled: 'bg-slate-100 text-slate-600',
+    scheduled: 'bg-blue-50 text-blue-700 ring-blue-200',
+    ready: 'bg-blue-50 text-blue-700 ring-blue-200',
+    in_progress: 'bg-amber-50 text-amber-700 ring-amber-200',
+    walkover: 'bg-amber-50 text-amber-700 ring-amber-200',
+    completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    postponed: 'bg-slate-100 text-slate-600 ring-slate-200',
+    cancelled: 'bg-slate-100 text-slate-600 ring-slate-200',
   }
   const label = {
     scheduled: 'Scheduled',
@@ -24,7 +24,7 @@ function StatusPill({ status }) {
     cancelled: 'Cancelled',
   }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', map[status] || 'bg-slate-100 text-slate-700')}>
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1', map[status] || 'bg-slate-100 text-slate-600 ring-slate-200')}>
       {label[status] || status.replace('_', ' ')}
     </span>
   )
@@ -36,8 +36,8 @@ function Fighter({ reg, isWinner }) {
 
   if (!n) {
     return (
-      <div className="flex flex-1 rounded-xl bg-slate-50 px-4 py-3">
-        <span className="text-sm italic text-slate-400">Bye</span>
+      <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
+        <span className="text-sm italic text-slate-400">Bye — no opponent</span>
       </div>
     )
   }
@@ -46,22 +46,37 @@ function Fighter({ reg, isWinner }) {
 
   return (
     <div className={cn(
-      'flex flex-1 items-center gap-3 rounded-xl border px-4 py-3',
+      'flex flex-1 items-center gap-3 rounded-xl border px-4 py-4',
       isWinner ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'
     )}>
       <span className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold',
         isWinner ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
       )}>
         {initials}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-slate-900">{n}</span>
-        <span className="block truncate text-xs text-slate-500">{c || 'Individual'}</span>
+        <span className="block truncate text-base font-semibold text-slate-900">{n}</span>
+        <span className="block truncate text-sm text-slate-500">{c || 'Individual'}</span>
       </span>
       {isWinner && (
-        <span className="shrink-0 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">Winner</span>
+        <span className="shrink-0 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Winner</span>
       )}
+    </div>
+  )
+}
+
+function InfoRow({ icon, label, value }) {
+  if (!value) return null
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/70">
+        {icon}
+      </span>
+      <span>
+        <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+        <span className="block text-sm font-medium text-white">{value}</span>
+      </span>
     </div>
   )
 }
@@ -86,11 +101,18 @@ export default function PublicDraws() {
   if (loading) return <Loading />
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-slate-100">
+      <header className="bg-slate-950">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
-          <Link to="/" className="text-xl font-bold text-slate-900">Bodymax</Link>
-          <span className="text-xs font-medium text-slate-400">Official Draw</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-black text-white">B</span>
+            <span className="text-lg font-bold text-white">Bodymax</span>
+          </Link>
+          {event?.eventDate && (
+            <span className="text-xs font-medium text-slate-400">
+              {new Date(event.eventDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
         </div>
       </header>
 
@@ -100,63 +122,60 @@ export default function PublicDraws() {
           <Link to="/" className="mt-4 inline-block text-brand-600 hover:underline">← Back to home</Link>
         </div>
       ) : (
-        <main className="mx-auto max-w-4xl px-4 py-10">
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Official Draw</p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{event?.name}</h1>
+        <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+          {/* Hero */}
+          <section className="overflow-hidden rounded-3xl bg-slate-950 shadow-xl">
+            <div className="bg-[radial-gradient(60%_120%_at_100%_0%,rgba(59,130,246,0.25),transparent)] px-6 py-8 sm:px-10 sm:py-10">
+              <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-400">Official Draw</p>
+                  <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">{event?.name}</h1>
+                  <p className="mt-1 text-sm text-slate-400">Live fight card · read only</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-lg">
+                    <p className="text-2xl font-bold text-slate-900">{bouts.length}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Bouts</p>
+                  </div>
+                </div>
               </div>
-              <span className="rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
-                {bouts.length} bout{bouts.length === 1 ? '' : 's'}
-              </span>
-            </div>
 
-            <div className="mt-6 grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
-              {event?.venue && (
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Venue</p>
-                  <p className="text-slate-900">{event.venue}</p>
-                </div>
-              )}
-              {event?.location && (
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Location</p>
-                  <p className="text-slate-900">{event.location}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-medium text-slate-500">Date</p>
-                <p className="text-slate-900">
-                  {event?.eventDate ? new Date(event.eventDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'}
-                </p>
+              <div className="mt-8 grid gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
+                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>} label="Venue" value={event?.venue} />
+                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>} label="Location" value={event?.location} />
+                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>} label="Date" value={event?.eventDate ? new Date(event.eventDate).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'TBD'} />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-4">
+          {/* Bout list */}
+          <section className="mt-8">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Bout Order</h2>
-              <p className="text-sm text-slate-500">Read only · updates as results come in</p>
+              <span className="text-xs font-medium text-slate-500">Results update automatically</span>
             </div>
 
             {bouts.length === 0 ? (
-              <p className="px-6 py-12 text-center text-slate-500">No bouts announced yet. Check back soon.</p>
+              <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+                <h3 className="text-lg font-semibold text-slate-900">No bouts announced yet</h3>
+                <p className="mt-1 text-sm text-slate-500">The draw is being finalised. Please check back soon.</p>
+              </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <div className="space-y-4">
                 {bouts.map((b, i) => {
                   const winnerId = b.winnerId
                   const isWinnerA = winnerId && String(winnerId) === String(b.boxerAId?._id)
                   const isWinnerB = winnerId && String(winnerId) === String(b.boxerBId?._id)
+                  const hasBye = !b.boxerAId || !b.boxerBId
                   return (
-                    <li key={b._id} className="px-6 py-5">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <article key={b._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
                             {i + 1}
                           </span>
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bout #{b.boutNumber}</p>
+                            <p className="text-sm font-bold text-slate-900">Bout #{b.boutNumber}</p>
                             <p className="text-xs text-slate-500">
                               {b.category?.weight || 'All weights'}
                               {b.category?.age ? ` · ${b.category.age}` : ''}
@@ -166,26 +185,36 @@ export default function PublicDraws() {
                         <StatusPill status={b.status} />
                       </div>
 
-                      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
                         <Fighter reg={b.boxerAId} isWinner={isWinnerA} />
-                        <span className="self-center px-1 text-xs font-bold uppercase tracking-widest text-slate-300">vs</span>
+                        <span className="self-center flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold uppercase text-white sm:mx-1">
+                          vs
+                        </span>
                         <Fighter reg={b.boxerBId} isWinner={isWinnerB} />
                       </div>
 
                       {(b.status === 'completed' || b.status === 'walkover') && (
-                        <p className="mt-2 text-xs text-emerald-700">
-                          Result: {b.result?.method || (b.status === 'walkover' ? 'Walkover' : 'Decision')}
-                          {b.result?.round ? ` · Round ${b.result.round}` : ''}
+                        <p className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                          {b.status === 'walkover' && hasBye
+                            ? 'Walkover — opponent unavailable.'
+                            : `Result: ${b.result?.method || 'Decision'}${b.result?.round ? ` · Round ${b.result.round}` : ''}`}
                         </p>
                       )}
-                    </li>
+                    </article>
                   )
                 })}
-              </ul>
+              </div>
             )}
-          </div>
+          </section>
         </main>
       )}
+
+      <footer className="border-t border-slate-200 bg-white py-8">
+        <p className="text-center text-xs font-semibold uppercase tracking-widest text-slate-400">
+          Powered by <span className="text-slate-700">Bodymax</span> · Live event management
+        </p>
+      </footer>
     </div>
   )
 }
