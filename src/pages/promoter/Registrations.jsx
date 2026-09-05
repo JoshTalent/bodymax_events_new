@@ -1,60 +1,95 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../utils/api.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useToast } from '../../context/ToastContext.jsx'
 import { Button } from '../../components/Button.jsx'
 import { Card } from '../../components/Card.jsx'
 import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
-import { StatusBadge } from '../../components/Badge.jsx'
+import { StatusBadge, Badge } from '../../components/Badge.jsx'
 import { Modal } from '../../components/Modal.jsx'
-import { Textarea, Select } from '../../components/Field.jsx'
+import { Textarea, Input, Select } from '../../components/Field.jsx'
+import { cn } from '../../utils/cn'
 
-const filters = [
-  { value: 'all', label: 'All' },
+const STATUS_TABS = [
+  { value: 'all', label: 'All Registrations' },
   { value: 'pending_approval', label: 'Pending Approval' },
   { value: 'needs_correction', label: 'Needs Correction' },
   { value: 'approved', label: 'Approved' },
+  { value: 'payment_confirmed', label: 'Payment Confirmed' },
   { value: 'eligible', label: 'Eligible' },
   { value: 'withdrawn', label: 'Withdrawn' },
 ]
+
+const ACTIONABLE = ['pending_approval', 'needs_correction']
+
+function initials(name = '') {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || '?'
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 export default function Registrations() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [regs, setRegs] = useState(null)
   const [filter, setFilter] = useState('all')
-  const [openClub, setOpenClub] = useState(null)
+  const [eventFilter, setEventFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [busyLoad, setBusyLoad] = useState(false)
   const [actionReg, setActionReg] = useState(null)
   const [action, setAction] = useState('')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
 
   const load = () => {
-    api('/registrations').then((d) => setRegs(d.registrations)).catch(() => {})
+    setBusyLoad(true)
+    api('/registrations')
+      .then((d) => setRegs(d.registrations))
+      .catch(() => {})
+      .finally(() => setBusyLoad(false))
   }
   useEffect(load, [])
 
   const isPromoter = user?.role === 'promoter'
 
-  const filtered = regs
-    ? filter === 'all'
-      ? regs
-      : regs.filter((r) => r.status === filter)
-    : []
+  const counts = useMemo(() => {
+    const c = { all: regs ? regs.length : 0 }
+    for (const r of regs || []) c[r.status] = (c[r.status] || 0) + 1
+    return c
+  }, [regs])
 
-  const groups = []
-  const seen = new Map()
-  for (const r of filtered) {
-    const clubKey = (r.clubName || r.clubId?.name || 'Other').trim()
-    let g = seen.get(clubKey)
-    if (!g) {
-      g = { clubKey, regs: [] }
-      seen.set(clubKey, g)
-      groups.push(g)
+  const eventOptions = useMemo(() => {
+    const map = new Map()
+    for (const r of regs || []) {
+      const id = r.eventId?._id
+      if (id) map.set(id, r.eventId.name || 'Event')
     }
-    g.regs.push(r)
-  }
-  groups.sort((a, b) => a.clubKey.localeCompare(b.clubKey))
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [regs])
+
+  const filtered = useMemo(() => {
+    let list = regs || []
+    if (filter !== 'all') list = list.filter((r) => r.status === filter)
+    if (eventFilter !== 'all') list = list.filter((r) => r.eventId?._id === eventFilter)
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        (r) =>
+          (r.boxerId?.fullName || '').toLowerCase().includes(q) ||
+          (r.clubName || r.clubId?.name || '').toLowerCase().includes(q) ||
+          (r.eventId?.name || '').toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [regs, filter, eventFilter, search])
 
   const runAction = async () => {
     setBusy(true)
@@ -71,72 +106,159 @@ export default function Registrations() {
     }
   }
 
+  const categoryLabel = (r) => {
+    const parts = []
+    if (r.category?.age) parts.push(r.category.age)
+    if (r.category?.weight) parts.push(r.category.weight)
+    if (r.category?.gender) parts.push(r.category.gender === 'Mixed' ? 'Mixed' : r.category.gender)
+    return parts
+  }
+
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Registrations</h1>
-          <p className="text-sm text-slate-500">Review boxer registrations and confirm each entry</p>
+      <div className="mb-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Registrations</h1>
+            <p className="mt-0.5 text-sm text-slate-500">Review boxer entries, manage approvals and keep every event on track</p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={load} disabled={busyLoad}>
+            {busyLoad ? <Spinner /> : null}
+            {busyLoad ? 'Refreshing…' : 'Refresh'}
+          </Button>
         </div>
-        <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-48">
-          {filters.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+          {STATUS_TABS.map((t) => {
+            const n = counts[t.value] || 0
+            const active = filter === t.value
+            return (
+              <button
+                key={t.value}
+                onClick={() => setFilter(t.value)}
+                className={cn(
+                  'rounded-xl border px-3 py-2.5 text-left transition',
+                  active
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm'
+                )}
+              >
+                <p className={cn('text-lg font-bold leading-tight', active ? 'text-white' : 'text-slate-900')}>{n}</p>
+                <p className={cn('text-xs leading-tight', active ? 'text-slate-300' : 'text-slate-500')}>{t.label}</p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="min-w-52 flex-1">
+          <Input
+            placeholder="Search by boxer, club or event…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            id="search-registrations"
+          />
+        </div>
+        <Select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="w-56">
+          <option value="all">All events</option>
+          {eventOptions.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
         </Select>
+        <Badge tone="outline" className="px-3 py-1">
+          {filtered.length} of {regs ? regs.length : 0}
+        </Badge>
       </div>
 
       {!regs ? (
         <Loading />
-      ) : groups.length === 0 ? (
-        <Empty title="No registrations" message="Share the registration link to get boxers signed up." />
+      ) : filtered.length === 0 ? (
+        <Empty
+          title={regs.length === 0 ? 'No registrations yet' : 'No matching registrations'}
+          message={
+            regs.length === 0
+              ? 'Share the registration link to get boxers signed up.'
+              : 'Try a different status, event or search term.'
+          }
+        />
       ) : (
-        <div className="space-y-4">
-          {groups.map((g) => (
-            <Card key={g.clubKey} className="overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
-                    {g.clubKey.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">{g.clubKey}</p>
-                    <span className="text-xs text-slate-500">{g.regs.length} boxer{g.regs.length === 1 ? '' : 's'}</span>
-                  </div>
-                </div>
-                <Button size="sm" variant="secondary" onClick={() => setOpenClub(openClub === g.clubKey ? null : g.clubKey)}>
-                  {openClub === g.clubKey ? 'Close' : 'View Boxers'}
-                </Button>
-              </div>
-
-              {openClub === g.clubKey && (
-                <ul className="divide-y divide-slate-200 border-t border-slate-200 bg-slate-50/50">
-                  {g.regs.map((r) => (
-                    <li key={r._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                      <div className="min-w-0">
-                        <p className="font-medium text-slate-900">{r.boxerId?.fullName || 'Boxer'}</p>
-                        <p className="text-sm text-slate-500">
-                          {r.eventId?.name || 'Event'}
-                          {r.category?.weight && ` · ${r.category.weight}`}
-                          {r.category?.age && ` · ${r.category.age}`}
-                          {r.numberOfBouts > 1 && ` · ${r.numberOfBouts} bouts`}
-                        </p>
-                        {r.promoterFeedback && <p className="mt-1 text-xs text-slate-800">Feedback: {r.promoterFeedback}</p>}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge status={r.status} />
-                        {isPromoter && ['pending_approval', 'needs_correction'].includes(r.status) && (
-                          <>
-                            <Button size="sm" onClick={() => { setActionReg(r); setAction('approve') }}>Approve</Button>
-                            <Button size="sm" variant="secondary" onClick={() => { setActionReg(r); setAction('needs_correction') }}>Fix</Button>
-                            <Button size="sm" variant="danger" onClick={() => { setActionReg(r); setAction('reject') }}>Reject</Button>
-                          </>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-5 py-3 font-semibold">Boxer</th>
+                  <th className="px-5 py-3 font-semibold">Club</th>
+                  <th className="px-5 py-3 font-semibold">Event</th>
+                  <th className="px-5 py-3 font-semibold">Category</th>
+                  <th className="px-5 py-3 font-semibold">Bouts</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                  <th className="px-5 py-3 font-semibold">Registered</th>
+                  <th className="px-5 py-3 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((r) => {
+                  const canAction = isPromoter && ACTIONABLE.includes(r.status)
+                  const cat = categoryLabel(r)
+                  return (
+                    <tr key={r._id} className="hover:bg-slate-50/60">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                            {initials(r.boxerId?.fullName)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900">{r.boxerId?.fullName || 'Boxer'}</p>
+                            {r.promoterFeedback && (
+                              <p className="max-w-56 truncate text-xs text-slate-600">Feedback: {r.promoterFeedback}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600">{r.clubName || r.clubId?.name || '—'}</td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-medium text-slate-800">{r.eventId?.name || 'Event'}</p>
+                        <p className="text-xs text-slate-500">{fmtDate(r.eventId?.eventDate)}</p>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {cat.length === 0 ? (
+                          <span className="text-slate-400">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {cat.map((c) => (
+                              <span key={c} className="rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
                         )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          ))}
-        </div>
+                        {r.numberOfBouts > 1 && <span className="ml-1 text-xs text-slate-500">×{r.numberOfBouts}</span>}
+                      </td>
+                      <td className="px-5 py-3.5 text-center font-medium text-slate-700">{r.numberOfBouts || 1}</td>
+                      <td className="px-5 py-3.5"><StatusBadge status={r.status} /></td>
+                      <td className="px-5 py-3.5 whitespace-nowrap text-slate-500">{fmtDate(r.createdAt)}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-end gap-2">
+                          {canAction ? (
+                            <>
+                              <Button size="sm" onClick={() => { setActionReg(r); setAction('approve') }}>Approve</Button>
+                              <Button size="sm" variant="secondary" onClick={() => { setActionReg(r); setAction('needs_correction') }}>Fix</Button>
+                              <Button size="sm" variant="danger" onClick={() => { setActionReg(r); setAction('reject') }}>Reject</Button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       <Modal
