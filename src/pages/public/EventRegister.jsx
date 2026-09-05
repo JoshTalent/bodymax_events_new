@@ -5,8 +5,85 @@ import { Loading } from '../../components/Loading.jsx'
 import { Button } from '../../components/Button.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Input, Select } from '../../components/Field.jsx'
+import { cn } from '../../utils/cn.js'
 
 const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
+
+const text = {
+  en: {
+    eventRegistration: 'Event Registration',
+    registrationOpen: 'Registration open',
+    registrationClosed: 'Registration closed',
+    venue: 'Venue',
+    yourClub: 'Your club',
+    clubSub: 'The boxing club or team these boxers belong to',
+    clubLabel: 'Club / Team Name',
+    clubPlaceholder: 'e.g. Midlands Boxing Club',
+    boxers: 'Boxers',
+    added: (n) => `${n} added`,
+    boxerNum: (n) => `Boxer ${n}`,
+    remove: 'Remove',
+    fullName: 'Full Name',
+    fullNamePlaceholder: "Boxer's full name",
+    weightCategory: 'Weight Category',
+    selectWeight: 'Select weight…',
+    ageCategory: 'Age Category',
+    selectAge: 'Select age…',
+    gender: 'Gender',
+    selectGender: 'Select gender…',
+    male: 'Male',
+    female: 'Female',
+    numberOfBouts: 'Number of Bouts',
+    addAnother: 'Add another boxer',
+    submit: (n) => (n === 1 ? 'Submit 1 boxer' : `Submit ${n} boxers`),
+    submitting: 'Submitting…',
+    closedTitle: 'Registration is closed',
+    closedBody: 'This event is no longer accepting boxer registrations.',
+    linkUnavailable: 'Registration link unavailable',
+    back: 'Back to Bodymax',
+    thankTitle: 'Registration submitted',
+    thankYou: 'Thank you!',
+    thankBody: (name) =>
+      `Your boxer(s) have been registered for ${name}. The event promoter will review and confirm each entry.`,
+    close: 'Close',
+  },
+  rw: {
+    eventRegistration: 'Iyandikisha ry’ibirori',
+    registrationOpen: 'Iyandikisha riracyafunguye',
+    registrationClosed: 'Iyandikisha ryafunze',
+    venue: 'Aho bizobera',
+    yourClub: 'Ikipe yawe',
+    clubSub: 'Ikipe cyangwa itsinda abakinnyi barimo',
+    clubLabel: 'Izina ry’ikipe / itsinda',
+    clubPlaceholder: 'urugero: Midlands Boxing Club',
+    boxers: 'Abakinnyi',
+    added: (n) => `${n} byongewe`,
+    boxerNum: (n) => `Umukinnyi wa ${n}`,
+    remove: 'Hanagura',
+    fullName: 'Amazina yuzuye',
+    fullNamePlaceholder: 'Amazina yuzuye y’umukinnyi',
+    weightCategory: 'Icyiciro cy’uburemere',
+    selectWeight: 'Hitamo uburemere…',
+    ageCategory: 'Icyiciro cy’imyaka',
+    selectAge: 'Hitamo imyaka…',
+    gender: 'Igitsina',
+    selectGender: 'Hitamo igitsina…',
+    male: 'Gabo',
+    female: 'Gore',
+    numberOfBouts: 'Umubare w’imikino',
+    addAnother: 'Ongera undi mukinnyi',
+    submit: (n) => (n === 1 ? 'Ohereza umukinnyi 1' : `Ohereza abakinnyi ${n}`),
+    submitting: 'Birimo koherezwa…',
+    closedTitle: 'Iyandikisha ryafunze',
+    closedBody: 'Iki birori nticyemera kongera kwiyandikisha abakinnyi.',
+    linkUnavailable: 'Uhuza rwo kwiyandikisha ntirukoreshwa',
+    back: 'Subira kuri Bodymax',
+    thankTitle: 'Iyandikisha ryakozwe',
+    thankYou: 'Urakoze!',
+    thankBody: (name) => `Abakinnyi bawe biyandikishije muri ${name}. Umuyobozi w’ibirori azasuzuma kandi yemeze buri wese.`,
+    close: 'Funga',
+  },
+}
 
 export default function EventRegister() {
   const { token } = useParams()
@@ -17,6 +94,8 @@ export default function EventRegister() {
   const [boxers, setBoxers] = useState([{ ...EMPTY_BOXER }])
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [lang, setLang] = useState('en')
+  const t = lang === 'rw' ? text.rw : text.en
 
   useEffect(() => {
     api(`/event-register?token=${token}`)
@@ -64,15 +143,33 @@ export default function EventRegister() {
     setClubName('')
   }
 
+  const LangToggle = () => (
+    <div className="flex items-center rounded-full bg-white/10 p-0.5 ring-1 ring-white/20">
+      {(['en', 'rw']).map((code) => (
+        <button
+          key={code}
+          type="button"
+          onClick={() => setLang(code)}
+          className={cn(
+            'rounded-full px-3 py-1 text-xs font-semibold transition',
+            lang === code ? 'bg-white text-slate-900' : 'text-slate-200 hover:text-white'
+          )}
+        >
+          {code === 'en' ? 'EN' : 'Kinyarwanda'}
+        </button>
+      ))}
+    </div>
+  )
+
   if (loading) return <Loading />
 
   if (error && !event) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">Registration link unavailable</h1>
+          <h1 className="text-xl font-bold text-slate-900">{t.linkUnavailable}</h1>
           <p className="mt-2 text-sm text-slate-500">{error}</p>
-          <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← Back to Bodymax</Link>
+          <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← {t.back}</Link>
         </div>
       </div>
     )
@@ -80,9 +177,7 @@ export default function EventRegister() {
 
   const closed = !event.registrationOpen || ['closed', 'completed', 'archived'].includes(event.status)
 
-  const submitText = saving
-    ? 'Submitting…'
-    : `Submit ${boxers.length} boxer${boxers.length === 1 ? '' : 's'}`
+  const submitText = saving ? t.submitting : t.submit(boxers.length)
 
   const submitButton = (
     <Button type="submit" form="event-register-form" disabled={saving} className="w-full py-3 text-base shadow-lg shadow-brand-600/25">
@@ -91,7 +186,7 @@ export default function EventRegister() {
           <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Submitting…
+          {t.submitting}
         </span>
       ) : (
         submitText
@@ -101,22 +196,24 @@ export default function EventRegister() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-28 sm:pb-16">
-      {/* Hero header */}
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 px-4 py-8 text-white sm:py-10">
         <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/30 blur-3xl" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-brand-400/20 blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-2xl">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-brand-200">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-            </svg>
-            Event Registration
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-brand-200">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              {t.eventRegistration}
+            </div>
+            <LangToggle />
           </div>
           <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{event.name}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-brand-100 ring-1 ring-white/20 backdrop-blur">
-              {closed ? 'Registration closed' : 'Registration open'}
+              {closed ? t.registrationClosed : t.registrationOpen}
             </span>
             {event.venue && (
               <span className="inline-flex items-center gap-1.5 text-sm text-slate-300">
@@ -132,7 +229,7 @@ export default function EventRegister() {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                 </svg>
-                {new Date(event.eventDate).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                {new Date(event.eventDate).toLocaleDateString(lang === 'rw' ? 'rw-RW' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
             )}
           </div>
@@ -147,13 +244,12 @@ export default function EventRegister() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">Registration is closed</h2>
-            <p className="mt-1 text-sm text-slate-500">This event is no longer accepting boxer registrations.</p>
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">{t.closedTitle}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t.closedBody}</p>
           </div>
         ) : (
           <form id="event-register-form" onSubmit={handleSubmit}>
             <div className="space-y-4">
-              {/* Club section */}
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
@@ -162,26 +258,25 @@ export default function EventRegister() {
                     </svg>
                   </span>
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Your club</h2>
-                    <p className="text-sm text-slate-500">The boxing club or team these boxers belong to</p>
+                    <h2 className="text-lg font-semibold text-slate-900">{t.yourClub}</h2>
+                    <p className="text-sm text-slate-500">{t.clubSub}</p>
                   </div>
                 </div>
                 <div className="mt-4">
                   <Input
-                    label="Club / Team Name"
+                    label={t.clubLabel}
                     value={clubName}
                     onChange={(e) => setClubName(e.target.value)}
-                    placeholder="e.g. Midlands Boxing Club"
+                    placeholder={t.clubPlaceholder}
                     required
                   />
                 </div>
               </section>
 
-              {/* Boxers section */}
               <section className="space-y-4">
                 <div className="flex items-center justify-between px-1">
-                  <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Boxers</h2>
-                  <span className="text-xs text-slate-400">{boxers.length} added</span>
+                  <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">{t.boxers}</h2>
+                  <span className="text-xs text-slate-400">{t.added(boxers.length)}</span>
                 </div>
 
                 {boxers.map((b, i) => (
@@ -191,7 +286,7 @@ export default function EventRegister() {
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
                           {i + 1}
                         </span>
-                        <h3 className="font-semibold text-slate-900">Boxer {i + 1}</h3>
+                        <h3 className="font-semibold text-slate-900">{t.boxerNum(i + 1)}</h3>
                       </div>
                       {boxers.length > 1 && (
                         <button
@@ -202,37 +297,37 @@ export default function EventRegister() {
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>
-                          Remove
+                          {t.remove}
                         </button>
                       )}
                     </div>
 
                     <div className="space-y-4 p-5">
                       <Input
-                        label="Full Name"
+                        label={t.fullName}
                         value={b.fullName}
                         onChange={(e) => updateBoxer(i, 'fullName', e.target.value)}
                         required
-                        placeholder="Boxer's full name"
+                        placeholder={t.fullNamePlaceholder}
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Select label="Weight Category" value={b.weight} onChange={(e) => updateBoxer(i, 'weight', e.target.value)} required>
-                          <option value="">Select weight…</option>
+                        <Select label={t.weightCategory} value={b.weight} onChange={(e) => updateBoxer(i, 'weight', e.target.value)} required>
+                          <option value="">{t.selectWeight}</option>
                           {event.weightCategories.map((c) => <option key={c} value={c}>{c}</option>)}
                         </Select>
-                        <Select label="Age Category" value={b.age} onChange={(e) => updateBoxer(i, 'age', e.target.value)} required>
-                          <option value="">Select age…</option>
+                        <Select label={t.ageCategory} value={b.age} onChange={(e) => updateBoxer(i, 'age', e.target.value)} required>
+                          <option value="">{t.selectAge}</option>
                           {event.ageCategories.map((c) => <option key={c} value={c}>{c}</option>)}
                         </Select>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Select label="Gender" value={b.gender} onChange={(e) => updateBoxer(i, 'gender', e.target.value)} required>
-                          <option value="">Select gender…</option>
-                          <option value="M">Male</option>
-                          <option value="F">Female</option>
+                        <Select label={t.gender} value={b.gender} onChange={(e) => updateBoxer(i, 'gender', e.target.value)} required>
+                          <option value="">{t.selectGender}</option>
+                          <option value="M">{t.male}</option>
+                          <option value="F">{t.female}</option>
                         </Select>
                         <Input
-                          label="Number of Bouts"
+                          label={t.numberOfBouts}
                           type="number"
                           min="1"
                           required
@@ -253,7 +348,7 @@ export default function EventRegister() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                Add another boxer
+                {t.addAnother}
               </button>
 
               {error && (
@@ -265,14 +360,12 @@ export default function EventRegister() {
                 </div>
               )}
 
-              {/* Desktop submit (inline) */}
               <div className="hidden sm:block">{submitButton}</div>
             </div>
           </form>
         )}
       </main>
 
-      {/* Mobile fixed bottom submit */}
       {!closed && (
         <div
           className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-[0_-2px_16px_rgba(0,0,0,0.06)] backdrop-blur-md sm:hidden"
@@ -284,9 +377,9 @@ export default function EventRegister() {
       <Modal
         open={done}
         onClose={closeThankYou}
-        title="Registration submitted"
+        title={t.thankTitle}
         footer={
-          <Button onClick={closeThankYou} className="w-full py-2.5">Close</Button>
+          <Button onClick={closeThankYou} className="w-full py-2.5">{t.close}</Button>
         }
       >
         <div className="py-4 text-center">
@@ -295,11 +388,9 @@ export default function EventRegister() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="mt-5 text-2xl font-bold text-slate-900">Thank you!</h2>
+          <h2 className="mt-5 text-2xl font-bold text-slate-900">{t.thankYou}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
-            Your boxer(s) have been registered for{' '}
-            <span className="font-semibold text-slate-900">{event?.name}</span>. The event promoter will review and confirm
-            each entry.
+            {t.thankBody(event?.name)}
           </p>
         </div>
       </Modal>
