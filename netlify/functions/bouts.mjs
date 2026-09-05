@@ -36,21 +36,35 @@ export default async (event) => {
       if (user.role !== 'promoter') {
         return errorResponse({ message: 'Forbidden', status: 403 })
       }
-      // Reorder an event's bouts by setting sortOrder from the provided order of ids.
+      // Reorder an event's bouts: recompute boutNumber, sortOrder and bracketPosition
+      // for the whole event so schedules, results and the public draw all follow.
       const { eventId } = params
       if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
       const body = JSON.parse(event.body || '{}')
       const { order } = body
       if (!Array.isArray(order)) return errorResponse({ message: 'order array required', status: 400 })
 
-      const ops = order.map((boutId, idx) => ({
+      const all = await Bout.find({ eventId }).sort({ sortOrder: 1, boutNumber: 1 })
+
+      const idSet = new Set(order.map((x) => String(x)))
+      if (order.some((id) => !all.some((b) => String(b._id) === String(id)))) {
+        return errorResponse({ message: 'One of the bouts does not belong to this event', status: 400 })
+      }
+
+      // Reordered bouts keep the new order first; any remaining bouts (other categories)
+      // follow in their existing natural order.
+      const reordered = order.map((id) => all.find((b) => String(b._id) === String(id)))
+      const rest = all.filter((b) => !idSet.has(String(b._id)))
+      const finalOrder = [...reordered, ...rest]
+
+      const ops = finalOrder.map((bout, idx) => ({
         updateOne: {
-          filter: { _id: boutId },
-          update: { $set: { sortOrder: idx } },
+          filter: { _id: bout._id },
+          update: { $set: { sortOrder: idx, boutNumber: idx + 1, bracketPosition: idx } },
         },
       }))
 
-      await Bout.bulkWrite(ops)
+      if (ops.length) await Bout.bulkWrite(ops)
 
       const bouts = await Bout.find({ eventId })
         .sort({ sortOrder: 1, boutNumber: 1 })
@@ -58,7 +72,7 @@ export default async (event) => {
         .populate({ path: 'boxerBId', populate: { path: 'boxerId' } })
         .populate({ path: 'winnerId', populate: { path: 'boxerId' } })
         .lean()
-      return success({ bouts })
+      return success({ message: 'Draw reordered', bouts })
     }
 
     if (event.httpMethod === 'PATCH' || event.httpMethod === 'PUT') {

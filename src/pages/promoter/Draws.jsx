@@ -460,7 +460,8 @@ export default function Draws() {
     setActing(true)
     try {
       const d = await api(`/bouts?eventId=${id}`, { method: 'POST', body: { order: next.map((b) => b._id) } })
-      setBouts(d.bouts)
+      toast(d.message || 'Draw reordered')
+      await reloadDraw()
     } catch (err) {
       toast(err.message, 'error')
       await reloadDraw()
