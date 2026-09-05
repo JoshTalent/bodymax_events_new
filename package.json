@@ -24,6 +24,8 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "mongoose": "^9.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

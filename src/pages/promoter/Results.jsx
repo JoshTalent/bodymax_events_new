@@ -86,12 +86,98 @@ export default function Results() {
 
   const ordered = bouts ? [...bouts].sort((a, b) => a.boutNumber - b.boutNumber) : []
 
+  const resultText = (b) => {
+    if (b.status === 'completed') {
+      const winner = b.winnerId?.boxerId?.fullName || '—'
+      const method = b.result?.method || 'Decision'
+      const round = b.result?.round ? ` in round ${b.result.round}` : ''
+      return `${winner} wins by ${method}${round}`
+    }
+    if (b.status === 'walkover') {
+      const a = b.boxerAId
+      const bb = b.boxerBId
+      const adv = b.winnerId ? (String(b.winnerId._id || b.winnerId) === String(a?._id) ? a?.boxerId?.fullName : bb?.boxerId?.fullName) : '—'
+      return `Walkover — ${adv || ''} advances`.trim()
+    }
+    return '—'
+  }
+
+  const downloadPdf = async () => {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
+    const doc = new jsPDF()
+    const pageW = doc.internal.pageSize.getWidth()
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Bodymax Boxing — Event Results', 14, 18)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(event.name || 'Event', 14, 26)
+    if (event.eventDate) {
+      doc.setFontSize(10)
+      doc.setTextColor(100)
+      doc.text(`Date: ${new Date(event.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 32)
+      doc.setTextColor(0)
+    }
+
+    const rows = ordered.map((b) => {
+      const a = b.boxerAId?.boxerId?.fullName || 'Bye'
+      const bb = b.boxerBId?.boxerId?.fullName || 'Bye'
+      const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
+      const aWin = b.status === 'completed' && winnerId && b.boxerAId && String(b.boxerAId._id) === winnerId
+      const bWin = b.status === 'completed' && winnerId && b.boxerBId && String(b.boxerBId._id) === winnerId
+      const cat = [b.category?.weight, b.category?.age].filter(Boolean).join(' · ') || '—'
+      return [
+        `#${b.boutNumber}`,
+        aWin ? `${a} (W)` : a,
+        bWin ? `${bb} (W)` : bb,
+        cat,
+        resultText(b),
+      ]
+    })
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Bout', 'Boxer A', 'Boxer B', 'Category', 'Result']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9, cellPadding: 2.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 18 },
+        4: { cellWidth: 55 },
+      },
+    })
+
+    const hasUnrecorded = ordered.filter((b) => !['completed', 'walkover'].includes(b.status)).length
+    if (hasUnrecorded) {
+      doc.setFontSize(9)
+      doc.setTextColor(120)
+      doc.text(`${hasUnrecorded} bout${hasUnrecorded === 1 ? '' : 's'} pending result not shown.`, 14, doc.internal.pageSize.getHeight() - 8)
+    }
+
+    const safeName = (event.name || 'event').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
+    doc.save(`results-${safeName}.pdf`)
+  }
+
+  const hasResults = ordered.some((b) => ['completed', 'walkover'].includes(b.status))
+
   return (
     <div>
       <div className="mb-6">
         <button onClick={() => navigate(`/app/events/${id}`)} className="mb-1 text-sm text-brand-600 hover:underline">← Back to Event</button>
-        <h1 className="text-2xl font-bold text-slate-900">Results</h1>
-        <p className="text-sm text-slate-500">{event.name} · record the winner of each bout</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Results</h1>
+            <p className="text-sm text-slate-500">{event.name} · record the winner of each bout</p>
+          </div>
+          {ordered.length > 0 && (
+            <Button variant="secondary" onClick={downloadPdf} disabled={!hasResults}>
+              Download PDF
+            </Button>
+          )}
+        </div>
       </div>
 
       {!bouts ? (
