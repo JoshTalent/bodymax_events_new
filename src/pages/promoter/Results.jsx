@@ -165,12 +165,20 @@ export default function Results() {
   ].filter(Boolean).join(' · ')
 
   const downloadPdf = async () => {
+    try {
+      await buildPdf()
+    } catch (err) {
+      console.error('PDF generation failed', err)
+      toast(String(err?.message || err), 'error')
+    }
+  }
+
+  const buildPdf = async () => {
     const [{ jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
     const slate = [15, 23, 42]
     const red = [220, 38, 38]
-    const blue = [37, 99, 235]
     const emerald = [5, 150, 105]
     const amber = [180, 83, 9]
     const gray = [100, 116, 139]
@@ -179,7 +187,6 @@ export default function Results() {
     const light = [248, 250, 252]
 
     const pageW = doc.internal.pageSize.getWidth()
-    const pageH = doc.internal.pageSize.getHeight()
     const M = 14
 
     // Branded header band
@@ -248,21 +255,22 @@ export default function Results() {
     })
     y += 12 + 7
 
-    const rows = ordered.map((b) => {
+    const rows = []
+    const rowMeta = []
+    ordered.forEach((b) => {
       const a = b.boxerAId?.boxerId?.fullName || 'Bye'
       const bb = b.boxerBId?.boxerId?.fullName || 'Bye'
       const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
-      const aWin = b.status === 'completed' && winnerId && b.boxerAId && String(b.boxerAId._id) === winnerId
-      const bWin = b.status === 'completed' && winnerId && b.boxerBId && String(b.boxerBId._id) === winnerId
+      const aWin = b.status === 'completed' && b.boxerAId && String(b.boxerAId._id) === winnerId
+      const bWin = b.status === 'completed' && b.boxerBId && String(b.boxerBId._id) === winnerId
       const cat = [b.category?.weight, b.category?.age, b.category?.gender].filter(Boolean).join(' · ') || '—'
       const result = b.status === 'completed'
-        ? `${b.winnerId?.boxerId?.fullName || '—'}${b.result?.method ? ` · ${b.result.method}` : ''}${b.result?.round ? ` · R${b.result.round}` : ''}`
+        ? `${b.winnerId?.boxerId?.fullName || '—'} · ${b.result?.method || 'Decision'}${b.result?.round ? ` · R${b.result.round}` : ''}`
         : b.status === 'walkover'
           ? `Walkover · ${b.winnerId?.boxerId?.fullName || '—'}`
           : 'Pending'
-      return {
-        content: [`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, cat, result],
-      }
+      rows.push([`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, cat, result])
+      rowMeta.push({ status: b.status, aWin, bWin })
     })
 
     autoTable(doc, {
@@ -283,17 +291,14 @@ export default function Results() {
       },
       didParseCell: (data) => {
         if (data.section !== 'body') return
-        const b = ordered[data.row.index]
+        const meta = rowMeta[data.row.index]
+        if (!meta) return
         if (data.column.index === 4) {
-          data.cell.styles.textColor = b.status === 'completed' ? emerald : b.status === 'walkover' ? amber : gray
-          if (b.status === 'completed') data.cell.styles.fontStyle = 'bold'
+          data.cell.styles.textColor = meta.status === 'completed' ? emerald : meta.status === 'walkover' ? amber : gray
+          if (meta.status === 'completed') data.cell.styles.fontStyle = 'bold'
         }
         if (data.column.index === 1 || data.column.index === 2) {
-          const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
-          const isWinner = b.status === 'completed' && winnerId && (
-            (data.column.index === 1 && b.boxerAId && String(b.boxerAId._id) === winnerId) ||
-            (data.column.index === 2 && b.boxerBId && String(b.boxerBId._id) === winnerId)
-          )
+          const isWinner = data.column.index === 1 ? meta.aWin : meta.bWin
           if (isWinner) {
             data.cell.styles.textColor = emerald
             data.cell.styles.fontStyle = 'bold'
@@ -302,7 +307,7 @@ export default function Results() {
       },
     })
 
-    const finalY = doc.lastAutoTable.finalY
+    const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || y
 
     if (pending > 0) {
       doc.setFontSize(8)
