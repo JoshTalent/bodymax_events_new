@@ -16,6 +16,7 @@ const PATH_MAP = {
   '/draws/manual': '/draws-manual',
   '/draws/delete': '/draws-delete',
   '/draws/get': '/draws-get',
+  '/draws/public': '/draws-public',
   '/draws/boxer': '/draws-boxer',
   '/draws/boxer-update': '/draws-boxer-update',
   '/bout/boxer': '/bout-boxer',

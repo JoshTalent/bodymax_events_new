@@ -292,6 +292,20 @@ export default function Draws() {
     await loadDraw(id, weight, a)
   }
 
+  const shareDraw = async () => {
+    if (!event?.registrationToken) {
+      toast('No public link available for this event', 'error')
+      return
+    }
+    const url = `${window.location.origin}/draws/${event.registrationToken}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('Public draw link copied')
+    } catch {
+      toast(url, 'info')
+    }
+  }
+
   if (!event || !registrations) return <Loading />
 
   const eligible = registrations.filter((r) =>
@@ -662,6 +676,9 @@ export default function Draws() {
               Delete Draw
             </Button>
           )}
+          <Button variant="secondary" onClick={shareDraw} disabled={!event?.registrationToken}>
+            Share Draw
+          </Button>
           <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
             {eligible.length} eligible
           </span>

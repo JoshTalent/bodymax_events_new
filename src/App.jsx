@@ -7,6 +7,7 @@ import PublicEvents from './pages/public/PublicEvents.jsx'
 import PublicEventDetail from './pages/public/PublicEventDetail.jsx'
 import RolePortal from './pages/public/RolePortal.jsx'
 import EventRegister from './pages/public/EventRegister.jsx'
+import PublicDraws from './pages/public/PublicDraws.jsx'
 import Login from './pages/Login.jsx'
 
 import DashboardLayout from './pages/DashboardLayout.jsx'
@@ -46,6 +47,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/events" element={<PublicEvents />} />
       <Route path="/events/:id" element={<PublicEventDetail />} />
+      <Route path="/draws/:token" element={<PublicDraws />} />
       <Route path="/portal/:token" element={<RolePortal />} />
       <Route path="/register/:token" element={<EventRegister />} />
       <Route path="/login" element={<LoginRoute />} />
