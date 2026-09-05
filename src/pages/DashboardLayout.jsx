@@ -110,7 +110,7 @@ export default function DashboardLayout() {
   const isActive = (path, end) => (end ? location.pathname === path : location.pathname.startsWith(path))
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 md:pl-64">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-slate-900 text-slate-300 md:block">
         <div className="flex h-16 items-center border-b border-slate-800 px-5">
@@ -170,7 +170,7 @@ export default function DashboardLayout() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:ml-64 md:p-8 md:pb-8 lg:pb-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:p-8 md:pb-8 lg:pb-8">
         <Outlet />
       </main>
 
