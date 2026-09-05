@@ -248,7 +248,7 @@ export default function Draws() {
   const [building, setBuilding] = useState(false)
   const [addBoxerOpen, setAddBoxerOpen] = useState(false)
   const [addingBoxer, setAddingBoxer] = useState(false)
-  const [addForm, setAddForm] = useState({ fullName: '', gender: '', weight: '', age: '' })
+  const [addForm, setAddForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
 
   const [editBoxer, setEditBoxer] = useState(null)
   const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1 })
@@ -258,7 +258,7 @@ export default function Draws() {
   const [assignTarget, setAssignTarget] = useState(null)
   const [assignId, setAssignId] = useState('')
   const [savingAssign, setSavingAssign] = useState(false)
-  const [assignForm, setAssignForm] = useState({ fullName: '', gender: '', weight: '', age: '' })
+  const [assignForm, setAssignForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
   const [showAddAssign, setShowAddAssign] = useState(false)
   const [addingAssign, setAddingAssign] = useState(false)
 
@@ -325,7 +325,7 @@ export default function Draws() {
       : []
     setManualPairs(r1.length ? r1 : [{ a: '', b: '' }])
     setEditMode(hasDraw)
-    setAddForm({ fullName: '', gender: '', weight: weight || '', age: age || '' })
+    setAddForm({ fullName: '', clubName: '', gender: '', weight: weight || '', age: age || '' })
     setAddBoxerOpen(false)
     setManualOpen(true)
   }
@@ -390,6 +390,7 @@ export default function Draws() {
         method: 'POST',
         body: {
           fullName: addForm.fullName.trim(),
+          clubName: addForm.clubName.trim(),
           gender: addForm.gender || '',
           weight: addForm.weight || weight || '',
           age: addForm.age || age || '',
@@ -397,7 +398,7 @@ export default function Draws() {
       })
       toast('Boxer added — now assign them to a bout')
       await loadEvent()
-      setAddForm({ fullName: '', gender: '', weight: '', age: '' })
+      setAddForm({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
       setAddBoxerOpen(false)
     } catch (err) {
       toast(err.message, 'error')
@@ -530,7 +531,7 @@ export default function Draws() {
 
   const openAssign = (bout, side) => {
     setAssignId('')
-    setAssignForm({ fullName: '', gender: '', weight: '', age: '' })
+    setAssignForm({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
     setShowAddAssign(false)
     setAssignTarget({ bout, side })
   }
@@ -565,6 +566,7 @@ export default function Draws() {
         method: 'POST',
         body: {
           fullName: assignForm.fullName.trim(),
+          clubName: assignForm.clubName.trim(),
           gender: assignForm.gender || '',
           weight: assignForm.weight || weight || '',
           age: assignForm.age || age || '',
@@ -747,11 +749,14 @@ export default function Draws() {
 
           {addBoxerOpen && (
             <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-4">
-              <p className="text-sm font-semibold text-slate-900">Add a boxer who isn't on any club</p>
-              <p className="mb-3 text-xs text-slate-500">Registered in this event and ready to pair below.</p>
+              <p className="text-sm font-semibold text-slate-900">Add a boxer manually</p>
+              <p className="mb-3 text-xs text-slate-500">Registered in this event and ready to pair below. Leave the club empty for an individual boxer.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Input label="Full Name" value={addForm.fullName} onChange={(e) => setAddForm({ ...addForm, fullName: e.target.value })} placeholder="e.g. James Mwangi" />
+                </div>
+                <div>
+                  <Input label="Club / Team" value={addForm.clubName} onChange={(e) => setAddForm({ ...addForm, clubName: e.target.value })} placeholder="e.g. Tigers Boxing Club" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
@@ -948,8 +953,9 @@ export default function Draws() {
 
             {showAddAssign && (
               <div className="space-y-3 px-3 pb-3">
-                <p className="text-xs text-slate-500">Creates a registration in this event, then places the boxer in the empty slot.</p>
+                <p className="text-xs text-slate-500">Creates a registration in this event, then places the boxer in the empty slot. Leave the club empty for an individual boxer.</p>
                 <Input label="Full Name" value={assignForm.fullName} onChange={(e) => setAssignForm({ ...assignForm, fullName: e.target.value })} placeholder="e.g. Kevin Otieno" />
+                <Input label="Club / Team" value={assignForm.clubName} onChange={(e) => setAssignForm({ ...assignForm, clubName: e.target.value })} placeholder="e.g. Cobra Boxing Club" />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>

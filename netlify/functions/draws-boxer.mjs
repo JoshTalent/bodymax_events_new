@@ -1,5 +1,6 @@
 import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
+import Club from './_shared/models/Club.js'
 import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
@@ -18,10 +19,11 @@ export default async (event) => {
     if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
 
     const body = JSON.parse(event.body || '{}')
-    const { fullName, gender = '', weight = '', age = '' } = body
+    const { fullName, gender = '', weight = '', age = '', clubName = '' } = body
     if (!fullName || !fullName.trim()) {
       return errorResponse({ message: 'Boxer full name required', status: 400 })
     }
+    const cleanClub = String(clubName || '').trim()
 
     await connectDB()
 
@@ -39,15 +41,31 @@ export default async (event) => {
 
     const cleanName = fullName.trim()
 
-    let boxer = await Boxer.findOne({ fullName: new RegExp(`^${cleanName}$`, 'i'), clubId: null })
+    // Link to an existing club by name, or create the club on the fly.
+    let clubId = null
+    if (cleanClub) {
+      let club = await Club.findOne({ name: new RegExp(`^${cleanClub}$`, 'i') })
+      if (!club) club = await Club.create({ name: cleanClub })
+      clubId = club._id
+    }
+
+    let boxer = await Boxer.findOne({
+      fullName: new RegExp(`^${cleanName}$`, 'i'),
+      ...(cleanClub ? { clubName: new RegExp(`^${cleanClub}$`, 'i') } : { clubId: null }),
+    })
     if (!boxer) {
       boxer = await Boxer.create({
-        clubId: null,
+        clubId,
+        clubName: cleanClub,
         fullName: cleanName,
         gender: gender || null,
         weightCategory: weight,
         ageCategory: age,
       })
+    } else if (cleanClub && (!boxer.clubId || String(boxer.clubId) !== String(clubId))) {
+      boxer.clubId = clubId
+      boxer.clubName = cleanClub
+      await boxer.save()
     }
 
     let registration = await Registration.findOne({ eventId, boxerId: boxer._id })
@@ -57,12 +75,13 @@ export default async (event) => {
         age: age || registration.category?.age || '',
         gender: gender || registration.category?.gender || '',
       }
+      registration.clubName = cleanClub
       registration.status = 'eligible'
       await registration.save()
     } else {
       registration = await Registration.create({
         eventId,
-        clubName: body.clubName || '',
+        clubName: cleanClub,
         numberOfBouts: Number(body.numberOfBouts) || 1,
         boxerId: boxer._id,
         category: { weight, age, gender },
