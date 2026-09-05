@@ -48,6 +48,8 @@ export default function Registrations() {
   const [action, setAction] = useState('')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
+  const [deleteBoxer, setDeleteBoxer] = useState(null)
+  const [busyDelete, setBusyDelete] = useState(false)
 
   const load = () => {
     setBusyLoad(true)
@@ -103,6 +105,20 @@ export default function Registrations() {
       toast(err.message, 'error')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    setBusyDelete(true)
+    try {
+      await api(`/boxers?id=${deleteBoxer._id}`, { method: 'DELETE' })
+      toast(`Boxer "${deleteBoxer.fullName}" removed permanently`)
+      setDeleteBoxer(null)
+      load()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setBusyDelete(false)
     }
   }
 
@@ -250,6 +266,11 @@ export default function Registrations() {
                           ) : (
                             <span className="text-xs text-slate-300">—</span>
                           )}
+                          {isPromoter && (
+                            <Button size="sm" variant="secondary" className="border-slate-300 text-slate-500 hover:border-rose-300 hover:text-rose-600" onClick={() => setDeleteBoxer(r.boxerId)}>
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -277,6 +298,28 @@ export default function Registrations() {
         </p>
         <div className="mt-4">
           <Textarea label="Feedback (optional)" value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} />
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!deleteBoxer}
+        onClose={() => setDeleteBoxer(null)}
+        title="Delete Boxer Permanently"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteBoxer(null)}>Cancel</Button>
+            <Button onClick={confirmDelete} disabled={busyDelete} variant="danger">
+              {busyDelete ? <Spinner className="h-4 w-4 border-white" /> : 'Delete Permanently'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          You are about to permanently delete{' '}
+          <span className="font-semibold text-slate-900">{deleteBoxer?.fullName || 'this boxer'}</span>.
+        </p>
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          This removes them from every event — registrations, draws, weigh-ins and recorded results — and cannot be undone.
         </div>
       </Modal>
     </div>
