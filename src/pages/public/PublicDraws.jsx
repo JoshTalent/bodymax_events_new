@@ -22,6 +22,8 @@ const text = {
     allWeights: 'All weights',
     bye: 'Bye — no opponent',
     individual: 'Individual',
+    redCorner: 'Red Corner',
+    blueCorner: 'Blue Corner',
     winner: 'Winner',
     walkoverNoOpponent: 'Walkover — opponent unavailable.',
     result: 'Result',
@@ -51,6 +53,8 @@ const text = {
     allWeights: 'ibiro bwose',
     bye: 'Bye — nta mukunywanyi',
     individual: 'Ku giti cye',
+    redCorner: 'Impande Itukura',
+    blueCorner: 'Impande Y’ubururu',
     winner: 'Uwayitsinze',
     walkoverNoOpponent: 'Walkover — umukunywanyi ntabonetse.',
     result: 'Ibyavuyemo',
@@ -93,9 +97,13 @@ function StatusPill({ status, t }) {
   )
 }
 
-function Fighter({ reg, isWinner, t }) {
+function Fighter({ corner, reg, isWinner, t }) {
   const n = reg?.boxerId?.fullName
   const c = reg?.clubName || reg?.boxerId?.clubName || reg?.clubId?.name || ''
+  const isRed = corner === 'red'
+  const cornerLabel = isRed ? t.redCorner : t.blueCorner
+  const cornerAccent = isRed ? 'bg-red-600 text-white' : 'bg-blue-700 text-white'
+  const cornerBorder = isRed ? 'border-red-200' : 'border-blue-200'
 
   if (!n) {
     return (
@@ -110,15 +118,16 @@ function Fighter({ reg, isWinner, t }) {
   return (
     <div className={cn(
       'flex flex-1 items-center gap-3 rounded-xl border px-4 py-4',
-      isWinner ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'
+      isWinner ? 'border-emerald-300 bg-emerald-50' : cn('bg-white', cornerBorder)
     )}>
       <span className={cn(
         'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-        isWinner ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
+        isWinner ? 'bg-emerald-600 text-white' : cornerAccent
       )}>
         {initials}
       </span>
       <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">{cornerLabel}</span>
         <span className="block truncate text-base font-semibold text-slate-900">{n}</span>
         <span className="block truncate text-sm text-slate-500">{c || t.individual}</span>
       </span>
@@ -280,11 +289,11 @@ export default function PublicDraws() {
                       </div>
 
                       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                        <Fighter reg={b.boxerAId} isWinner={isWinnerA} t={t} />
+                        <Fighter corner="red" reg={b.boxerAId} isWinner={isWinnerA} t={t} />
                         <span className="self-center flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold uppercase text-white sm:mx-1">
                           vs
                         </span>
-                        <Fighter reg={b.boxerBId} isWinner={isWinnerB} t={t} />
+                        <Fighter corner="blue" reg={b.boxerBId} isWinner={isWinnerB} t={t} />
                       </div>
 
                       {(b.status === 'completed' || b.status === 'walkover') && (
