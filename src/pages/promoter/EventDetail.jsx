@@ -249,7 +249,6 @@ export default function EventDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={openEdit}>Edit Details</Button>
             <Button variant="secondary" onClick={() => navigate(`/app/events/${id}/draws`)}>Draws</Button>
-            <Button variant="secondary" onClick={() => navigate(`/app/events/${id}/bouts`)}>Bouts</Button>
             <Button variant="secondary" onClick={() => navigate(`/app/events/${id}/results`)}>Results</Button>
             <select
               value={event.status}

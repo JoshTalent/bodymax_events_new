@@ -16,7 +16,6 @@ import EventList from './pages/promoter/EventList.jsx'
 import EventCreate from './pages/promoter/EventCreate.jsx'
 import EventDetail from './pages/promoter/EventDetail.jsx'
 import Draws from './pages/promoter/Draws.jsx'
-import Bouts from './pages/promoter/Bouts.jsx'
 import Results from './pages/promoter/Results.jsx'
 import ClubList from './pages/promoter/ClubList.jsx'
 import ClubDetail from './pages/promoter/ClubDetail.jsx'
@@ -66,7 +65,6 @@ export default function App() {
         <Route path="events/new" element={<ProtectedRoute roles={['promoter']}><EventCreate /></ProtectedRoute>} />
         <Route path="events/:id" element={<EventDetail />} />
         <Route path="events/:id/draws" element={<ProtectedRoute roles={['promoter']}><Draws /></ProtectedRoute>} />
-        <Route path="events/:id/bouts" element={<ProtectedRoute roles={['promoter']}><Bouts /></ProtectedRoute>} />
         <Route path="events/:id/results" element={<ProtectedRoute roles={['promoter']}><Results /></ProtectedRoute>} />
 
         <Route path="clubs" element={<ProtectedRoute roles={['promoter']}><ClubList /></ProtectedRoute>} />

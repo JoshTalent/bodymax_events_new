@@ -694,7 +694,7 @@ export default function Draws() {
         </Card>
       ) : (
         <Card>
-          <CardHeader title="Bout List" subtitle={`${ordered.length} bout${ordered.length === 1 ? '' : 's'} scheduled — record results on the Bouts page`} />
+          <CardHeader title="Bout List" subtitle={`${ordered.length} bout${ordered.length === 1 ? '' : 's'} scheduled — record results on the Results page`} />
           <CardBody>
             <ul className="divide-y divide-slate-200">
               {ordered.map((b, i) => (
