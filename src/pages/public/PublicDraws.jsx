@@ -2,7 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
+import { LanguageModal } from '../../components/LanguageModal.jsx'
 import { cn } from '../../utils/cn.js'
+import { getSavedLang, persistLang } from '../../utils/language.js'
 
 const text = {
   en: {
@@ -148,8 +150,15 @@ export default function PublicDraws() {
   const [bouts, setBouts] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState(getSavedLang() || 'en')
+  const [showLang, setShowLang] = useState(!getSavedLang())
   const t = lang === 'rw' ? text.rw : text.en
+
+  const chooseLang = (code) => {
+    persistLang(code)
+    setLang(code)
+    setShowLang(false)
+  }
 
   useEffect(() => {
     api(`/draws/public?token=${encodeURIComponent(token)}`)
@@ -161,7 +170,12 @@ export default function PublicDraws() {
       .finally(() => setLoading(false))
   }, [token])
 
-  if (loading) return <Loading />
+  if (loading) return (
+    <>
+      <Loading />
+      <LanguageModal open={showLang} onSelect={chooseLang} />
+    </>
+  )
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -182,7 +196,7 @@ export default function PublicDraws() {
                 <button
                   key={code}
                   type="button"
-                  onClick={() => setLang(code)}
+                  onClick={() => chooseLang(code)}
                   className={cn(
                     'rounded-full px-3 py-1 text-xs font-semibold transition',
                     lang === code ? 'bg-white text-slate-900' : 'text-slate-200 hover:text-white'
@@ -295,6 +309,8 @@ export default function PublicDraws() {
           {t.footerBy} <span className="text-slate-700">Bodymax</span> · {t.footerTag}
         </p>
       </footer>
+
+      <LanguageModal open={showLang} onSelect={chooseLang} />
     </div>
   )
 }

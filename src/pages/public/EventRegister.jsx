@@ -4,8 +4,10 @@ import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
 import { Button } from '../../components/Button.jsx'
 import { Modal } from '../../components/Modal.jsx'
+import { LanguageModal } from '../../components/LanguageModal.jsx'
 import { Input, Select } from '../../components/Field.jsx'
 import { cn } from '../../utils/cn.js'
+import { getSavedLang, persistLang } from '../../utils/language.js'
 
 const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
 
@@ -48,22 +50,22 @@ const text = {
     close: 'Close',
   },
   rw: {
-    eventRegistration: 'Iyandikisha ry’ibirori',
+    eventRegistration: 'Iyandikisha mwirushanwa',
     registrationOpen: 'Iyandikisha riracyafunguye',
     registrationClosed: 'Iyandikisha ryafunze',
-    venue: 'Aho bizobera',
+    venue: 'Aho bizabera',
     yourClub: 'Ikipe yawe',
-    clubSub: 'Ikipe cyangwa itsinda abakinnyi barimo',
+    clubSub: 'Ikipe cyangwa itsinda abakinnyi ',
     clubLabel: 'Izina ry’ikipe / itsinda',
     clubPlaceholder: 'urugero: Midlands Boxing Club',
     boxers: 'Abakinnyi',
     added: (n) => `${n} byongewe`,
     boxerNum: (n) => `Umukinnyi wa ${n}`,
-    remove: 'Hanagura',
-    fullName: 'Amazina yuzuye',
-    fullNamePlaceholder: 'Amazina yuzuye y’umukinnyi',
-    weightCategory: 'Icyiciro cy’uburemere',
-    selectWeight: 'Hitamo uburemere…',
+    remove: 'kuraho',
+    fullName: 'Amazina yose',
+    fullNamePlaceholder: 'Amazina yose y’umukinnyi',
+    weightCategory: 'Icyiciro cy’ibiro',
+    selectWeight: 'Hitamo ibiro…',
     ageCategory: 'Icyiciro cy’imyaka',
     selectAge: 'Hitamo imyaka…',
     gender: 'Igitsina',
@@ -78,9 +80,9 @@ const text = {
     closedBody: 'Iki birori nticyemera kongera kwiyandikisha abakinnyi.',
     linkUnavailable: 'Uhuza rwo kwiyandikisha ntirukoreshwa',
     back: 'Subira kuri Bodymax',
-    thankTitle: 'Iyandikisha ryakozwe',
+    thankTitle: 'kwiyandikisha byakunze',
     thankYou: 'Urakoze!',
-    thankBody: (name) => `Abakinnyi bawe biyandikishije muri ${name}. Umuyobozi w’ibirori azasuzuma kandi yemeze buri wese.`,
+    thankBody: (name) => `Abakinnyi bawe biyandikishije muri ${name}. Umuyobozi w’umukino azasuzuma kandi yemeze buri wese.`,
     close: 'Funga',
   },
 }
@@ -94,8 +96,15 @@ export default function EventRegister() {
   const [boxers, setBoxers] = useState([{ ...EMPTY_BOXER }])
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState(getSavedLang() || 'en')
+  const [showLang, setShowLang] = useState(!getSavedLang())
   const t = lang === 'rw' ? text.rw : text.en
+
+  const chooseLang = (code) => {
+    persistLang(code)
+    setLang(code)
+    setShowLang(false)
+  }
 
   useEffect(() => {
     api(`/event-register?token=${token}`)
@@ -149,7 +158,7 @@ export default function EventRegister() {
         <button
           key={code}
           type="button"
-          onClick={() => setLang(code)}
+          onClick={() => chooseLang(code)}
           className={cn(
             'rounded-full px-3 py-1 text-xs font-semibold transition',
             lang === code ? 'bg-white text-slate-900' : 'text-slate-200 hover:text-white'
@@ -161,17 +170,25 @@ export default function EventRegister() {
     </div>
   )
 
-  if (loading) return <Loading />
+  if (loading) return (
+    <>
+      <Loading />
+      <LanguageModal open={showLang} onSelect={chooseLang} />
+    </>
+  )
 
   if (error && !event) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">{t.linkUnavailable}</h1>
-          <p className="mt-2 text-sm text-slate-500">{error}</p>
-          <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← {t.back}</Link>
+      <>
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">{t.linkUnavailable}</h1>
+            <p className="mt-2 text-sm text-slate-500">{error}</p>
+            <Link to="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">← {t.back}</Link>
+          </div>
         </div>
-      </div>
+        <LanguageModal open={showLang} onSelect={chooseLang} />
+      </>
     )
   }
 
@@ -394,6 +411,8 @@ export default function EventRegister() {
           </p>
         </div>
       </Modal>
+
+      <LanguageModal open={showLang} onSelect={chooseLang} />
     </div>
   )
 }
