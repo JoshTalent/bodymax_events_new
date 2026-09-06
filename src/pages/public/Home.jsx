@@ -1,83 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../../utils/api.js'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { cn } from '../../utils/cn.js'
-
-function EventBadge({ status, registrationOpen }) {
-  let cls = 'bg-blue-50 text-blue-700 ring-blue-600/20'
-  let label = 'Upcoming'
-  if (status === 'completed' || status === 'archived') {
-    cls = 'bg-slate-100 text-slate-600 ring-slate-400/20'
-    label = 'Completed'
-  } else if (status === 'in_progress') {
-    cls = 'bg-rose-50 text-rose-700 ring-rose-600/20'
-    label = 'Live Now'
-  } else if (registrationOpen) {
-    cls = 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
-    label = 'Registration Open'
-  }
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1', cls)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', status === 'in_progress' ? 'animate-pulse bg-rose-500' : status === 'completed' ? 'bg-slate-400' : registrationOpen ? 'bg-emerald-500' : 'bg-blue-500')} />
-      {label}
-    </span>
-  )
-}
-
-function EventCard({ ev }) {
-  const d = ev.eventDate ? new Date(ev.eventDate) : null
-  const month = d ? d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase() : 'TBD'
-  const day = d ? d.getDate() : '?'
-  const year = d ? d.getFullYear() : ''
-  const weights = ev.weightCategories?.slice(0, 3) || []
-
-  return (
-    <Link
-      to={`/events/${ev._id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl"
-    >
-      {/* Date band */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 px-5 py-4">
-        <div className="absolute -right-6 -top-10 h-28 w-28 rounded-full bg-brand-500/25 blur-2xl transition group-hover:bg-brand-500/40" />
-        <div className="relative flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-brand-300">
-            {month} {year}
-          </span>
-          <EventBadge status={ev.status} registrationOpen={ev.registrationOpen} />
-        </div>
-        <p className="relative mt-1 text-3xl font-black text-white">{day}</p>
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-lg font-bold text-slate-900 transition group-hover:text-brand-700">{ev.name}</h3>
-        <p className="mt-1.5 flex items-start gap-1.5 text-sm text-slate-500">
-          <svg className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-          </svg>
-          {[ev.venue, ev.location].filter(Boolean).join(' · ') || 'Venue TBA'}
-        </p>
-
-        {weights.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {weights.map((w) => (
-              <span key={w} className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{w}</span>
-            ))}
-          </div>
-        )}
-
-        <span className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-brand-600">
-          View event
-          <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-          </svg>
-        </span>
-      </div>
-    </Link>
-  )
-}
+import { PublicNavbar, PublicFooter } from '../../components/PublicSite.jsx'
+import PublicEventCard, { EventBadge } from '../../components/PublicEventCard.jsx'
 
 function Countdown({ target }) {
   const [, tick] = useState(0)
@@ -135,8 +61,7 @@ const features = [
 export default function Home() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
 
   useEffect(() => {
     api('/public-events')
@@ -144,11 +69,6 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
-
-  const handleSignOut = () => {
-    logout()
-    navigate('/')
-  }
 
   const upcoming = events.filter((e) => e.status !== 'completed' && e.status !== 'archived')
   const nextEvent = events
@@ -166,38 +86,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      {/* ===== Navbar ===== */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-600/30">
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-            </span>
-            <span className="text-lg font-black tracking-tight text-white">Bodymax</span>
-          </Link>
-
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link to="/" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white sm:block">Home</Link>
-            <Link to="/events" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white sm:block">Events</Link>
-            {user ? (
-              <>
-                <Link to="/app" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-500">
-                  Dashboard
-                </Link>
-                <button onClick={handleSignOut} className="text-sm font-semibold text-slate-300 transition hover:text-white">
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <Link to="/login" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-lg transition hover:bg-brand-50">
-                Sign in
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
+      <PublicNavbar active="home" />
 
       {/* ===== Hero ===== */}
       <section className="relative overflow-hidden bg-slate-950">
@@ -345,7 +234,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {events.map((ev) => <EventCard key={ev._id} ev={ev} />)}
+            {events.map((ev) => <PublicEventCard key={ev._id} ev={ev} />)}
           </div>
         )}
       </section>
@@ -399,54 +288,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== Footer ===== */}
-      <footer className="border-t border-white/10 bg-slate-950 py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-col items-center justify-between gap-8 md:flex-row md:items-start">
-            <div className="text-center md:text-left">
-              <Link to="/" className="inline-flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700">
-                  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
-                </span>
-                <span className="text-lg font-black tracking-tight text-white">Bodymax</span>
-              </Link>
-              <p className="mt-3 max-w-xs text-sm text-slate-500">Live event management for championship boxing — draws, results and everything between.</p>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Powered by Bodymax · Live event management
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-12 text-sm">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Explore</p>
-                <ul className="mt-3 space-y-2.5">
-                  <li><Link to="/" className="text-slate-500 transition hover:text-white">Home</Link></li>
-                  <li><Link to="/events" className="text-slate-500 transition hover:text-white">Events</Link></li>
-                  <li><Link to="/login" className="text-slate-500 transition hover:text-white">Sign in</Link></li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Promoters</p>
-                <ul className="mt-3 space-y-2.5">
-                  {user ? (
-                    <li><Link to="/app" className="text-slate-500 transition hover:text-white">Dashboard</Link></li>
-                  ) : (
-                    <>
-                      <li><Link to="/login" className="text-slate-500 transition hover:text-white">Sign in</Link></li>
-                      <li><Link to="/app" className="text-slate-500 transition hover:text-white">Dashboard</Link></li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="mt-10 border-t border-white/10 pt-6 text-center text-xs text-slate-600">
-            © {new Date().getFullYear()} Bodymax Tournament Management
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }
