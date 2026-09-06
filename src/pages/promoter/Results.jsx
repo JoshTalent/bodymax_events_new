@@ -263,37 +263,35 @@ export default function Results() {
       const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
       const aWin = b.status === 'completed' && b.boxerAId && String(b.boxerAId._id) === winnerId
       const bWin = b.status === 'completed' && b.boxerBId && String(b.boxerBId._id) === winnerId
-      const cat = [b.category?.weight, b.category?.age, b.category?.gender].filter(Boolean).join(' · ') || '—'
       const result = b.status === 'completed'
         ? `${b.winnerId?.boxerId?.fullName || '—'} · ${b.result?.method || 'Decision'}${b.result?.round ? ` · R${b.result.round}` : ''}`
         : b.status === 'walkover'
           ? `Walkover · ${b.winnerId?.boxerId?.fullName || '—'}`
           : 'Pending'
-      rows.push([`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, cat, result])
+      rows.push([`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, result])
       rowMeta.push({ status: b.status, aWin, bWin })
     })
 
     autoTable(doc, {
       startY: y,
       margin: { left: M, right: M },
-      head: [['BOUT', 'RED CORNER · BOXER A', 'BLUE CORNER · BOXER B', 'CATEGORY', 'RESULT']],
+      head: [['BOUT', 'RED CORNER · BOXER A', 'BLUE CORNER · BOXER B', 'RESULT']],
       body: rows,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 2.6, textColor: ink, lineColor: line, lineWidth: 0.25 },
       headStyles: { fillColor: slate, textColor: 255, fontStyle: 'bold', fontSize: 7.5, halign: 'left' },
       alternateRowStyles: { fillColor: light },
       columnStyles: {
-        0: { cellWidth: 14, halign: 'center', fontStyle: 'bold' },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 45 },
-        3: { cellWidth: 30, fontStyle: 'italic', textColor: gray },
-        4: { cellWidth: 48 },
+        0: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 66 },
       },
       didParseCell: (data) => {
         if (data.section !== 'body') return
         const meta = rowMeta[data.row.index]
         if (!meta) return
-        if (data.column.index === 4) {
+        if (data.column.index === 3) {
           data.cell.styles.textColor = meta.status === 'completed' ? emerald : meta.status === 'walkover' ? amber : gray
           if (meta.status === 'completed') data.cell.styles.fontStyle = 'bold'
         }
