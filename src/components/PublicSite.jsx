@@ -1,16 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
+import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn.js'
 
 export function PublicNavbar({ active }) {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  const handleSignOut = () => {
-    logout()
-    navigate('/')
-  }
-
   const link = (to, label, key) => (
     <Link
       to={to}
@@ -38,20 +29,6 @@ export function PublicNavbar({ active }) {
         <nav className="flex items-center gap-2 sm:gap-4">
           {link('/', 'Home', 'home')}
           {link('/events', 'Events', 'events')}
-          {user ? (
-            <>
-              <Link to="/app" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-500">
-                Dashboard
-              </Link>
-              <button onClick={handleSignOut} className="text-sm font-semibold text-slate-300 transition hover:text-white">
-                Sign out
-              </button>
-            </>
-          ) : (
-            <Link to="/login" className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-lg transition hover:bg-brand-50">
-              Sign in
-            </Link>
-          )}
         </nav>
       </div>
     </header>
@@ -59,8 +36,6 @@ export function PublicNavbar({ active }) {
 }
 
 export function PublicFooter() {
-  const { user } = useAuth()
-
   return (
     <footer className="border-t border-white/10 bg-slate-950 py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -86,13 +61,11 @@ export function PublicFooter() {
               <ul className="mt-3 space-y-2.5">
                 <li><Link to="/" className="text-slate-500 transition hover:text-white">Home</Link></li>
                 <li><Link to="/events" className="text-slate-500 transition hover:text-white">Events</Link></li>
-                <li><Link to="/login" className="text-slate-500 transition hover:text-white">Sign in</Link></li>
               </ul>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Promoters</p>
               <ul className="mt-3 space-y-2.5">
-                <li><Link to="/login" className="text-slate-500 transition hover:text-white">Sign in</Link></li>
                 <li><Link to="/app" className="text-slate-500 transition hover:text-white">Dashboard</Link></li>
               </ul>
             </div>
