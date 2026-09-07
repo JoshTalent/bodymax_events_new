@@ -55,20 +55,12 @@ export function PublicFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-12 text-sm">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Explore</p>
-              <ul className="mt-3 space-y-2.5">
-                <li><Link to="/" className="text-slate-500 transition hover:text-white">Home</Link></li>
-                <li><Link to="/events" className="text-slate-500 transition hover:text-white">Events</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Promoters</p>
-              <ul className="mt-3 space-y-2.5">
-                <li><Link to="/app" className="text-slate-500 transition hover:text-white">Dashboard</Link></li>
-              </ul>
-            </div>
+          <div className="text-sm">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Explore</p>
+            <ul className="mt-3 space-y-2.5">
+              <li><Link to="/" className="text-slate-500 transition hover:text-white">Home</Link></li>
+              <li><Link to="/events" className="text-slate-500 transition hover:text-white">Events</Link></li>
+            </ul>
           </div>
         </div>
         <div className="mt-10 border-t border-white/10 pt-6 text-center text-xs text-slate-600">
