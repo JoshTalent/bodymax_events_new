@@ -9,7 +9,7 @@ import { Input, Select } from '../../components/Field.jsx'
 import { cn } from '../../utils/cn.js'
 import { getSavedLang, persistLang } from '../../utils/language.js'
 
-const EMPTY_BOXER = { fullName: '', whatsapp: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
+const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
 
 const text = {
   en: {
@@ -27,9 +27,9 @@ const text = {
     remove: 'Remove',
     fullName: 'Full Name',
     fullNamePlaceholder: "Boxer's full name",
-    whatsapp: 'WhatsApp Number',
+    whatsapp: 'Club WhatsApp Number',
     whatsappPlaceholder: 'e.g. +250 7XX XXX XXX',
-    whatsappHint: 'Used by the promoter only to confirm and contact the boxer',
+    whatsappHint: 'Used by the promoter to contact the club about its boxers',
     weightCategory: 'Weight Category',
     selectWeight: 'Select weight…',
     ageCategory: 'Age Category',
@@ -67,9 +67,9 @@ const text = {
     remove: 'kuraho',
     fullName: 'Amazina yose',
     fullNamePlaceholder: 'Amazina yose y’umukinnyi',
-    whatsapp: 'Nomero ya WhatsApp',
+    whatsapp: 'Nomero ya WhatsApp y’ikipe',
     whatsappPlaceholder: 'urugero: +250 7XX XXX XXX',
-    whatsappHint: 'Umuyobozi w’umukino nyine niwe uzayikoresha kugira ngo yemeze kandi abone umukinnyi',
+    whatsappHint: 'Umuyobozi w’umukino azayikoresha kugira ngo abone ikipe ku byerekeye abakinnyi bayo',
     weightCategory: 'Icyiciro cy’ibiro',
     selectWeight: 'Hitamo ibiro…',
     ageCategory: 'Icyiciro cy’imyaka',
@@ -99,6 +99,7 @@ export default function EventRegister() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [clubName, setClubName] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
   const [boxers, setBoxers] = useState([{ ...EMPTY_BOXER }])
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -137,12 +138,11 @@ export default function EventRegister() {
       const filtered = boxers.map((b) => ({
         ...b,
         fullName: (b.fullName || '').trim(),
-        whatsapp: (b.whatsapp || '').trim(),
         numberOfBouts: Number(b.numberOfBouts) || 1,
       }))
       const res = await api(`/event-register?token=${token}`, {
         method: 'POST',
-        body: { clubName: clubName.trim(), boxers: filtered },
+        body: { clubName: clubName.trim(), whatsapp: whatsapp.trim(), boxers: filtered },
       })
       setDone(true)
     } catch (err) {
@@ -157,6 +157,7 @@ export default function EventRegister() {
     setDone(false)
     setBoxers([{ ...EMPTY_BOXER }])
     setClubName('')
+    setWhatsapp('')
   }
 
   const LangToggle = () => (
@@ -286,7 +287,7 @@ export default function EventRegister() {
                     <p className="text-sm text-slate-500">{t.clubSub}</p>
                   </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 space-y-4">
                   <Input
                     label={t.clubLabel}
                     value={clubName}
@@ -294,6 +295,18 @@ export default function EventRegister() {
                     placeholder={t.clubPlaceholder}
                     required
                   />
+                  <div>
+                    <Input
+                      label={t.whatsapp}
+                      type="tel"
+                      inputMode="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      required
+                      placeholder={t.whatsappPlaceholder}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">{t.whatsappHint}</p>
+                  </div>
                 </div>
               </section>
 
@@ -358,18 +371,6 @@ export default function EventRegister() {
                           value={b.numberOfBouts}
                           onChange={(e) => updateBoxer(i, 'numberOfBouts', e.target.value)}
                         />
-                      </div>
-                      <div>
-                        <Input
-                          label={t.whatsapp}
-                          type="tel"
-                          inputMode="tel"
-                          value={b.whatsapp}
-                          onChange={(e) => updateBoxer(i, 'whatsapp', e.target.value)}
-                          required
-                          placeholder={t.whatsappPlaceholder}
-                        />
-                        <p className="mt-1 text-xs text-slate-400">{t.whatsappHint}</p>
                       </div>
                     </div>
                   </div>

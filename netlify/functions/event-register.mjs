@@ -51,10 +51,18 @@ export default async (event) => {
     }
 
     const body = JSON.parse(event.body || '{}')
-    const { boxers = [], clubName = '' } = body
+    const { boxers = [], clubName = '', whatsapp = '' } = body
 
     if (!Array.isArray(boxers) || boxers.length === 0) {
       return errorResponse({ message: 'Add at least one boxer to register', status: 400 })
+    }
+
+    const cleanWhatsapp = whatsapp.trim()
+    if (!cleanWhatsapp) {
+      return errorResponse({ message: 'Club WhatsApp number is required', status: 400 })
+    }
+    if (!/^\+?[\d\s()-]{7,18}$/.test(cleanWhatsapp)) {
+      return errorResponse({ message: 'Enter a valid WhatsApp number', status: 400 })
     }
 
     const weightCategories = evt.weightCategories || []
@@ -67,13 +75,6 @@ export default async (event) => {
       const fullName = (b.fullName || '').trim()
       if (!fullName) {
         return errorResponse({ message: 'Every boxer needs a name', status: 400 })
-      }
-      const whatsapp = (b.whatsapp || '').trim()
-      if (!whatsapp) {
-        return errorResponse({ message: `${fullName}: WhatsApp number is required`, status: 400 })
-      }
-      if (!/^\+?[\d\s()-]{7,18}$/.test(whatsapp)) {
-        return errorResponse({ message: `${fullName}: enter a valid WhatsApp number`, status: 400 })
       }
       if (weightCategories.length && b.weight && !weightCategories.includes(b.weight)) {
         return errorResponse({ message: `${fullName}: select a valid weight category (${weightCategories.join(', ')})`, status: 400 })
@@ -89,7 +90,6 @@ export default async (event) => {
       if (!boxer) {
         boxer = await Boxer.create({
           fullName,
-          whatsapp,
           clubName: clubName || '',
           numberOfBouts: Number(b.numberOfBouts) || 1,
           gender: b.gender || null,
@@ -97,8 +97,6 @@ export default async (event) => {
           ageCategory: b.age || '',
         })
         created.push(boxer)
-      } else if (boxer.whatsapp !== whatsapp) {
-        await Boxer.updateOne({ _id: boxer._id }, { $set: { whatsapp } })
       }
 
       const existing = await Registration.findOne({ eventId: evt._id, boxerId: boxer._id })
@@ -109,6 +107,7 @@ export default async (event) => {
       await Registration.create({
         eventId: evt._id,
         clubName: clubName || '',
+        whatsapp: cleanWhatsapp,
         numberOfBouts: Number(b.numberOfBouts) || 1,
         boxerId: boxer._id,
         category: {

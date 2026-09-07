@@ -11,7 +11,6 @@ const BoxerSchema = new mongoose.Schema(
     clubName: { type: String, trim: true, default: '' },
     numberOfBouts: { type: Number, default: 1, min: 1 },
     fullName: { type: String, required: true, trim: true },
-    whatsapp: { type: String, trim: true, default: '' },
     dateOfBirth: { type: Date, default: null },
     gender: { type: String, enum: ['M', 'F', null], default: null },
     nationality: { type: String, trim: true, default: '' },
