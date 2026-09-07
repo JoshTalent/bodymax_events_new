@@ -63,6 +63,8 @@ export default async (event) => {
       .filter((e) => e.eventDate && new Date(e.eventDate) >= new Date())
       .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate))
 
+    const seenAt = user.lastSeenRegistrationsAt ? new Date(user.lastSeenRegistrationsAt) : new Date(0)
+
     return success({
       dashboard: {
         totalEvents: events.length,
@@ -72,6 +74,8 @@ export default async (event) => {
         clubCount: clubs.length,
         boxerCount: boxers.length,
         registrationCount: regs.length,
+        newRegistrationCount: regs.filter((r) => new Date(r.createdAt) > seenAt).length,
+        lastSeenRegistrationsAt: user.lastSeenRegistrationsAt || null,
         pendingRegistrations: regs.filter((r) => r.status === 'pending_approval' || r.status === 'needs_correction').length,
         pendingPayments: regs.filter((r) => r.payment?.status === 'submitted').length,
         weighedCount: regs.filter((r) => r.weighIn?.status === 'successful').length,

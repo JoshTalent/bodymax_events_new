@@ -100,8 +100,14 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     api('/dashboard')
-      .then((d) => setRegistrationCount(d.dashboard?.registrationCount ?? 0))
+      .then((d) => setRegistrationCount(d.dashboard?.newRegistrationCount ?? 0))
       .catch(() => {})
+  }, [location.pathname])
+
+  useEffect(() => {
+    const onSeen = () => setRegistrationCount(0)
+    window.addEventListener('registrations-seen', onSeen)
+    return () => window.removeEventListener('registrations-seen', onSeen)
   }, [])
 
   const isPromoter = user?.role === 'promoter'

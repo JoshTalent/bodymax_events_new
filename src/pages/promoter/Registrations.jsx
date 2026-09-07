@@ -60,6 +60,14 @@ export default function Registrations() {
   }
   useEffect(load, [])
 
+  useEffect(() => {
+    api('/registrations/seen', { method: 'POST' })
+      .then(() => {
+        window.dispatchEvent(new Event('registrations-seen'))
+      })
+      .catch(() => {})
+  }, [])
+
   const isPromoter = user?.role === 'promoter'
 
   const counts = useMemo(() => {
