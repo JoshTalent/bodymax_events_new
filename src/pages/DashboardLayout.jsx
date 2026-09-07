@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../utils/api.js'
 import { cn } from '../utils/cn.js'
 
-function SidebarLink({ to, label, icon, end, active }) {
+function SidebarLink({ to, label, icon, end, active, badge }) {
   return (
     <Link
       to={to}
@@ -13,6 +15,16 @@ function SidebarLink({ to, label, icon, end, active }) {
     >
       <span className="shrink-0">{icon}</span>
       {label}
+      {badge > 0 && (
+        <span
+          className={cn(
+            'ml-auto rounded-full px-2 py-0.5 text-xs font-semibold',
+            active ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-700'
+          )}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }
@@ -84,6 +96,13 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [registrationCount, setRegistrationCount] = useState(null)
+
+  useEffect(() => {
+    api('/dashboard')
+      .then((d) => setRegistrationCount(d.dashboard?.registrationCount ?? 0))
+      .catch(() => {})
+  }, [])
 
   const isPromoter = user?.role === 'promoter'
   const isOfficial = user?.role === 'official'
@@ -123,14 +142,14 @@ export default function DashboardLayout() {
           {isPromoter && (
             <>
               <SidebarLink to="/app/events" label="Events" icon={icons.events} active={isActive('/app/events')} />
-              <SidebarLink to="/app/registrations" label="Registrations" icon={icons.records} active={isActive('/app/registrations')} />
+              <SidebarLink to="/app/registrations" label="Registrations" icon={icons.records} active={isActive('/app/registrations')} badge={registrationCount} />
             </>
           )}
 
           {isOfficial && (
             <>
               <SidebarLink to="/app/events" label="Events" icon={icons.events} active={isActive('/app/events')} />
-              <SidebarLink to="/app/registrations" label="Records" icon={icons.records} active={isActive('/app/registrations')} />
+              <SidebarLink to="/app/registrations" label="Records" icon={icons.records} active={isActive('/app/registrations')} badge={registrationCount} />
             </>
           )}
 
