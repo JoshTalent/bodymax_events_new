@@ -9,7 +9,7 @@ import { Input, Select } from '../../components/Field.jsx'
 import { cn } from '../../utils/cn.js'
 import { getSavedLang, persistLang } from '../../utils/language.js'
 
-const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
+const EMPTY_BOXER = { fullName: '', whatsapp: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
 
 const text = {
   en: {
@@ -27,6 +27,9 @@ const text = {
     remove: 'Remove',
     fullName: 'Full Name',
     fullNamePlaceholder: "Boxer's full name",
+    whatsapp: 'WhatsApp Number',
+    whatsappPlaceholder: 'e.g. +250 7XX XXX XXX',
+    whatsappHint: 'Used by the promoter only to confirm and contact the boxer',
     weightCategory: 'Weight Category',
     selectWeight: 'Select weight…',
     ageCategory: 'Age Category',
@@ -64,6 +67,9 @@ const text = {
     remove: 'kuraho',
     fullName: 'Amazina yose',
     fullNamePlaceholder: 'Amazina yose y’umukinnyi',
+    whatsapp: 'Nomero ya WhatsApp',
+    whatsappPlaceholder: 'urugero: +250 7XX XXX XXX',
+    whatsappHint: 'Umuyobozi w’umukino nyine niwe uzayikoresha kugira ngo yemeze kandi abone umukinnyi',
     weightCategory: 'Icyiciro cy’ibiro',
     selectWeight: 'Hitamo ibiro…',
     ageCategory: 'Icyiciro cy’imyaka',
@@ -131,6 +137,7 @@ export default function EventRegister() {
       const filtered = boxers.map((b) => ({
         ...b,
         fullName: (b.fullName || '').trim(),
+        whatsapp: (b.whatsapp || '').trim(),
         numberOfBouts: Number(b.numberOfBouts) || 1,
       }))
       const res = await api(`/event-register?token=${token}`, {
@@ -351,6 +358,18 @@ export default function EventRegister() {
                           value={b.numberOfBouts}
                           onChange={(e) => updateBoxer(i, 'numberOfBouts', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <Input
+                          label={t.whatsapp}
+                          type="tel"
+                          inputMode="tel"
+                          value={b.whatsapp}
+                          onChange={(e) => updateBoxer(i, 'whatsapp', e.target.value)}
+                          required
+                          placeholder={t.whatsappPlaceholder}
+                        />
+                        <p className="mt-1 text-xs text-slate-400">{t.whatsappHint}</p>
                       </div>
                     </div>
                   </div>

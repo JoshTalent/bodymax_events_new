@@ -68,6 +68,13 @@ export default async (event) => {
       if (!fullName) {
         return errorResponse({ message: 'Every boxer needs a name', status: 400 })
       }
+      const whatsapp = (b.whatsapp || '').trim()
+      if (!whatsapp) {
+        return errorResponse({ message: `${fullName}: WhatsApp number is required`, status: 400 })
+      }
+      if (!/^\+?[\d\s()-]{7,18}$/.test(whatsapp)) {
+        return errorResponse({ message: `${fullName}: enter a valid WhatsApp number`, status: 400 })
+      }
       if (weightCategories.length && b.weight && !weightCategories.includes(b.weight)) {
         return errorResponse({ message: `${fullName}: select a valid weight category (${weightCategories.join(', ')})`, status: 400 })
       }
@@ -82,6 +89,7 @@ export default async (event) => {
       if (!boxer) {
         boxer = await Boxer.create({
           fullName,
+          whatsapp,
           clubName: clubName || '',
           numberOfBouts: Number(b.numberOfBouts) || 1,
           gender: b.gender || null,
@@ -89,6 +97,8 @@ export default async (event) => {
           ageCategory: b.age || '',
         })
         created.push(boxer)
+      } else if (boxer.whatsapp !== whatsapp) {
+        await Boxer.updateOne({ _id: boxer._id }, { $set: { whatsapp } })
       }
 
       const existing = await Registration.findOne({ eventId: evt._id, boxerId: boxer._id })

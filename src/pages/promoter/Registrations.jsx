@@ -235,6 +235,19 @@ export default function Registrations() {
                           </span>
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-900">{r.boxerId?.fullName || 'Boxer'}</p>
+                            {r.boxerId?.whatsapp && (
+                              <a
+                                href={`https://wa.me/${r.boxerId.whatsapp.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:underline"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12.04 2a9.9 9.9 0 00-8.5 14.94L2 22l5.2-1.5a9.9 9.9 0 004.84 1.24h.01A9.9 9.9 0 1012.04 2zm5.8 14.06c-.25.7-1.44 1.34-2 1.4-.52.06-1.16.09-1.87-.12-1.87-.6-3.81-2.95-4.34-3.52-.53-.57-1.77-2.05-1.77-3.91 0-1.86.97-2.78 1.32-3.16.35-.37.76-.46 1.01-.46.25 0 .51 0 .73.01.23.01.56-.09.85.65.32.83 1.09 2.87 1.13 3.08.05.21.08.45-.04.71-.11.26-.17.42-.33.65-.17.22-.36.5-.5.67-.17.17-.35.35-.15.7.2.34.88 1.45 1.9 2.35 1.3 1.16 1.78 1.37 2.05 1.45.25.08.4.07.55-.04.16-.12.63-.74.8-1 .17-.25.34-.21.57-.13.25.08 1.53.72 1.79.85.26.13.43.2.5.3.06.1.06.6-.19 1.29z" />
+                                </svg>
+                                {r.boxerId.whatsapp}
+                              </a>
+                            )}
                             {r.promoterFeedback && (
                               <p className="max-w-56 truncate text-xs text-slate-600">Feedback: {r.promoterFeedback}</p>
                             )}
