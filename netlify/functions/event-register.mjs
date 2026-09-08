@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer'
 import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import Boxer from './_shared/models/Boxer.js'
@@ -134,6 +135,46 @@ export default async (event) => {
         status: 'approved',
       })
       registered += 1
+    }
+
+    try {
+      const gmailUser = process.env.GMAIL_USER
+      const appPassword = process.env.GMAIL_APP_PASSWORD
+      if (gmailUser && appPassword && cleanEmail) {
+        const date = evt.eventDate
+          ? new Date(evt.eventDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+          : ''
+        const boxerLines = boxers.map((b, i) => {
+          const parts = [`${i + 1}. ${(b.fullName || '').trim()}`]
+          if (b.weight) parts.push(`Weight: ${b.weight}`)
+          if (b.age) parts.push(`Age: ${b.age}`)
+          if (b.gender) parts.push(`Gender: ${b.gender === 'M' ? 'Male' : 'Female'}`)
+          if (Number(b.numberOfBouts) > 1) parts.push(`Bouts: ${b.numberOfBouts}`)
+          return parts.join(' — ')
+        })
+        const text = [
+          `Hello ${clubName || 'the club'},`,
+          `Thank you for registering ${registered} boxer${registered === 1 ? '' : 's'} for ${evt.name}${date ? ` on ${date}` : ''}.`,
+          'Here are the boxers added:',
+          ...boxerLines,
+          'We will review and confirm each entry. Best regards, Bodymax Events Team',
+        ].join('\n')
+
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: gmailUser, pass: appPassword },
+        })
+        await transporter.sendMail({
+          from: `"Bodymax Events" <${gmailUser}>`,
+          to: [cleanEmail, gmailUser],
+          replyTo: gmailUser,
+          subject: `Thank you for registering ${registered} boxer${registered === 1 ? '' : 's'} — ${evt.name}`,
+          text,
+        })
+      }
+    } catch (e) {
+      // Never fail the registration if the notification email fails
+      console.warn('Registration notification email failed:', e.message)
     }
 
     return success({ registered, created: created.length }, 201)
