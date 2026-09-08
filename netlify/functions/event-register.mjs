@@ -64,6 +64,13 @@ export default async (event) => {
     if (!/^\+?[\d\s()-]{7,18}$/.test(cleanWhatsapp)) {
       return errorResponse({ message: 'Enter a valid WhatsApp number', status: 400 })
     }
+    const normalizedWhatsapp = (() => {
+      const d = cleanWhatsapp.replace(/[^0-9]/g, '')
+      if (d.startsWith('250')) return d
+      if (d.startsWith('0')) return '250' + d.slice(1)
+      if (d.startsWith('7')) return '250' + d
+      return d
+    })()
 
     const weightCategories = evt.weightCategories || []
     const ageCategories = evt.ageCategories || []
@@ -107,7 +114,7 @@ export default async (event) => {
       await Registration.create({
         eventId: evt._id,
         clubName: clubName || '',
-        whatsapp: cleanWhatsapp,
+        whatsapp: normalizedWhatsapp,
         numberOfBouts: Number(b.numberOfBouts) || 1,
         boxerId: boxer._id,
         category: {
