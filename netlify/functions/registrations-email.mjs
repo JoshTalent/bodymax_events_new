@@ -37,9 +37,9 @@ export default async (event) => {
       return errorResponse({ message: 'Method not allowed', status: 405 })
     }
 
-    const user = process.env.GMAIL_USER
+    const gmailUser = process.env.GMAIL_USER
     const appPassword = process.env.GMAIL_APP_PASSWORD
-    if (!user || !appPassword) {
+    if (!gmailUser || !appPassword) {
       return errorResponse({
         message: 'Email sending is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD on Netlify.',
         status: 500,
@@ -57,14 +57,14 @@ export default async (event) => {
     const subject = `Thank you for registering ${reg.boxerId?.fullName || 'your boxer'} for ${reg.eventId?.name || 'our event'}`
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      auth: { user, pass: appPassword },
+      auth: { user: gmailUser, pass: appPassword },
     })
 
     try {
       await transporter.sendMail({
-        from: `"Bodymax Events" <${user}>`,
-        to: [reg.email, user],
-        replyTo: user,
+        from: `"Bodymax Events" <${gmailUser}>`,
+        to: [reg.email, gmailUser],
+        replyTo: gmailUser,
         subject,
         text: thankYouMessage(reg),
       })
