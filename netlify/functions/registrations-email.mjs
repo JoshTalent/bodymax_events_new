@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer'
 import { connectDB } from './_shared/db.js'
 import Registration from './_shared/models/Registration.js'
 import { requireAuth, success, errorResponse } from './_shared/middleware/auth.js'
@@ -36,11 +37,11 @@ export default async (event) => {
       return errorResponse({ message: 'Method not allowed', status: 405 })
     }
 
-    const apiKey = process.env.RESEND_API_KEY
-    const from = process.env.EMAIL_FROM
-    if (!apiKey || !from) {
+    const user = process.env.GMAIL_USER
+    const appPassword = process.env.GMAIL_APP_PASSWORD
+    if (!user || !appPassword) {
       return errorResponse({
-        message: 'Email sending is not configured. Set RESEND_API_KEY and EMAIL_FROM on Netlify.',
+        message: 'Email sending is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD on Netlify.',
         status: 500,
       })
     }
@@ -54,23 +55,24 @@ export default async (event) => {
     if (!reg.email) return errorResponse({ message: 'No club email on this registration', status: 400 })
 
     const subject = `Thank you for registering ${reg.boxerId?.fullName || 'your boxer'} for ${reg.eventId?.name || 'our event'}`
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: reg.email,
-        subject,
-        text: thankYouMessage(reg),
-      }),
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass: appPassword },
     })
 
-    if (!res.ok) {
-      const detail = await res.text()
-      return errorResponse({ message: `Email failed to send: ${detail}`, status: 502 })
+    try {
+      await transporter.sendMail({
+        from: `"Bodymax Events" <${user}>`,
+        to: [reg.email, user],
+        replyTo: user,
+        subject,
+        text: thankYouMessage(reg),
+      })
+    } catch (err) {
+      return errorResponse({
+        message: `Email failed to send: ${err.message}`,
+        status: 502,
+      })
     }
 
     return success({ ok: true, to: reg.email })
