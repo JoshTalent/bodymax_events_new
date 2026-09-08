@@ -54,6 +54,7 @@ const text = {
     thankBody: (name) =>
       `Your boxer(s) have been registered for ${name}. The event promoter will review and confirm each entry.`,
     close: 'Close',
+    moreInfo: 'For more info, call or text:',
   },
   rw: {
     eventRegistration: 'Iyandikisha mwirushanwa',
@@ -96,6 +97,7 @@ const text = {
     thankYou: 'Urakoze!',
     thankBody: (name) => `Abakinnyi bawe biyandikishije muri ${name}. Umuyobozi w’umukino azasuzuma kandi yemeze buri wese.`,
     close: 'Funga',
+    moreInfo: 'Kubindi byerekeye, hamagara cyangwa wohereze ubutumwa kuri:',
   },
 }
 
@@ -421,6 +423,24 @@ export default function EventRegister() {
             </div>
           </form>
         )}
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-center shadow-sm">
+          <p className="text-sm font-medium text-slate-600">{t.moreInfo}</p>
+          <div className="mt-3 flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <a
+              href="tel:0788824488"
+              className="inline-flex w-48 items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              0788 824 488
+            </a>
+            <a
+              href="tel:0788531112"
+              className="inline-flex w-48 items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              0788 531 112
+            </a>
+          </div>
+        </div>
       </main>
 
       {!closed && (
