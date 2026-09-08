@@ -229,7 +229,7 @@ export default function EventRegister() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-28 sm:pb-16">
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 px-4 py-8 text-white sm:py-10">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-brand-900 px-4 py-8 text-white sm:py-10">
         <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/30 blur-3xl" />
         <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-brand-400/20 blur-3xl" />
 
