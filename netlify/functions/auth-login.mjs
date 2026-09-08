@@ -1,4 +1,4 @@
-﻿import bcrypt from 'bcryptjs'
+import bcrypt from 'bcryptjs'
 import { connectDB } from './_shared/db.js'
 import User from './_shared/models/User.js'
 import { signToken, success, errorResponse } from './_shared/middleware/auth.js'
@@ -44,6 +44,7 @@ export default async (event) => {
         role: user.role,
         clubId: user.clubId,
         officialRole: user.officialRole,
+        canManageUsers: user.canManageUsers !== false,
       },
     })
   } catch (err) {

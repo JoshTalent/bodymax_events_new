@@ -67,6 +67,7 @@ export default async (event) => {
         role: fresh.role,
         clubId: fresh.clubId,
         officialRole: fresh.officialRole,
+        canManageUsers: fresh.canManageUsers !== false,
       },
     })
   } catch (err) {

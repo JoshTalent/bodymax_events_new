@@ -117,6 +117,7 @@ export default function DashboardLayout() {
 
   const isPromoter = user?.role === 'promoter'
   const isOfficial = user?.role === 'official'
+  const canManageUsers = user?.canManageUsers !== false
   const title = isPromoter ? 'Promoter' : 'Officials'
 
   const handleLogout = () => {
@@ -154,7 +155,7 @@ export default function DashboardLayout() {
             <>
               <SidebarLink to="/app/events" label="Events" icon={icons.events} active={isActive('/app/events')} />
               <SidebarLink to="/app/registrations" label="Registrations" icon={icons.records} active={isActive('/app/registrations')} badge={registrationCount} />
-              <SidebarLink to="/app/users" label="Users" icon={icons.users} active={isActive('/app/users')} />
+              {canManageUsers && <SidebarLink to="/app/users" label="Users" icon={icons.users} active={isActive('/app/users')} />}
             </>
           )}
 

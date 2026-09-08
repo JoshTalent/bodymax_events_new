@@ -21,6 +21,7 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
     active: { type: Boolean, default: true },
+    canManageUsers: { type: Boolean, default: false },
   },
   { timestamps: true }
 )

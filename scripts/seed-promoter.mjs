@@ -9,13 +9,14 @@ const name = process.env.SEED_PROMOTER_NAME || 'Promoter'
 
 async function seed() {
   await connectDB()
+  const passwordHash = await bcrypt.hash(password, 10)
   const existing = await User.findOne({ email })
   if (existing) {
-    console.log(`Promoter already exists: ${email}`)
+    await User.updateOne({ _id: existing._id }, { $set: { canManageUsers: true } })
+    console.log(`Promoter already exists: ${email} (user management enabled)`)
     process.exit(0)
   }
-  const passwordHash = await bcrypt.hash(password, 10)
-  await User.create({ name, email, passwordHash, role: 'promoter' })
+  await User.create({ name, email, passwordHash, role: 'promoter', canManageUsers: true })
   console.log(`Promoter created: ${email} / ${password}`)
   process.exit(0)
 }
