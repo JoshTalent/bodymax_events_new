@@ -191,7 +191,7 @@ export default function PublicDraws() {
       <header className="bg-slate-950">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-black text-white">B</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-brand-500 to-brand-700 text-sm font-black text-white">B</span>
             <span className="text-lg font-bold text-white">Bodymax</span>
           </Link>
           <div className="flex items-center gap-3">
