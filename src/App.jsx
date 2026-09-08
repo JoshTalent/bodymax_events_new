@@ -22,6 +22,7 @@ import ClubDetail from './pages/promoter/ClubDetail.jsx'
 import ClubCreate from './pages/promoter/ClubCreate.jsx'
 import BoxerList from './pages/promoter/BoxerList.jsx'
 import Registrations from './pages/promoter/Registrations.jsx'
+import Users from './pages/promoter/Users.jsx'
 
 import Settings from './pages/Settings.jsx'
 
@@ -73,6 +74,7 @@ export default function App() {
 
         <Route path="boxers" element={<ProtectedRoute roles={['promoter']}><BoxerList /></ProtectedRoute>} />
         <Route path="registrations" element={<ProtectedRoute roles={['promoter','official']}><Registrations /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute roles={['promoter']}><Users /></ProtectedRoute>} />
 
         <Route path="settings" element={<Settings />} />
       </Route>
