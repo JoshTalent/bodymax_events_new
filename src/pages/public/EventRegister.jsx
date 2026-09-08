@@ -97,7 +97,7 @@ const text = {
     thankYou: 'Urakoze!',
     thankBody: (name) => `Abakinnyi bawe biyandikishije muri ${name}. Umuyobozi w’umukino azasuzuma kandi yemeze buri wese.`,
     close: 'Funga',
-    moreInfo: 'Kubindi byerekeye, hamagara cyangwa wohereze ubutumwa kuri:',
+    moreInfo: 'Kubindi bisobanuro, hamagara cyangwa wohereze ubutumwa kuri:',
   },
 }
 
@@ -469,6 +469,17 @@ export default function EventRegister() {
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
             {t.thankBody(event?.name)}
           </p>
+          <div className="mx-auto mt-5 max-w-xs rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <p className="text-xs font-medium text-slate-500">{t.moreInfo}</p>
+            <div className="mt-2.5 flex flex-col items-center justify-center gap-2 sm:flex-row">
+              <a href="tel:0788824488" className="inline-flex w-44 items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700">
+                0788 824 488
+              </a>
+              <a href="tel:0788531112" className="inline-flex w-44 items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700">
+                0788 531 112
+              </a>
+            </div>
+          </div>
         </div>
       </Modal>
 
