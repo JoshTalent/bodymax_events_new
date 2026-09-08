@@ -22,6 +22,28 @@ const STATUS_TABS = [
 
 const ACTIONABLE = ['pending_approval', 'needs_correction']
 
+function thankYouMessage(r) {
+  const boxer = r.boxerId?.fullName || 'your boxer'
+  const event = r.eventId?.name || 'our event'
+  const date = r.eventId?.eventDate
+    ? new Date(r.eventId.eventDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : ''
+  const gender = r.category?.gender === 'M' ? 'Male' : r.category?.gender === 'F' ? 'Female' : ''
+  const cat = []
+  if (r.category?.weight) cat.push(`Weight: ${r.category.weight}`)
+  if (r.category?.age) cat.push(`Age: ${r.category.age}`)
+  if (gender) cat.push(`Gender: ${gender}`)
+  return [
+    `Hello ${r.clubName || 'the club'},`,
+    `Thank you for registering ${boxer} for ${event}${date ? ` on ${date}` : ''}.`,
+    'Here are the details of the boxer added:',
+    `• Name: ${boxer}`,
+    ...cat.map((c) => `• ${c}`),
+    `• Bouts: ${r.numberOfBouts || 1}`,
+    'We will review and confirm the entry. Best regards, Bodymax Events Team',
+  ].join('\n')
+}
+
 function waNumber(digits = '') {
   let d = digits.replace(/[^0-9]/g, '')
   if (d.startsWith('250')) return d
@@ -33,26 +55,7 @@ function waNumber(digits = '') {
 function waUrl(r) {
   const number = waNumber(r.whatsapp)
   if (!number) return null
-  const boxer = r.boxerId?.fullName || 'your boxer'
-  const event = r.eventId?.name || 'our event'
-  const date = r.eventId?.eventDate
-    ? new Date(r.eventId.eventDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-    : ''
-  const gender = r.category?.gender === 'M' ? 'Male' : r.category?.gender === 'F' ? 'Female' : ''
-  const cat = []
-  if (r.category?.weight) cat.push(`Weight: ${r.category.weight}`)
-  if (r.category?.age) cat.push(`Age: ${r.category.age}`)
-  if (gender) cat.push(`Gender: ${gender}`)
-  const lines = [
-    `Hello ${r.clubName || 'the club'},`,
-    `Thank you for registering ${boxer} for ${event}${date ? ` on ${date}` : ''}.`,
-    'Here are the details of the boxer added:',
-    `• Name: ${boxer}`,
-    ...cat.map((c) => `• ${c}`),
-    `• Bouts: ${r.numberOfBouts || 1}`,
-    'We will review and confirm the entry. Best regards, Bodymax Events Team',
-  ]
-  return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`
+  return `https://wa.me/${number}?text=${encodeURIComponent(thankYouMessage(r))}`
 }
 
 function initials(name = '') {
@@ -83,6 +86,7 @@ export default function Registrations() {
   const [busy, setBusy] = useState(false)
   const [deleteBoxer, setDeleteBoxer] = useState(null)
   const [busyDelete, setBusyDelete] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(null)
 
   const load = () => {
     setBusyLoad(true)
@@ -160,6 +164,18 @@ export default function Registrations() {
       toast(err.message, 'error')
     } finally {
       setBusyDelete(false)
+    }
+  }
+
+  const sendEmail = async (r) => {
+    setSendingEmail(r._id)
+    try {
+      await api('/registrations/email', { method: 'POST', body: { id: r._id } })
+      toast(`Email sent to ${r.email}`)
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setSendingEmail(null)
     }
   }
 
@@ -281,6 +297,14 @@ export default function Registrations() {
                                 {r.whatsapp.startsWith('+') ? `+${waNumber(r.whatsapp)}` : waNumber(r.whatsapp)}
                               </a>
                             )}
+                            {r.email && (
+                              <a href={`mailto:${r.email}`} className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:underline">
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                </svg>
+                                {r.email}
+                              </a>
+                            )}
                             {r.promoterFeedback && (
                               <p className="max-w-56 truncate text-xs text-slate-600">Feedback: {r.promoterFeedback}</p>
                             )}
@@ -323,6 +347,22 @@ export default function Registrations() {
                               </svg>
                               WhatsApp
                             </a>
+                          )}
+                          {r.email && (
+                            <button
+                              onClick={() => sendEmail(r)}
+                              disabled={sendingEmail === r._id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {sendingEmail === r._id ? (
+                                <Spinner className="h-3.5 w-3.5" />
+                              ) : (
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                </svg>
+                              )}
+                              {sendingEmail === r._id ? 'Sending…' : 'Email'}
+                            </button>
                           )}
                           {canAction ? (
                             <>

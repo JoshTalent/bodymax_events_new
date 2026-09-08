@@ -13,6 +13,7 @@ const PATH_MAP = {
   '/registrations/payment': '/registrations-payment',
   '/registrations/bulk': '/registrations-bulk',
   '/registrations/seen': '/registrations-seen',
+  '/registrations/email': '/registrations-email',
   '/weighins/record': '/weighins-record',
   '/draws/manual': '/draws-manual',
   '/draws/delete': '/draws-delete',

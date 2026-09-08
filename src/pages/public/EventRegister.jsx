@@ -21,6 +21,9 @@ const text = {
     clubSub: 'The boxing club or team these boxers belong to',
     clubLabel: 'Club / Team Name',
     clubPlaceholder: 'e.g. Midlands Boxing Club',
+    email: 'Club Email',
+    emailPlaceholder: 'e.g. club@example.com',
+    emailHint: 'The promoter will email the club to confirm the registrations',
     boxers: 'Boxers',
     added: (n) => `${n} added`,
     boxerNum: (n) => `Boxer ${n}`,
@@ -61,6 +64,9 @@ const text = {
     clubSub: 'Ikipe cyangwa itsinda abakinnyi ',
     clubLabel: 'Izina ry’ikipe / itsinda',
     clubPlaceholder: 'urugero: Midlands Boxing Club',
+    email: 'Imeyili y’ikipe',
+    emailPlaceholder: 'urugero: club@example.com',
+    emailHint: 'Umuyobozi w’umukino azoherereza ikipe imeyili yo kwemeza kwiyandikisha',
     boxers: 'Abakinnyi',
     added: (n) => `${n} byongewe`,
     boxerNum: (n) => `Umukinnyi wa ${n}`,
@@ -100,6 +106,7 @@ export default function EventRegister() {
   const [error, setError] = useState('')
   const [clubName, setClubName] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [email, setEmail] = useState('')
   const [boxers, setBoxers] = useState([{ ...EMPTY_BOXER }])
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -142,7 +149,7 @@ export default function EventRegister() {
       }))
       const res = await api(`/event-register?token=${token}`, {
         method: 'POST',
-        body: { clubName: clubName.trim(), whatsapp: whatsapp.trim(), boxers: filtered },
+        body: { clubName: clubName.trim(), whatsapp: whatsapp.trim(), email: email.trim(), boxers: filtered },
       })
       setDone(true)
     } catch (err) {
@@ -158,6 +165,7 @@ export default function EventRegister() {
     setBoxers([{ ...EMPTY_BOXER }])
     setClubName('')
     setWhatsapp('')
+    setEmail('')
   }
 
   const LangToggle = () => (
@@ -306,6 +314,18 @@ export default function EventRegister() {
                       placeholder={t.whatsappPlaceholder}
                     />
                     <p className="mt-1 text-xs text-slate-400">{t.whatsappHint}</p>
+                  </div>
+                  <div>
+                    <Input
+                      label={t.email}
+                      type="email"
+                      inputMode="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder={t.emailPlaceholder}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">{t.emailHint}</p>
                   </div>
                 </div>
               </section>

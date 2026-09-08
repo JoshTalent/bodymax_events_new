@@ -51,7 +51,7 @@ export default async (event) => {
     }
 
     const body = JSON.parse(event.body || '{}')
-    const { boxers = [], clubName = '', whatsapp = '' } = body
+    const { boxers = [], clubName = '', whatsapp = '', email = '' } = body
 
     if (!Array.isArray(boxers) || boxers.length === 0) {
       return errorResponse({ message: 'Add at least one boxer to register', status: 400 })
@@ -71,6 +71,14 @@ export default async (event) => {
       if (d.startsWith('7')) return '250' + d
       return d
     })()
+
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      return errorResponse({ message: 'Club email is required', status: 400 })
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return errorResponse({ message: 'Enter a valid email address', status: 400 })
+    }
 
     const weightCategories = evt.weightCategories || []
     const ageCategories = evt.ageCategories || []
@@ -115,6 +123,7 @@ export default async (event) => {
         eventId: evt._id,
         clubName: clubName || '',
         whatsapp: normalizedWhatsapp,
+        email: cleanEmail,
         numberOfBouts: Number(b.numberOfBouts) || 1,
         boxerId: boxer._id,
         category: {

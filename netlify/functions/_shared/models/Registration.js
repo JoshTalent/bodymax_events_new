@@ -13,6 +13,7 @@ const RegistrationSchema = new mongoose.Schema(
     },
     clubName: { type: String, trim: true, default: '' },
     whatsapp: { type: String, trim: true, default: '' },
+    email: { type: String, trim: true, lowercase: true, default: '' },
     numberOfBouts: { type: Number, default: 1, min: 1 },
     boxerId: {
       type: mongoose.Schema.Types.ObjectId,
