@@ -202,7 +202,7 @@ export default function DashboardLayout() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 p-4 pb-24 md:p-8 md:pb-8 lg:pb-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 pb-24 sm:px-6 md:px-10 md:py-8 md:pb-8 lg:px-12 lg:py-10">
         <Outlet />
       </main>
 

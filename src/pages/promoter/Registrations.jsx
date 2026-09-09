@@ -10,23 +10,6 @@ import { Modal } from '../../components/Modal.jsx'
 import { Textarea, Select } from '../../components/Field.jsx'
 import { cn } from '../../utils/cn'
 
-const STATUS_TABS = [
-  { value: 'all', label: 'All', dot: 'bg-slate-400', active: 'border-slate-900 bg-slate-900 text-white', inactive: 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50' },
-  { value: 'pending_approval', label: 'Pending Approval', dot: 'bg-amber-500', active: 'border-amber-500 bg-amber-500 text-white', inactive: 'border-slate-200 bg-amber-50/50 text-amber-700 hover:bg-amber-50' },
-  { value: 'needs_correction', label: 'Needs Correction', dot: 'bg-rose-500', active: 'border-rose-500 bg-rose-500 text-white', inactive: 'border-slate-200 bg-rose-50/50 text-rose-700 hover:bg-rose-50' },
-  { value: 'approved', label: 'Approved', dot: 'bg-emerald-500', active: 'border-emerald-500 bg-emerald-500 text-white', inactive: 'border-slate-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50' },
-  { value: 'payment_confirmed', label: 'Payment Confirmed', dot: 'bg-blue-500', active: 'border-blue-500 bg-blue-500 text-white', inactive: 'border-slate-200 bg-blue-50/50 text-blue-700 hover:bg-blue-50' },
-  { value: 'eligible', label: 'Eligible', dot: 'bg-violet-500', active: 'border-violet-500 bg-violet-500 text-white', inactive: 'border-slate-200 bg-violet-50/50 text-violet-700 hover:bg-violet-50' },
-  { value: 'withdrawn', label: 'Withdrawn', dot: 'bg-slate-400', active: 'border-slate-500 bg-slate-500 text-white', inactive: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' },
-]
-
-const KPI_CARDS = [
-  { key: 'all', label: 'Total Entries', tint: 'bg-slate-900 text-white', icon: 'layers' },
-  { key: 'pending_approval', label: 'Pending Approval', tint: 'bg-amber-100 text-amber-700', icon: 'clock' },
-  { key: 'approved', label: 'Approved', tint: 'bg-emerald-100 text-emerald-700', icon: 'check' },
-  { key: 'needs_correction', label: 'Needs Correction', tint: 'bg-rose-100 text-rose-700', icon: 'alert' },
-]
-
 const ROW_PILLS = {
   pending_approval: { label: 'Pending Approval', cls: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
   needs_correction: { label: 'Needs Correction', cls: 'bg-rose-50 text-rose-700', dot: 'bg-rose-500' },
@@ -229,6 +212,13 @@ function Icon({ name, className }) {
   }
 }
 
+const normGender = (g) => {
+  if (g === 'M') return 'Male'
+  if (g === 'F') return 'Female'
+  if (g === 'Mixed') return 'Mixed'
+  return g || ''
+}
+
 const categoryLabel = (r) => {
   const parts = []
   if (r.category?.age) parts.push(r.category.age)
@@ -246,8 +236,11 @@ export default function Registrations() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [regs, setRegs] = useState(null)
-  const [filter, setFilter] = useState('all')
   const [eventFilter, setEventFilter] = useState('all')
+  const [weightFilter, setWeightFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [boutsFilter, setBoutsFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState(null)
   const [busyLoad, setBusyLoad] = useState(false)
@@ -280,12 +273,6 @@ export default function Registrations() {
 
   const total = regs ? regs.length : 0
 
-  const counts = useMemo(() => {
-    const c = { all: total }
-    for (const r of regs || []) c[r.status] = (c[r.status] || 0) + 1
-    return c
-  }, [regs, total])
-
   const eventOptions = useMemo(() => {
     const map = new Map()
     for (const r of regs || []) {
@@ -295,10 +282,46 @@ export default function Registrations() {
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [regs])
 
+  const weightOptions = useMemo(() => {
+    const s = new Set()
+    for (const r of regs || []) {
+      const w = r.category?.weight
+      if (w != null && w !== '') s.add(String(w))
+    }
+    return [...s].sort((a, b) => Number(b) - Number(a) || a.localeCompare(b))
+  }, [regs])
+
+  const categoryOptions = useMemo(() => {
+    const s = new Set()
+    for (const r of regs || []) {
+      const a = r.category?.age
+      if (a != null && a !== '') s.add(String(a))
+    }
+    return [...s].sort((a, b) => a.localeCompare(b))
+  }, [regs])
+
+  const genderOptions = useMemo(() => {
+    const s = new Set()
+    for (const r of regs || []) {
+      const g = normGender(r.category?.gender)
+      if (g) s.add(g)
+    }
+    return [...s]
+  }, [regs])
+
+  const boutsOptions = useMemo(() => {
+    const s = new Set()
+    for (const r of regs || []) s.add(r.numberOfBouts || 1)
+    return [...s].sort((a, b) => a - b)
+  }, [regs])
+
   const filtered = useMemo(() => {
     let list = regs || []
-    if (filter !== 'all') list = list.filter((r) => r.status === filter)
     if (eventFilter !== 'all') list = list.filter((r) => r.eventId?._id === eventFilter)
+    if (weightFilter !== 'all') list = list.filter((r) => String(r.category?.weight) === weightFilter)
+    if (categoryFilter !== 'all') list = list.filter((r) => String(r.category?.age) === categoryFilter)
+    if (genderFilter !== 'all') list = list.filter((r) => normGender(r.category?.gender) === genderFilter)
+    if (boutsFilter !== 'all') list = list.filter((r) => (r.numberOfBouts || 1) === Number(boutsFilter))
     const q = search.trim().toLowerCase()
     if (q) {
       list = list.filter(
@@ -309,7 +332,19 @@ export default function Registrations() {
       )
     }
     return list
-  }, [regs, filter, eventFilter, search])
+  }, [regs, eventFilter, weightFilter, categoryFilter, genderFilter, boutsFilter, search])
+
+  const clearFilters = () => {
+    setEventFilter('all')
+    setWeightFilter('all')
+    setCategoryFilter('all')
+    setGenderFilter('all')
+    setBoutsFilter('all')
+    setSearch('')
+  }
+
+  const hasActiveFilters =
+    eventFilter !== 'all' || weightFilter !== 'all' || categoryFilter !== 'all' || genderFilter !== 'all' || boutsFilter !== 'all' || search.trim() !== ''
 
   const runAction = async () => {
     setBusy(true)
@@ -378,8 +413,6 @@ export default function Registrations() {
     toast(`${rows.length} rows exported`)
   }
 
-  const pct = (n) => (total ? Math.round((n / total) * 100) : 0)
-
   const actionMeta = {
     approve: { title: 'Approve this registration?', icon: 'check', box: 'bg-emerald-50 text-emerald-700' },
     needs_correction: { title: 'Request corrections?', icon: 'alert', box: 'bg-amber-50 text-amber-700' },
@@ -421,83 +454,71 @@ export default function Registrations() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {KPI_CARDS.map((k) => {
-          const n = counts[k.key] || 0
-          const active = filter === k.key
-          return (
-            <button
-              key={k.key}
-              onClick={() => setFilter(k.key)}
-              className={cn(
-                'group rounded-xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-                active ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-300'
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="min-w-0">
+            <label className="mb-1 block text-sm font-medium text-slate-700">Search</label>
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Boxer, club or event…"
+                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Clear search"
+                >
+                  <Icon name="x" className="h-3.5 w-3.5" />
+                </button>
               )}
-            >
-              <div className="flex items-center justify-between">
-                <span className={cn('flex h-9 w-9 items-center justify-center rounded-lg', k.tint)}>
-                  <Icon name={k.icon} className="h-4.5 w-4.5" />
-                </span>
-                <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500')}>
-                  {pct(n)}%
-                </span>
-              </div>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900 tabular-nums">{n}</p>
-              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{k.label}</p>
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {STATUS_TABS.map((t) => {
-          const n = counts[t.value] || 0
-          const active = filter === t.value
-          return (
-            <button
-              key={t.value}
-              onClick={() => setFilter(t.value)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                active ? t.active : t.inactive
-              )}
-            >
-              <span className={cn('h-1.5 w-1.5 rounded-full', active ? 'bg-white' : t.dot)} />
-              {t.label}
-              {n > 0 && <span className={cn('font-bold tabular-nums', active ? 'text-white/80' : 'text-slate-400')}>{n}</span>}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="mb-4 mt-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[240px] flex-1">
-          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search boxer, club or event…"
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Clear search"
-            >
-              <Icon name="x" className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <Select label="Event" value={eventFilter} onChange={(e) => setEventFilter(e.target.value)}>
+            <option value="all">All events</option>
+            {eventOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </Select>
+          <Select label="Weight" value={weightFilter} onChange={(e) => setWeightFilter(e.target.value)}>
+            <option value="all">All weights</option>
+            {weightOptions.map((w) => (
+              <option key={w} value={w}>{w} kg</option>
+            ))}
+          </Select>
+          <Select label="Category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="all">All categories</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </Select>
+          <Select label="Gender" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
+            <option value="all">All genders</option>
+            {genderOptions.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </Select>
+          <Select label="Bouts" value={boutsFilter} onChange={(e) => setBoutsFilter(e.target.value)}>
+            <option value="all">Any</option>
+            {boutsOptions.map((b) => (
+              <option key={b} value={b}>{b} bout{b > 1 ? 's' : ''}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <p className="text-xs font-medium text-slate-400">
+            Showing <span className="font-bold text-slate-700">{filtered.length}</span> of {total} registration{total === 1 ? '' : 's'}
+          </p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 transition hover:bg-brand-50">
+              <Icon name="x" className="h-3 w-3" />
+              Clear all filters
             </button>
           )}
         </div>
-        <Select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="w-60">
-          <option value="all">All events</option>
-          {eventOptions.map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
-          ))}
-        </Select>
-        <span className="ml-auto whitespace-nowrap text-xs font-medium text-slate-400">
-          Showing <span className="font-bold text-slate-700">{filtered.length}</span> of {total}
-        </span>
       </div>
 
       {!regs ? (
@@ -508,7 +529,7 @@ export default function Registrations() {
           message={
             total === 0
               ? 'Share the registration link to get boxers signed up.'
-              : 'Try a different status, event or search term.'
+              : 'Try adjusting the filters or search term.'
           }
         />
       ) : (
