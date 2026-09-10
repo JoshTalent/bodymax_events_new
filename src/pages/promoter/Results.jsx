@@ -149,14 +149,17 @@ export default function Results() {
   if (!event) return <Loading />
 
   const ordered = bouts ? [...bouts].sort((a, b) => a.boutNumber - b.boutNumber) : []
-  const completed = ordered.filter((b) => b.status === 'completed').length
-  const walkovers = ordered.filter((b) => b.status === 'walkover').length
-  const pending = ordered.length - completed - walkovers
+  const hasBoxer = (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
+  const displayed = ordered.filter(hasBoxer)
+  const hidden = ordered.length - displayed.length
+  const completed = displayed.filter((b) => b.status === 'completed').length
+  const walkovers = displayed.filter((b) => b.status === 'walkover').length
+  const pending = displayed.length - completed - walkovers
   const decided = completed + walkovers
   const hasResults = decided > 0
-  const pct = ordered.length ? Math.round((decided / ordered.length) * 100) : 0
-  const compPct = ordered.length ? (completed / ordered.length) * 100 : 0
-  const woPct = ordered.length ? (walkovers / ordered.length) * 100 : 0
+  const pct = displayed.length ? Math.round((decided / displayed.length) * 100) : 0
+  const compPct = displayed.length ? (completed / displayed.length) * 100 : 0
+  const woPct = displayed.length ? (walkovers / displayed.length) * 100 : 0
 
   const eventMeta = [
     event.eventDate && new Date(event.eventDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
@@ -257,7 +260,7 @@ export default function Results() {
 
     const rows = []
     const rowMeta = []
-    ordered.forEach((b) => {
+    displayed.forEach((b) => {
       const a = b.boxerAId?.boxerId?.fullName || 'Bye'
       const bb = b.boxerBId?.boxerId?.fullName || 'Bye'
       const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
@@ -351,7 +354,7 @@ export default function Results() {
             </div>
 
             <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:grid-cols-4">
-              <StatTile label="Total Bouts" value={ordered.length} tone="slate" />
+              <StatTile label="Total Bouts" value={displayed.length} tone="slate" />
               <StatTile label="Completed" value={completed} tone="emerald" />
               <StatTile label="Walkovers" value={walkovers} tone="amber" />
               <StatTile label="Pending" value={pending} tone="blue" />
@@ -363,7 +366,7 @@ export default function Results() {
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold uppercase tracking-widest text-slate-400">Card Progress</span>
               <span className="font-semibold text-white">
-                {decided} of {ordered.length} bouts decided
+                {decided} of {displayed.length} bouts decided
                 <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-brand-300">{pct}%</span>
               </span>
             </div>
@@ -386,8 +389,11 @@ export default function Results() {
           {hasResults
             ? `${decided} bout${decided === 1 ? '' : 's'} decided` + (pending > 0 ? ` · ${pending} still awaiting a result` : ' · all results recorded')
             : 'No results recorded yet'}
+          {hidden > 0 && (
+            <span className="ml-2 text-xs text-slate-400">· {hidden} unassigned slot{hidden === 1 ? '' : 's'} hidden</span>
+          )}
         </p>
-        {ordered.length > 0 && (
+        {displayed.length > 0 && (
           <Button variant="secondary" onClick={downloadPdf} disabled={!hasResults}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -399,15 +405,23 @@ export default function Results() {
 
       {!bouts ? (
         <div className="mt-5"><Loading /></div>
-      ) : ordered.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div className="mt-5">
           <Card>
-            <Empty title="No bouts yet" message="Create a draw first — results are recorded per bout." action={<Button onClick={() => navigate(`/app/events/${id}/draws`)}>Go to Draws</Button>} />
+            <Empty
+              title={ordered.length === 0 ? 'No bouts yet' : 'No boxers in this card'}
+              message={
+                ordered.length === 0
+                  ? 'Create a draw first — results are recorded per bout.'
+                  : 'All boxer matchups were removed, so there is nothing to display.'
+              }
+              action={ordered.length === 0 ? <Button onClick={() => navigate(`/app/events/${id}/draws`)}>Go to Draws</Button> : undefined}
+            />
           </Card>
         </div>
       ) : (
         <div className="mt-5 space-y-4">
-          {ordered.map((b, i) => {
+          {displayed.map((b, i) => {
             const a = b.boxerAId
             const bb = b.boxerBId
             const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
