@@ -686,7 +686,23 @@ export default function Draws() {
         </div>
       </div>
 
-      {!hasDraw ? (
+      {eligible.length === 0 ? (
+        <Card>
+          <Empty
+            title={registrations.length === 0 ? 'No boxers yet' : 'No eligible boxers here'}
+            message={
+              registrations.length === 0
+                ? 'Add boxers to this event first, then come back to build the draw and pair matchups.'
+                : 'No boxers in this weight/age class are ready to be drawn yet — they must be approved and eligible. Try another category or review pending registrations.'
+            }
+            action={
+              <Button variant="secondary" onClick={() => navigate('/app/registrations')}>
+                View Registrations
+              </Button>
+            }
+          />
+        </Card>
+      ) : !hasDraw ? (
         <Card>
           <Empty
             title="No bouts yet"
