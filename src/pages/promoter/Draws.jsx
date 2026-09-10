@@ -669,7 +669,7 @@ export default function Draws() {
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openManual} disabled={eligible.length < 1}>
+          <Button onClick={openManual}>
             {hasDraw ? 'Update Draw' : 'Create Draw'}
           </Button>
           {hasDraw && (
@@ -686,27 +686,12 @@ export default function Draws() {
         </div>
       </div>
 
-      {eligible.length === 0 ? (
-        <Card>
-          <Empty
-            title={registrations.length === 0 ? 'No boxers yet' : 'No eligible boxers here'}
-            message={
-              registrations.length === 0
-                ? 'Add boxers to this event first, then come back to build the draw and pair matchups.'
-                : 'No boxers in this weight/age class are ready to be drawn yet — they must be approved and eligible. Try another category or review pending registrations.'
-            }
-            action={
-              <Button variant="secondary" onClick={() => navigate('/app/registrations')}>
-                View Registrations
-              </Button>
-            }
-          />
-        </Card>
-      ) : !hasDraw ? (
+      {!hasDraw ? (
         <Card>
           <Empty
             title="No bouts yet"
-            message="Create a draw for this category — pair boxers yourself, add guest boxers if needed, and publish the bout list."
+            message="Create a draw to pair boxers into bouts. No registered boxers yet? No problem — add them manually from the Create Draw screen."
+            action={<Button onClick={openManual}>Create Draw</Button>}
           />
         </Card>
       ) : (
