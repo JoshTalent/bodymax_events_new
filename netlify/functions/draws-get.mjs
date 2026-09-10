@@ -18,6 +18,9 @@ export default async (event) => {
 
     await connectDB()
 
+    // Remove orphaned bouts left behind by deleted boxers so draws stay clean.
+    await Bout.deleteMany({ eventId, boxerAId: null, boxerBId: null })
+
     const query = { eventId }
     if (weight) query['category.weight'] = weight
     if (age) query['category.age'] = age

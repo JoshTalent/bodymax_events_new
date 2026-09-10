@@ -70,58 +70,16 @@ export default async (event) => {
         // registrations, draws (bouts), weigh-ins (stored on registrations), results.
         const regs = await Registration.find({ boxerId: id }).select('_id').lean()
         const regIds = regs.map((r) => r._id)
-        const inRegs = (v) => v && regIds.some((rid) => String(rid) === String(v))
 
         if (regIds.length) {
-          // Pull the boxer out of any bout slots and award a walkover to the opponent.
-          const bouts = await Bout.find({
-            $or: [{ boxerAId: { $in: regIds } }, { boxerBId: { $in: regIds } }],
-          })
-          for (const bout of bouts) {
-            if (inRegs(bout.boxerAId)) {
-              bout.boxerAId = null
-              if (bout.boxerBId) {
-                bout.winnerId = bout.boxerBId
-                bout.loserId = null
-                bout.status = 'walkover'
-                bout.result = {
-                  winnerId: bout.boxerBId,
-                  method: 'Walkover',
-                  round: null,
-                  notes: 'Boxer removed from system',
-                  recordedAt: new Date(),
-                }
-                await Registration.updateOne({ _id: bout.boxerBId }, { $set: { status: 'completed' } })
-              }
-              await bout.save()
-              continue
-            }
-            if (inRegs(bout.boxerBId)) {
-              bout.boxerBId = null
-              if (bout.boxerAId) {
-                bout.winnerId = bout.boxerAId
-                bout.loserId = null
-                bout.status = 'walkover'
-                bout.result = {
-                  winnerId: bout.boxerAId,
-                  method: 'Walkover',
-                  round: null,
-                  notes: 'Boxer removed from system',
-                  recordedAt: new Date(),
-                }
-                await Registration.updateOne({ _id: bout.boxerAId }, { $set: { status: 'completed' } })
-              }
-              await bout.save()
-            }
+          // Permanently remove every bout that used the boxer so the draw is left
+          // exactly as it was before the boxer was added (no walkover leftovers).
+          const boutIds = (
+            await Bout.find({ $or: [{ boxerAId: { $in: regIds } }, { boxerBId: { $in: regIds } }] }).select('_id').lean()
+          ).map((b) => b._id)
+          if (boutIds.length) {
+            await Bout.deleteMany({ _id: { $in: boutIds } })
           }
-
-          // Delete bouts that ended up with no boxers on either side.
-          await Bout.deleteMany({ boxerAId: null, boxerBId: null, _id: { $in: bouts.map((b) => b._id) } })
-
-          // Clear recorded winner/loser references in any remaining bout.
-          await Bout.updateMany({ winnerId: { $in: regIds } }, { $set: { winnerId: null } })
-          await Bout.updateMany({ loserId: { $in: regIds } }, { $set: { loserId: null } })
-          await Bout.updateMany({ 'result.winnerId': { $in: regIds } }, { $set: { 'result.winnerId': null } })
 
           // Delete the boxer's registrations (weigh-ins live on these docs).
           await Registration.deleteMany({ boxerId: id })

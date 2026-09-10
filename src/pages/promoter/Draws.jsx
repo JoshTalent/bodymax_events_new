@@ -195,6 +195,8 @@ function StatusPill({ status }) {
   )
 }
 
+const isRealBout = (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
+
 const selectClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500'
 
@@ -318,7 +320,7 @@ export default function Draws() {
   const showAgeFilter = ageCats.length > 0
   const byId = new Map(eligible.map((r) => [r._id, r]))
 
-  const hasDraw = (bouts?.length || 0) > 0
+  const hasDraw = (bouts || []).filter(isRealBout).length > 0
 
   // Boxers already placed in this category's draw are hidden to avoid duplicates
   const drawnIds = new Set(

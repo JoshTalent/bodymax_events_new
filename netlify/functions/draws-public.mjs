@@ -23,6 +23,8 @@ export default async (event) => {
     const ev = await Event.findOne({ registrationToken: token })
     if (!ev) return errorResponse({ message: 'Invalid or expired link', status: 404 })
 
+    await Bout.deleteMany({ eventId: ev._id, boxerAId: null, boxerBId: null })
+
     const bouts = await Bout.find({ eventId: ev._id })
       .sort({ sortOrder: 1, boutNumber: 1 })
       .populate({ path: 'boxerAId', populate: { path: 'boxerId' } })

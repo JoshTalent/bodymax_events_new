@@ -21,6 +21,7 @@ export default async (event) => {
       // List bouts for an event (optionally filtered)
       const { eventId, weight = '', round } = params
       if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
+      await Bout.deleteMany({ eventId, boxerAId: null, boxerBId: null })
       const query = { eventId, 'category.weight': weight }
       if (round) query.round = Number(round)
       const bouts = await Bout.find(query)
