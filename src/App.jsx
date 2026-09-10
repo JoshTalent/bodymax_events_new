@@ -37,7 +37,7 @@ function ProtectedRoute({ children, roles }) {
 function LoginRoute() {
   const { user, loading } = useAuth()
   if (loading) return <Loading />
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to="/app" replace />
   return <Login />
 }
 
