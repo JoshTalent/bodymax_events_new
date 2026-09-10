@@ -186,6 +186,8 @@ export default function PublicDraws() {
     </>
   )
 
+  const visible = (bouts || []).filter((b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName))
+
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-slate-950">
@@ -237,7 +239,7 @@ export default function PublicDraws() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-lg">
-                    <p className="text-2xl font-bold text-slate-900">{bouts.length}</p>
+                    <p className="text-2xl font-bold text-slate-900">{visible.length}</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.bouts}</p>
                   </div>
                 </div>
@@ -258,14 +260,14 @@ export default function PublicDraws() {
               <span className="text-xs font-medium text-slate-500">{t.autoUpdate}</span>
             </div>
 
-            {bouts.length === 0 ? (
+            {visible.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
                 <h3 className="text-lg font-semibold text-slate-900">{t.noBoutsYet}</h3>
                 <p className="mt-1 text-sm text-slate-500">{t.noBoutsBody}</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {bouts.map((b, i) => {
+                {visible.map((b, i) => {
                   const winnerId = b.winnerId
                   const isWinnerA = winnerId && String(winnerId) === String(b.boxerAId?._id)
                   const isWinnerB = winnerId && String(winnerId) === String(b.boxerBId?._id)
