@@ -1,10 +1,10 @@
-import nodemailer from 'nodemailer'
 import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
 import { success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
+import { getTransport, getFrom, getReplyTo } from './_shared/mailer.js'
 
 export default async (event) => {
   event = await normalizeRequest(event)
@@ -138,9 +138,7 @@ export default async (event) => {
     }
 
     try {
-      const gmailUser = process.env.GMAIL_USER
-      const appPassword = process.env.GMAIL_APP_PASSWORD
-      if (gmailUser && appPassword && cleanEmail) {
+      if (cleanEmail) {
         const date = evt.eventDate
           ? new Date(evt.eventDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
           : ''
@@ -160,14 +158,11 @@ export default async (event) => {
           'We will review and confirm each entry. Best regards, Bodymax Events Team',
         ].join('\n')
 
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: gmailUser, pass: appPassword },
-        })
+        const transporter = getTransport()
         await transporter.sendMail({
-          from: `"Bodymax Events" <${gmailUser}>`,
-          to: [cleanEmail, gmailUser],
-          replyTo: gmailUser,
+          from: getFrom(),
+          to: [cleanEmail, getReplyTo()].filter(Boolean),
+          replyTo: getReplyTo(),
           subject: `Thank you for registering ${registered} boxer${registered === 1 ? '' : 's'} — ${evt.name}`,
           text,
         })

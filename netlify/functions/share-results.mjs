@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer'
 import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import { requireAuth, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
+import { getTransport, getFrom, getReplyTo } from './_shared/mailer.js'
 
 export default async (event) => {
   event = await normalizeRequest(event)
@@ -13,15 +13,6 @@ export default async (event) => {
     }
     if (event.httpMethod !== 'POST') {
       return errorResponse({ message: 'Method not allowed', status: 405 })
-    }
-
-    const gmailUser = process.env.GMAIL_USER
-    const appPassword = process.env.GMAIL_APP_PASSWORD
-    if (!gmailUser || !appPassword) {
-      return errorResponse({
-        message: 'Email sending is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD on Netlify.',
-        status: 500,
-      })
     }
 
     const body = JSON.parse(event.body || '{}')
@@ -56,16 +47,15 @@ export default async (event) => {
       `${user.name || 'Bodymax'} · Bodymax Events`,
     ].join('\n')
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: appPassword },
-    })
+    const transporter = getTransport()
+    const from = getFrom()
+    const replyTo = getReplyTo()
 
     try {
       await transporter.sendMail({
-        from: `"Bodymax Events" <${gmailUser}>`,
-        to: [target, gmailUser],
-        replyTo: gmailUser,
+        from,
+        to: [target, replyTo].filter(Boolean),
+        replyTo,
         subject: `Official Results — ${eventName}`,
         text,
         attachments: [
