@@ -116,6 +116,11 @@ export default function Results() {
   const [recordBout, setRecordBout] = useState(null)
   const [form, setForm] = useState({ winnerId: '', method: 'Decision', round: '', notes: '' })
   const [busy, setBusy] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareEmail, setShareEmail] = useState('')
+  const [shareMessage, setShareMessage] = useState('')
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareError, setShareError] = useState('')
 
   const load = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
@@ -169,10 +174,37 @@ export default function Results() {
 
   const downloadPdf = async () => {
     try {
-      await buildPdf()
+      const { doc, fileName } = await buildPdf()
+      doc.save(fileName)
     } catch (err) {
       console.error('PDF generation failed', err)
       toast(String(err?.message || err), 'error')
+    }
+  }
+
+  const sendShare = async () => {
+    const target = shareEmail.trim()
+    if (!target) {
+      setShareError('Enter the recipient email')
+      return
+    }
+    setShareBusy(true)
+    setShareError('')
+    try {
+      const { doc, fileName } = await buildPdf()
+      const pdfBase64 = doc.output('datauristring').split(',')[1] || ''
+      await api('/share-results', {
+        method: 'POST',
+        body: { email: target, eventId: id, fileName, pdfBase64, message: shareMessage },
+      })
+      toast(`Results PDF sent to ${target}`)
+      setShareOpen(false)
+      setShareEmail('')
+      setShareMessage('')
+    } catch (err) {
+      setShareError(err.message)
+    } finally {
+      setShareBusy(false)
     }
   }
 
@@ -330,7 +362,7 @@ export default function Results() {
     }
 
     const safeName = (event.name || 'event').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
-    doc.save(`results-${safeName}.pdf`)
+    return { doc, fileName: `results-${safeName}.pdf` }
   }
 
   return (
@@ -394,12 +426,20 @@ export default function Results() {
           )}
         </p>
         {displayed.length > 0 && (
-          <Button variant="secondary" onClick={downloadPdf} disabled={!hasResults}>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Download PDF
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={() => { setShareEmail(''); setShareMessage(''); setShareError(''); setShareOpen(true) }} disabled={!hasResults}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+              Share PDF
+            </Button>
+            <Button variant="secondary" onClick={downloadPdf} disabled={!hasResults}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Download PDF
+            </Button>
+          </div>
         )}
       </div>
 
@@ -526,6 +566,27 @@ export default function Results() {
           <Input label="Round Finished" type="number" value={form.round} onChange={(e) => setForm({ ...form, round: e.target.value })} placeholder="Optional" />
           <Textarea label="Notes (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
         </div>
+      </Modal>
+
+      <Modal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Share Results PDF"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShareOpen(false)}>Cancel</Button>
+            <Button onClick={sendShare} disabled={shareBusy || !shareEmail.trim()}>
+              {shareBusy ? <Spinner className="h-4 w-4 border-white" /> : 'Send Email'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">Email the generated results PDF to another organization.</p>
+        <div className="mt-4 space-y-4">
+          <Input label="Recipient Email" type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="org@example.com" required />
+          <Textarea label="Short message (optional)" value={shareMessage} onChange={(e) => setShareMessage(e.target.value)} rows={3} placeholder="e.g. Please find the official results for this event." />
+        </div>
+        {shareError && <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{shareError}</p>}
       </Modal>
     </div>
   )
