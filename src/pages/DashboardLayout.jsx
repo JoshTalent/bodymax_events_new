@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../utils/api.js'
 import { cn } from '../utils/cn.js'
 
-function SidebarLink({ to, label, icon, end, active, badge }) {
+function SidebarLink({ to, label, icon, end, active, badge, close }) {
   return (
     <Link
       to={to}
+      onClick={close}
       className={cn(
         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
         active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -91,10 +92,20 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
     </svg>
   ),
+  menu: (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+    </svg>
+  ),
+  close: (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
 }
 
-function NavItem({ to, label, icon, end }) {
-  return { to, label, icon, end }
+function NavItem(to, label, icon, end, badge) {
+  return { to, label, icon, end, badge }
 }
 
 export default function DashboardLayout() {
@@ -102,6 +113,7 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [registrationCount, setRegistrationCount] = useState(null)
+  const [navOpen, setNavOpen] = useState(false)
 
   useEffect(() => {
     api('/dashboard')
@@ -125,10 +137,26 @@ export default function DashboardLayout() {
     navigate('/login')
   }
 
+  const navItems = []
+  navItems.push(NavItem('/app', 'Dashboard', icons.dashboard, true))
+  if (isPromoter) {
+    navItems.push(NavItem('/app/events', 'Events', icons.events))
+    navItems.push(NavItem('/app/registrations', 'Registrations', icons.records, false, registrationCount))
+    if (canManageUsers) {
+      navItems.push(NavItem('/app/users', 'Users', icons.users))
+    }
+  }
+  if (isOfficial) {
+    navItems.push(NavItem('/app/events', 'Events', icons.events))
+    navItems.push(NavItem('/app/registrations', 'Records', icons.records, false, registrationCount))
+  }
+  navItems.push(NavItem('/app/settings', 'Settings', icons.settings))
+
   const mobileNavItems = isPromoter
     ? [
         NavItem('/app', 'Home', icons.dashboard, true),
         NavItem('/app/events', 'Events', icons.events),
+        NavItem('/app/registrations', 'Registrations', icons.records),
         NavItem('/app/settings', 'Settings', icons.settings),
       ]
     : [
@@ -149,24 +177,9 @@ export default function DashboardLayout() {
           <span className="ml-2 rounded bg-brand-600 px-1.5 py-0.5 text-xs font-semibold text-white">{title}</span>
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          <SidebarLink to="/app" label="Dashboard" icon={icons.dashboard} end active={isActive('/app', true)} />
-
-          {isPromoter && (
-            <>
-              <SidebarLink to="/app/events" label="Events" icon={icons.events} active={isActive('/app/events')} />
-              <SidebarLink to="/app/registrations" label="Registrations" icon={icons.records} active={isActive('/app/registrations')} badge={registrationCount} />
-              {canManageUsers && <SidebarLink to="/app/users" label="Users" icon={icons.users} active={isActive('/app/users')} />}
-            </>
-          )}
-
-          {isOfficial && (
-            <>
-              <SidebarLink to="/app/events" label="Events" icon={icons.events} active={isActive('/app/events')} />
-              <SidebarLink to="/app/registrations" label="Records" icon={icons.records} active={isActive('/app/registrations')} badge={registrationCount} />
-            </>
-          )}
-
-          <SidebarLink to="/app/settings" label="Settings" icon={icons.settings} active={isActive('/app/settings')} />
+          {navItems.map((it) => (
+            <SidebarLink key={it.label} to={it.to} label={it.label} icon={it.icon} end={it.end} badge={it.badge} active={isActive(it.to, it.end)} />
+          ))}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-slate-800 p-3">
           <div className="mb-2 px-3">
@@ -185,9 +198,18 @@ export default function DashboardLayout() {
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 md:hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-bold text-slate-900">Bodymax</span>
-          <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{title}</span>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label="Open menu"
+            onClick={() => setNavOpen(true)}
+            className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          >
+            {icons.menu}
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-slate-900">Bodymax</span>
+            <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{title}</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <p className="max-w-[140px] truncate text-xs text-slate-500">{user?.name}</p>
@@ -200,6 +222,55 @@ export default function DashboardLayout() {
           </button>
         </div>
       </header>
+
+      {/* Mobile slide-in menu */}
+      {navOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden" onClick={() => setNavOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-900 text-slate-300 shadow-2xl md:hidden">
+            <div className="flex h-14 items-center justify-between border-b border-slate-800 px-4">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-white">Bodymax</span>
+                <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{title}</span>
+              </div>
+              <button
+                aria-label="Close menu"
+                onClick={() => setNavOpen(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              >
+                {icons.close}
+              </button>
+            </div>
+            <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+              {navItems.map((it) => (
+                <SidebarLink
+                  key={it.label}
+                  to={it.to}
+                  label={it.label}
+                  icon={it.icon}
+                  end={it.end}
+                  badge={it.badge}
+                  active={isActive(it.to, it.end)}
+                  close={() => setNavOpen(false)}
+                />
+              ))}
+            </nav>
+            <div className="border-t border-slate-800 p-3">
+              <div className="mb-2 px-3">
+                <p className="truncate text-sm font-medium text-white">{user?.name}</p>
+                <p className="truncate text-xs text-slate-400">{user?.email}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              >
+                {icons.logout}
+                Sign out
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* Main content */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 pb-24 sm:px-6 md:px-10 md:py-8 md:pb-8 lg:px-12 lg:py-10">
