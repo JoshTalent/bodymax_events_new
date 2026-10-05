@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../../utils/api.js'
 import { useToast } from '../../context/ToastContext.jsx'
@@ -8,6 +8,12 @@ import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { Select, Input } from '../../components/Field.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { cn } from '../../utils/cn.js'
+import {
+  ELIGIBLE_STATUS,
+  loadRules,
+  saveRules,
+  generatePairings,
+} from '../../utils/drawEngine.js'
 
 function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled }) {
   const a = bout.boxerAId
@@ -233,6 +239,183 @@ function SelectedPlayer({ r }) {
   )
 }
 
+function Toggle({ checked, onChange, label, description }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300"
+    >
+      <span className={cn('mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition', checked ? 'bg-brand-600' : 'bg-slate-300')}>
+        <span className={cn('h-4 w-4 rounded-full bg-white shadow transition-transform', checked && 'translate-x-4')} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-slate-900">{label}</span>
+        {description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}
+      </span>
+    </button>
+  )
+}
+
+function BandEditor({ bands, onChange, unit, disabled }) {
+  const update = (i, key, value) =>
+    onChange(bands.map((b, x) => (x === i ? { ...b, [key]: value === '' ? '' : Number(value) } : b)))
+
+  return (
+    <div className="space-y-2">
+      {bands.length === 0 && (
+        <p className="text-xs text-slate-500">No ranges yet — add one, or switch this rule off.</p>
+      )}
+      {bands.map((band, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="number"
+            min="0"
+            value={band.min}
+            disabled={disabled}
+            onChange={(e) => update(i, 'min', e.target.value)}
+            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100"
+            aria-label="Range start"
+          />
+          <span className="text-xs font-medium text-slate-400">to</span>
+          <input
+            type="number"
+            min="0"
+            value={band.max}
+            disabled={disabled}
+            onChange={(e) => update(i, 'max', e.target.value)}
+            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100"
+            aria-label="Range end"
+          />
+          <span className="text-xs text-slate-500">{unit}</span>
+          <button
+            type="button"
+            onClick={() => onChange(bands.filter((_, x) => x !== i))}
+            disabled={disabled}
+            className="ml-auto rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+            title="Remove this range"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...bands, { min: '', max: '' }])}
+        disabled={disabled}
+        className="text-xs font-semibold text-brand-600 transition hover:text-brand-700 disabled:opacity-40"
+      >
+        + Add range
+      </button>
+    </div>
+  )
+}
+
+function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabel, onGenerate, busy }) {
+  const setBands = (key) => (bands) => setRules((r) => ({ ...r, [key]: bands }))
+  const { summary, unpaired } = preview
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title={`Smart Auto Draw${scopeLabel ? ` — ${scopeLabel}` : ''}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={onGenerate} disabled={busy || summary.boxers === 0}>
+            {busy ? <Spinner className="h-4 w-4 border-white" /> : 'Generate Auto Draw'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <p className="text-sm text-slate-600">
+          Set your matching rules and the system builds the draw for you. Boxers only meet someone they share a range with in every rule you switch on.
+        </p>
+
+        <Toggle
+          checked={rules.avoidSameClub}
+          onChange={(v) => setRules((r) => ({ ...r, avoidSameClub: v }))}
+          label="Never pair boxers from the same club"
+          description="Two boxers registered under the same club or team cannot face each other."
+        />
+
+        <div className="rounded-xl border border-slate-200 p-3">
+          <Toggle
+            checked={rules.useExperience}
+            onChange={(v) => setRules((r) => ({ ...r, useExperience: v }))}
+            label="Match by bouts played"
+            description="Group experience into ranges — boxers only fight others inside a shared range."
+          />
+          {rules.useExperience && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <BandEditor
+                bands={rules.experienceBands}
+                onChange={setBands('experienceBands')}
+                unit="bouts"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 p-3">
+          <Toggle
+            checked={rules.useAge}
+            onChange={(v) => setRules((r) => ({ ...r, useAge: v }))}
+            label="Match by age"
+            description="Group ages into ranges. Overlapping ranges are fine — a 26 year old can then meet either side."
+          />
+          {rules.useAge && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <BandEditor bands={rules.ageBands} onChange={setBands('ageBands')} unit="years" />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">When no valid opponent exists</label>
+          <select
+            value={rules.strict ? 'strict' : 'balanced'}
+            onChange={(e) => setRules((r) => ({ ...r, strict: e.target.value === 'strict' }))}
+            className={selectClass}
+          >
+            <option value="balanced">Relax rules only when needed to avoid a bye</option>
+            <option value="strict">Never break the rules — leave a bye</option>
+          </select>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 px-3 py-3">
+          <p className="text-sm text-slate-700">
+            <span className="font-semibold">{summary.bouts} bout{summary.bouts === 1 ? '' : 's'}</span> from{' '}
+            {summary.boxers} eligible boxer{summary.boxers === 1 ? '' : 's'}
+            {summary.byes > 0 && (
+              <>
+                {' '}· <span className="font-semibold text-amber-700">{summary.byes} bye{summary.byes === 1 ? '' : 's'}</span>
+              </>
+            )}
+          </p>
+          {summary.boxers === 0 && (
+            <p className="mt-1 text-xs text-amber-700">No eligible boxers in this category. Switch off the weight or age filter, or add boxers manually.</p>
+          )}
+          {unpaired.length > 0 && (
+            <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
+              {unpaired.map((p) => (
+                <li key={p.id}>
+                  <span className="font-medium text-slate-700">{p.name}</span> — {p.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export default function Draws() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -263,6 +446,14 @@ export default function Draws() {
   const [assignForm, setAssignForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
   const [showAddAssign, setShowAddAssign] = useState(false)
   const [addingAssign, setAddingAssign] = useState(false)
+
+  const [rulesOpen, setRulesOpen] = useState(false)
+  const [rules, setRules] = useState(() => loadRules(id))
+  const [autoBusy, setAutoBusy] = useState(false)
+
+  useEffect(() => {
+    setRules(loadRules(id))
+  }, [id])
 
   const loadEvent = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
@@ -308,13 +499,20 @@ export default function Draws() {
     }
   }
 
-  if (!event || !registrations) return <Loading />
-
-  const eligible = registrations.filter((r) =>
-    ['approved', 'eligible', 'payment_confirmed', 'weighed', 'completed'].includes(r.status) &&
-    (!weight || r.category?.weight === weight) &&
-    (!age || r.category?.age === age)
+  const eligible = useMemo(
+    () =>
+      (registrations || []).filter(
+        (r) =>
+          ELIGIBLE_STATUS.includes(r.status) &&
+          (!weight || r.category?.weight === weight) &&
+          (!age || r.category?.age === age)
+      ),
+    [registrations, weight, age]
   )
+
+  const autoPreview = useMemo(() => generatePairings(eligible, rules), [eligible, rules])
+
+  if (!event || !registrations) return <Loading />
 
   const ageCats = event.ageCategories || []
   const showAgeFilter = ageCats.length > 0
@@ -369,30 +567,51 @@ export default function Draws() {
   const removePair = (i) => setManualPairs(manualPairs.filter((_, x) => x !== i))
 
   const autoPair = () => {
-    const pool = available().slice()
+    const pool = available()
+    if (pool.length < 2) return
+    const { pairs, unpaired } = generatePairings(pool, rules)
     const rows = [...manualPairs]
-
-    const used = new Set(rows.flatMap((p) => [p.a, p.b]).filter(Boolean).map(String))
-    const remaining = pool.filter((r) => !used.has(String(r._id)))
-
-    // Match boxers from different clubs first to avoid same-club pairings.
-    while (remaining.length >= 2) {
-      let a = remaining.shift()
-      let b = remaining.find((x) => x.clubName !== a.clubName)
-      let bIdx = b ? remaining.indexOf(b) : -1
-
-      if (bIdx === -1) {
-        // No different-club opponent left; pair from same club as a fallback.
-        b = remaining[0]
-        bIdx = 0
-      }
-      remaining.splice(bIdx, 1)
-      rows.push({ a: a._id, b: b._id })
-    }
-    if (remaining.length === 1) {
-      rows.push({ a: remaining.pop()._id, b: '' })
-    }
+    pairs.forEach((p) => rows.push({ a: p.a.id, b: p.b.id }))
+    unpaired.forEach((p) => rows.push({ a: p.id, b: '' }))
     setManualPairs(rows)
+    if (unpaired.length > 0) {
+      toast(`${pairs.length} pairing(s) made, ${unpaired.length} boxer(s) left without a valid opponent`, 'info')
+    }
+  }
+
+  const runSmartAuto = async () => {
+    const { pairs, unpaired, summary } = generatePairings(eligible, rules)
+    if (summary.boxers === 0) {
+      toast('No eligible boxers to draw in this category', 'error')
+      return
+    }
+    const scope = [weight || 'all weights', age || 'all ages'].join(' · ')
+    if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
+
+    const bouts = [
+      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id })),
+      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null })),
+    ]
+
+    setAutoBusy(true)
+    try {
+      await api(`/draws/manual?eventId=${id}`, {
+        method: 'POST',
+        body: { weight: weight || '', age: age || '', gender: '', bouts },
+      })
+      saveRules(id, rules)
+      setRulesOpen(false)
+      await loadDraw(id, weight, age)
+      toast(
+        unpaired.length > 0
+          ? `Auto draw created — ${summary.bouts} bouts, ${unpaired.length} bye${unpaired.length === 1 ? '' : 's'}`
+          : `Auto draw created — ${summary.bouts} bouts, no byes`
+      )
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setAutoBusy(false)
+    }
   }
 
   const addUnaffiliated = async () => {
@@ -673,6 +892,12 @@ export default function Draws() {
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={openManual}>
             {hasDraw ? 'Update Draw' : 'Create Draw'}
+          </Button>
+          <Button variant="secondary" onClick={() => setRulesOpen(true)}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+            </svg>
+            Smart Auto Draw
           </Button>
           {hasDraw && (
             <Button variant="danger" onClick={deleteDraw} disabled={acting}>
@@ -1015,6 +1240,17 @@ export default function Draws() {
           </div>
         </div>
       </Modal>
+
+      <AutoDrawRulesModal
+        open={rulesOpen}
+        onClose={() => setRulesOpen(false)}
+        rules={rules}
+        setRules={setRules}
+        preview={autoPreview}
+        scopeLabel={[weight || 'All weights', age || 'All ages'].join(' · ')}
+        onGenerate={runSmartAuto}
+        busy={autoBusy}
+      />
     </div>
   )
 }

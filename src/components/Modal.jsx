@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
+import { cn } from '../utils/cn'
 
-export function Modal({ open, onClose, title, children, footer }) {
+export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape') onClose()
@@ -20,7 +21,12 @@ export function Modal({ open, onClose, title, children, footer }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-xl">
+      <div
+          className={cn(
+            'relative z-10 flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-xl',
+            size === 'lg' ? 'sm:max-w-2xl' : 'max-w-lg'
+          )}
+        >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <button
