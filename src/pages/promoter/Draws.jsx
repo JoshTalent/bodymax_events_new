@@ -376,6 +376,23 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
           )}
         </div>
 
+        <div className="rounded-xl border border-slate-200 p-3">
+          <Toggle
+            checked={rules.useWeight}
+            onChange={(v) => setRules((r) => ({ ...r, useWeight: v }))}
+            label="Match by weight"
+            description="Group weights into ranges so boxers only fight others in a shared weight range."
+          />
+          {rules.useWeight && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <BandEditor bands={rules.weightBands} onChange={setBands('weightBands')} unit="kg" />
+              <p className="mt-2 text-xs text-slate-400">
+                Uses the weigh-in weight when available, otherwise the weight the boxer registered with.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">When no valid opponent exists</label>
           <select

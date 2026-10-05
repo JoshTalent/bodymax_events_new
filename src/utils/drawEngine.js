@@ -4,6 +4,7 @@
 //   1. Club  - never pair two boxers from the same club.
 //   2. Bouts - group experience into ranges ("1-5 bouts can face each other").
 //   3. Age   - group age into ranges ("20-26 years can face each other").
+//   4. Weight- group body weight into ranges ("48-51 kg can face each other").
 //
 // Two boxers may be paired when they share at least one range in every
 // dimension that has ranges configured. Ranges may overlap on purpose
@@ -28,6 +29,11 @@ export const DEFAULT_RULES = {
   ageBands: [
     { min: 20, max: 26 },
     { min: 26, max: 31 },
+  ],
+  useWeight: false,
+  weightBands: [
+    { min: 48, max: 51 },
+    { min: 52, max: 54 },
   ],
   strict: false,
 }
@@ -106,6 +112,27 @@ export function boutsOf(reg) {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+function parseWeight(value) {
+  if (value === null || value === undefined || value === '') return null
+  const text = String(value)
+  const num = text.match(/(\d{1,3}(?:\.\d+)?)/)
+  if (!num) return null
+  const n = Number(num[1])
+  return Number.isFinite(n) && n > 0 && n < 300 ? n : null
+}
+
+// Best source first: actual weigh-in weight, then the declared weight,
+// then the weight category string ("48-54kg" -> 48).
+export function weightOf(reg) {
+  const official = Number(reg.weighIn?.officialWeightKg)
+  if (Number.isFinite(official) && official > 0) return official
+
+  const declared = Number(reg.boxerId?.registeredWeightKg)
+  if (Number.isFinite(declared) && declared > 0) return declared
+
+  return parseWeight(reg.category?.weight || reg.boxerId?.weightCategory || '')
+}
+
 export function normalizeParticipant(reg) {
   return {
     id: String(reg._id),
@@ -114,7 +141,8 @@ export function normalizeParticipant(reg) {
     club: clubLabelOf(reg),
     bouts: boutsOf(reg),
     age: ageOf(reg),
-    weight: reg.category?.weight || '',
+    weight: weightOf(reg),
+    weightCategory: reg.category?.weight || '',
     ageCategory: reg.category?.age || '',
   }
 }
@@ -145,14 +173,20 @@ function canPair(x, y, pass, cfg) {
     if (!sharesBand(x.age, y.age, cfg.ageBands)) return false
   }
 
+  if (pass.weight && hasBands(cfg.weightBands)) {
+    if (x.weight === null || y.weight === null) return false
+    if (!sharesBand(x.weight, y.weight, cfg.weightBands)) return false
+  }
+
   return true
 }
 
-// Prefer the closest opponent: experience gap matters more, age gap breaks ties
+// Prefer the closest opponent: experience gap matters most, then weight, then age
 function pairScore(x, y) {
   const boutGap = x.bouts === null || y.bouts === null ? 0 : Math.abs(x.bouts - y.bouts)
+  const weightGap = x.weight === null || y.weight === null ? 0 : Math.abs(x.weight - y.weight)
   const ageGap = x.age === null || y.age === null ? 0 : Math.abs(x.age - y.age)
-  return boutGap * 100 + ageGap
+  return boutGap * 1000 + weightGap * 10 + ageGap
 }
 
 function reasonFor(p, rest, cfg) {
@@ -162,7 +196,9 @@ function reasonFor(p, rest, cfg) {
   }
   if (hasBands(cfg.experienceBands) && p.bouts === null) return 'Bouts played not recorded'
   if (hasBands(cfg.ageBands) && p.age === null) return 'Age not recorded'
+  if (hasBands(cfg.weightBands) && p.weight === null) return 'Weight not recorded'
   if (hasBands(cfg.experienceBands)) return 'No opponent in their bouts range'
+  if (hasBands(cfg.weightBands)) return 'No opponent in their weight range'
   if (hasBands(cfg.ageBands)) return 'No opponent in their age range'
   return 'No valid opponent available'
 }
@@ -172,6 +208,7 @@ export function generatePairings(participants, rules = {}) {
     avoidSameClub: rules.avoidSameClub !== false,
     experienceBands: rules.useExperience ? sanitizeBands(rules.experienceBands) : [],
     ageBands: rules.useAge ? sanitizeBands(rules.ageBands) : [],
+    weightBands: rules.useWeight ? sanitizeBands(rules.weightBands) : [],
     strict: !!rules.strict,
   }
 
@@ -179,16 +216,18 @@ export function generatePairings(participants, rules = {}) {
   const pairs = []
   let remaining = pool.slice()
 
-  const passes = cfg.strict
-    ? [{ experience: true, age: true }]
-    : [
-        { experience: true, age: true },
-        { experience: true, age: false },
-        { experience: false, age: true },
-        { experience: false, age: false },
-      ]
+  // Balanced mode relaxes one rule at a time so it only breaks a rule
+  // when leaving a bye would otherwise be unavoidable.
+  const relaxSteps = cfg.strict
+    ? [[]]
+    : [[], ['age'], ['age', 'weight'], ['age', 'weight', 'experience']]
 
-  for (const pass of passes) {
+  for (const relaxed of relaxSteps) {
+    const pass = {
+      experience: !relaxed.includes('experience'),
+      age: !relaxed.includes('age'),
+      weight: !relaxed.includes('weight'),
+    }
     while (remaining.length >= 2) {
       let best = null
       for (let i = 0; i < remaining.length; i++) {
