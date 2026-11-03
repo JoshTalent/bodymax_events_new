@@ -7,6 +7,8 @@ import { Button } from '../../components/Button.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Input } from '../../components/Field.jsx'
 import { useToast } from '../../context/ToastContext.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
+import { Icon } from '../../components/Icons.jsx'
 
 export default function ClubDetail() {
   const { id } = useParams()
@@ -68,23 +70,53 @@ export default function ClubDetail() {
 
   if (!club || !boxers || !registrations) return <Loading />
 
+  const pendingCount = registrations.filter((r) => ['pending_approval', 'needs_correction'].includes(r.status)).length
+  const eligibleCount = registrations.filter((r) => ['eligible', 'completed'].includes(r.status)).length
+
   return (
     <div>
-      <div className="mb-6">
-        <button onClick={() => navigate('/app/clubs')} className="mb-1 text-sm text-brand-600 hover:underline">← Clubs</button>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{club.name}</h1>
-            <p className="text-sm text-slate-500">{club.contactName || 'Club'}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={openEdit}>Edit</Button>
+      <button onClick={() => navigate('/app/clubs')} className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:text-brand-800">
+        <Icon name="arrowRight" className="h-3.5 w-3.5 rotate-180" />
+        Back to clubs
+      </button>
+
+      <PageHeader
+        eyebrow="Network"
+        title={club.name}
+        description={`${club.contactName || 'Club account'}${club.contactEmail ? ` · ${club.contactEmail}` : ''}${club.contactPhone ? ` · ${club.contactPhone}` : ''}`}
+        actions={
+          <>
+            <Button variant="secondary" onClick={openEdit}>Edit club</Button>
             <Button variant="danger" onClick={handleDelete}>Delete Club</Button>
+          </>
+        }
+      />
+
+      <div className="mb-5 grid grid-cols-3 gap-3">
+        {[
+          { label: 'Boxers', value: boxers.length, icon: 'boxers', tone: 'bg-brand-50 text-brand-600' },
+          { label: 'Registrations', value: registrations.length, icon: 'registrations', tone: 'bg-violet-50 text-violet-600' },
+          { label: 'Eligible', value: eligibleCount, icon: 'trophy', tone: 'bg-emerald-50 text-emerald-600' },
+        ].map((s) => (
+          <div key={s.label} className="console-card flex items-center gap-3 p-4">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${s.tone}`}>
+              <Icon name={s.icon} className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+              <p className="text-xl font-black leading-tight text-slate-900">{s.value}</p>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {pendingCount > 0 && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+          {pendingCount} registration{pendingCount === 1 ? '' : 's'} from this club need review.
+        </div>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader title="Boxers" subtitle={`${boxers.length} boxers in this club`} />
           <CardBody className="p-0">

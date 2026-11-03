@@ -8,6 +8,8 @@ import { Input, Textarea } from '../../components/Field.jsx'
 import { Card, CardHeader, CardBody } from '../../components/Card.jsx'
 import { Spinner } from '../../components/Loading.jsx'
 import TagInput from '../../components/TagInput.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
+import { Icon } from '../../components/Icons.jsx'
 
 export default function EventCreate() {
   const { user } = useAuth()
@@ -69,12 +71,18 @@ export default function EventCreate() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Create New Event</h1>
-        <p className="text-sm text-slate-500">Set up your boxing tournament details</p>
-      </div>
+      <PageHeader
+        eyebrow="Events"
+        title="Create New Event"
+        description="Set up the tournament, registration window and competition categories."
+        actions={
+          <Button type="button" variant="secondary" onClick={() => navigate('/app/events')}>
+            Back to events
+          </Button>
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <Card>
           <CardHeader title="Basic Information" />
           <CardBody className="space-y-4">
@@ -129,10 +137,11 @@ export default function EventCreate() {
 
         {error && <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-900">{error}</p>}
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <Button type="button" variant="ghost" onClick={() => navigate('/app/events')}>Cancel</Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? <Spinner className="h-4 w-4 border-white" /> : 'Create Event'}
+          <Button type="submit" disabled={saving} className="inline-flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600">
+            {saving ? <Spinner className="h-4 w-4 border-white" /> : <Icon name="plus" className="h-4 w-4" />}
+            Create Event
           </Button>
         </div>
       </form>

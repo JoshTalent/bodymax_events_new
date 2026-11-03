@@ -8,6 +8,7 @@ import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { StatusBadge } from '../../components/Badge.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Textarea, Select } from '../../components/Field.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
 import { cn } from '../../utils/cn'
 
 const ROW_PILLS = {
@@ -273,6 +274,16 @@ export default function Registrations() {
 
   const total = regs ? regs.length : 0
 
+  const summary = useMemo(() => {
+    const list = regs || []
+    return {
+      total: list.length,
+      pending: list.filter((r) => ACTIONABLE.includes(r.status)).length,
+      eligible: list.filter((r) => ['eligible', 'completed'].includes(r.status)).length,
+      weighed: list.filter((r) => r.weighIn?.status === 'successful').length,
+    }
+  }, [regs])
+
   const eventOptions = useMemo(() => {
     const map = new Map()
     for (const r of regs || []) {
@@ -426,35 +437,46 @@ export default function Registrations() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Registrations</h1>
-              {total > 0 && (
-                <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-100">
-                  {total} total
-                </span>
-              )}
+      <PageHeader
+        eyebrow="Operations"
+        title="Registrations"
+        description="Review boxer entries, follow up with clubs and keep every event on track."
+        actions={
+          isPromoter ? (
+            <>
+              <Button size="sm" variant="secondary" onClick={exportCsv} disabled={filtered.length === 0}>
+                <Icon name="download" className="h-3.5 w-3.5" />
+                Export CSV
+              </Button>
+              <Button size="sm" variant="secondary" onClick={load} disabled={busyLoad}>
+                {busyLoad ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="refresh" className="h-3.5 w-3.5" />}
+                {busyLoad ? 'Refreshing…' : 'Refresh'}
+              </Button>
+            </>
+          ) : null
+        }
+      />
+
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: 'Total entries', value: summary.total, icon: 'layers', tone: 'bg-brand-50 text-brand-600' },
+          { label: 'Need review', value: summary.pending, icon: 'alert', tone: 'bg-amber-50 text-amber-600' },
+          { label: 'Eligible', value: summary.eligible, icon: 'check', tone: 'bg-emerald-50 text-emerald-600' },
+          { label: 'Weighed in', value: summary.weighed, icon: 'flag', tone: 'bg-violet-50 text-violet-600' },
+        ].map((s) => (
+          <div key={s.label} className="animate-rise console-card flex items-center gap-3 p-4">
+            <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', s.tone)}>
+              <Icon name={s.icon} className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+              <p className="text-xl font-black leading-tight text-slate-900">{regs ? s.value : '—'}</p>
             </div>
-            <p className="mt-1 text-sm text-slate-500">Review boxer entries, follow up with clubs and keep every event on track.</p>
           </div>
-        </div>
-        {isPromoter && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={exportCsv} disabled={filtered.length === 0}>
-              <Icon name="download" className="h-3.5 w-3.5" />
-              Export CSV
-            </Button>
-            <Button size="sm" variant="secondary" onClick={load} disabled={busyLoad}>
-              {busyLoad ? <Spinner className="h-3.5 w-3.5" /> : <Icon name="refresh" className="h-3.5 w-3.5" />}
-              {busyLoad ? 'Refreshing…' : 'Refresh'}
-            </Button>
-          </div>
-        )}
+        ))}
       </div>
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="min-w-0">
             <label className="mb-1 block text-sm font-medium text-slate-700">Search</label>

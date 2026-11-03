@@ -7,6 +7,7 @@ import { Card, CardHeader, CardBody } from '../../components/Card.jsx'
 import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { Select, Input } from '../../components/Field.jsx'
 import { Modal } from '../../components/Modal.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
 import { cn } from '../../utils/cn.js'
 import {
   ELIGIBLE_STATUS,
@@ -881,13 +882,17 @@ export default function Draws() {
 
   return (
     <div>
-      <div className="mb-6">
-        <button onClick={() => navigate(`/app/events/${id}`)} className="mb-1 text-sm text-brand-600 hover:underline">← Back to Event</button>
-        <h1 className="text-2xl font-bold text-slate-900">Draw & Bouts</h1>
-        <p className="text-sm text-slate-500">{event.name} · pair boxers into bouts for this event</p>
-      </div>
+      <button onClick={() => navigate(`/app/events/${id}`)} className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:text-brand-800">
+        ← Back to event
+      </button>
 
-      <div className="mb-6 flex flex-wrap items-end gap-4">
+      <PageHeader
+        eyebrow="Draw & bouts"
+        title="Bout pairings"
+        description={`${event.name} · pair eligible boxers into bouts and prepare the fight card.`}
+      />
+
+      <div className="console-card mb-6 flex flex-wrap items-end gap-4 p-4">
         <div className="w-56">
           <Select label="Weight Category" value={weight} onChange={(e) => selectWeight(e.target.value)}>
             <option value="">All weights</option>

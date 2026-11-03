@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../utils/api.js'
 import { useToast } from '../../context/ToastContext.jsx'
 import { Button } from '../../components/Button.jsx'
-import { Card, CardBody } from '../../components/Card.jsx'
 import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { Badge } from '../../components/Badge.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Input, Select, Textarea } from '../../components/Field.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
+import { Icon } from '../../components/Icons.jsx'
+import { cn } from '../../utils/cn.js'
 
 const emptyForm = {
   clubId: '',
@@ -23,6 +25,18 @@ const emptyForm = {
   notes: '',
 }
 
+function initials(name = '') {
+  return name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+}
+
+function ageFrom(dob) {
+  if (!dob) return null
+  const d = new Date(dob)
+  if (Number.isNaN(d.getTime())) return null
+  const diff = Date.now() - d.getTime()
+  return Math.floor(diff / (365.25 * 24 * 3600 * 1000))
+}
+
 export default function BoxerList() {
   const { toast } = useToast()
   const [boxers, setBoxers] = useState(null)
@@ -31,8 +45,11 @@ export default function BoxerList() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
 
-  const load = () => { api('/boxers').then((d) => setBoxers(d.boxers)).catch(() => {}) }
+  const load = () => {
+    api('/boxers').then((d) => setBoxers(d.boxers)).catch(() => {})
+  }
   useEffect(load, [])
   useEffect(() => {
     api('/clubs').then((d) => setClubs(d.clubs || [])).catch(() => {})
@@ -121,50 +138,170 @@ export default function BoxerList() {
     }
   }
 
-  const clubName = (id) => clubs.find((c) => c._id === id)?.name || ''
+  const clubName = (id) => clubs.find((c) => c._id === id)?.name || 'Unattached'
+
+  const filtered = useMemo(() => {
+    const list = boxers || []
+    const q = search.trim().toLowerCase()
+    if (!q) return list
+    return list.filter(
+      (b) =>
+        (b.fullName || '').toLowerCase().includes(q) ||
+        clubName(b.clubId).toLowerCase().includes(q) ||
+        (b.weightCategory || '').toLowerCase().includes(q)
+    )
+  }, [boxers, search, clubs])
+
+  const stats = useMemo(() => {
+    const list = boxers || []
+    return {
+      total: list.length,
+      male: list.filter((b) => b.gender === 'M').length,
+      female: list.filter((b) => b.gender === 'F').length,
+      clubs: new Set(list.map((b) => b.clubId).filter(Boolean)).size,
+    }
+  }, [boxers])
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Boxers</h1>
-          <p className="text-sm text-slate-500">All boxers across participating clubs</p>
-        </div>
-        <Button onClick={openCreate}>+ Add Boxer</Button>
+      <PageHeader
+        eyebrow="Network"
+        title="Boxers"
+        description="Every registered boxer across your club network, with records, categories and contact details."
+        actions={
+          <Button onClick={openCreate} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 px-4 text-xs font-bold shadow-lg shadow-brand-600/25 hover:from-brand-700 hover:to-indigo-700">
+            <Icon name="plus" className="h-4 w-4" />
+            Add Boxer
+          </Button>
+        }
+      />
+
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: 'Total boxers', value: stats.total, icon: 'boxers', tone: 'bg-brand-50 text-brand-600' },
+          { label: 'Male', value: stats.male, icon: 'users', tone: 'bg-blue-50 text-blue-600' },
+          { label: 'Female', value: stats.female, icon: 'users', tone: 'bg-pink-50 text-pink-600' },
+          { label: 'Clubs represented', value: stats.clubs, icon: 'clubs', tone: 'bg-teal-50 text-teal-600' },
+        ].map((s, i) => (
+          <div key={s.label} className={cn('console-card animate-rise flex items-center gap-3 p-4', `delay-${i + 1}`)}>
+            <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', s.tone)}>
+              <Icon name={s.icon} className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+              <p className="text-xl font-black leading-tight text-slate-900">{boxers ? s.value : '—'}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <Card>
-        <CardBody className="p-0">
-          {!boxers ? (
-            <Loading />
-          ) : boxers.length === 0 ? (
-            <Empty title="No boxers yet" message="Boxers will appear here as clubs add them." />
-          ) : (
-            <ul className="divide-y divide-slate-200">
-              {boxers.map((b) => (
-                <li key={b._id} className="flex items-center justify-between gap-3 px-5 py-4">
-                  <div>
-                    <p className="font-medium text-slate-900">{b.fullName}</p>
-                    <p className="text-sm text-slate-500">
-                      {clubName(b.clubId)}
-                      {b.gender === 'M' ? ' · Male' : b.gender === 'F' ? ' · Female' : ' · Gender N/A'}
-                      {b.dateOfBirth && ` · ${new Date(b.dateOfBirth).toLocaleDateString()}`}
-                    </p>
-                    <div className="mt-1 flex gap-2">
-                      {b.weightCategory && <Badge>{b.weightCategory}</Badge>}
-                      {b.ageCategory && <Badge>{b.ageCategory}</Badge>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => openEdit(b)}>Edit</Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(b)}>Delete</Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardBody>
-      </Card>
+      <div className="animate-rise delay-2 console-card mb-5 flex items-center justify-between gap-3 p-3">
+        <p className="pl-2 text-[11px] font-semibold text-slate-500">
+          Showing <span className="font-bold text-slate-800">{filtered.length}</span> of {boxers?.length ?? 0} boxers
+        </p>
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 focus-within:border-brand-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-500/10 sm:max-w-xs">
+          <Icon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search boxer, club or weight..."
+            className="min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {!boxers ? (
+        <Loading />
+      ) : filtered.length === 0 ? (
+        <div className="console-card">
+          <Empty
+            title={boxers.length === 0 ? 'No boxers yet' : 'No matching boxers'}
+            message={boxers.length === 0 ? 'Boxers will appear here as clubs add them.' : 'Try a different search term.'}
+          />
+        </div>
+      ) : (
+        <div className="console-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-[10px] uppercase tracking-wider text-slate-400">
+                  <th className="px-5 py-3 font-bold">Boxer</th>
+                  <th className="px-5 py-3 font-bold">Club</th>
+                  <th className="px-5 py-3 font-bold">Category</th>
+                  <th className="px-5 py-3 font-bold">Record</th>
+                  <th className="px-5 py-3 font-bold">Profile</th>
+                  <th className="px-5 py-3 text-right font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map((b) => {
+                  const age = ageFrom(b.dateOfBirth)
+                  return (
+                    <tr key={b._id} className="group transition hover:bg-slate-50/70">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-950 text-[10px] font-bold text-white">
+                            {initials(b.fullName)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-900">{b.fullName}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {b.gender === 'M' ? 'Male' : b.gender === 'F' ? 'Female' : 'Gender N/A'}
+                              {age != null && ` · ${age} yrs`}
+                              {b.nationality && ` · ${b.nationality}`}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                          <Icon name="clubs" className="h-3.5 w-3.5 text-slate-400" />
+                          {clubName(b.clubId)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {b.weightCategory && <Badge tone="blue">{b.weightCategory}</Badge>}
+                          {b.ageCategory && <Badge tone="slate">{b.ageCategory}</Badge>}
+                          {!b.weightCategory && !b.ageCategory && <span className="text-xs text-slate-400">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700">
+                          <span className="text-emerald-600">{b.boxingRecord?.wins || 0}W</span>
+                          <span className="text-slate-300">/</span>
+                          <span className="text-rose-500">{b.boxingRecord?.losses || 0}L</span>
+                          <span className="text-slate-300">/</span>
+                          <span className="text-slate-500">{b.boxingRecord?.draws || 0}D</span>
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-[11px] text-slate-500">
+                        {b.registeredWeightKg ? `${b.registeredWeightKg} kg` : b.experience || '—'}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEdit(b)}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(b)}
+                            className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={modalOpen}

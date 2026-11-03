@@ -6,6 +6,7 @@ import { Button } from '../../components/Button.jsx'
 import { Input } from '../../components/Field.jsx'
 import { Card, CardHeader, CardBody } from '../../components/Card.jsx'
 import { Spinner } from '../../components/Loading.jsx'
+import { PageHeader } from '../../components/PageHeader.jsx'
 
 export default function ClubCreate() {
   const navigate = useNavigate()
@@ -44,12 +45,18 @@ export default function ClubCreate() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Add a Club</h1>
-        <p className="text-sm text-slate-500">Create the club and its login credentials</p>
-      </div>
+      <PageHeader
+        eyebrow="Clubs"
+        title="Add a Club"
+        description="Create the club profile and the login credentials its manager will use."
+        actions={
+          <Button type="button" variant="secondary" onClick={() => navigate('/app/clubs')}>
+            Back to clubs
+          </Button>
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <Card>
           <CardHeader title="Club Details" />
           <CardBody className="space-y-4">
