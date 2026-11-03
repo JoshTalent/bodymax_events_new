@@ -3,6 +3,7 @@ import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
 import Event from './_shared/models/Event.js'
 import Club from './_shared/models/Club.js'
+import Bout from './_shared/models/Bout.js'
 import { requireAuth, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 
@@ -40,8 +41,8 @@ export default async (event) => {
     }
 
     if (method === 'POST') {
-      if (user.role !== 'club') {
-        return errorResponse({ message: 'Only clubs can register boxers', status: 403 })
+      if (user.role !== 'club' && user.role !== 'promoter') {
+        return errorResponse({ message: 'Only clubs or the event manager can enter boxers', status: 403 })
       }
       const body = JSON.parse(event.body || '{}')
       const { eventId: evId, boxerId, category } = body
@@ -52,14 +53,27 @@ export default async (event) => {
 
       const ev = await Event.findById(evId)
       if (!ev) return errorResponse({ message: 'Event not found', status: 404 })
-      if (!ev.registrationOpen) {
-        return errorResponse({ message: 'Registration is not open for this event', status: 400 })
-      }
 
       const boxer = await Boxer.findById(boxerId)
       if (!boxer) return errorResponse({ message: 'Boxer not found', status: 404 })
-      if (String(boxer.clubId) !== String(user.clubId)) {
-        return errorResponse({ message: 'You can only register your own boxers', status: 403 })
+
+      // Clubs can only enter their own boxers. The promoter can enter any boxer
+      // that belongs to a club assigned to this event.
+      if (user.role === 'club') {
+        if (!ev.registrationOpen) {
+          return errorResponse({ message: 'Registration is not open for this event', status: 400 })
+        }
+        if (String(boxer.clubId) !== String(user.clubId)) {
+          return errorResponse({ message: 'You can only register your own boxers', status: 403 })
+        }
+      } else {
+        if (!boxer.clubId) {
+          return errorResponse({ message: 'Assign the boxer to a club before entering them', status: 400 })
+        }
+        const clubAssigned = (ev.clubIds || []).some((cid) => String(cid) === String(boxer.clubId))
+        if (!clubAssigned) {
+          return errorResponse({ message: "Assign the boxer's club to this event first", status: 400 })
+        }
       }
 
       const existing = await Registration.findOne({ eventId: evId, boxerId })
@@ -71,10 +85,10 @@ export default async (event) => {
       const eventWeights = ev.weightCategories || []
       const eventAges = ev.ageCategories || []
 
-      if (eventWeights.length && !eventWeights.includes(cat.weight)) {
+      if (eventWeights.length && cat.weight && !eventWeights.includes(cat.weight)) {
         return errorResponse({ message: 'Select a valid weight category for this event', status: 400 })
       }
-      if (eventAges.length && !eventAges.includes(cat.age)) {
+      if (eventAges.length && cat.age && !eventAges.includes(cat.age)) {
         return errorResponse({ message: 'Select a valid age category for this event', status: 400 })
       }
 
@@ -84,20 +98,41 @@ export default async (event) => {
         return errorResponse({ message: 'Select a valid gender category for this event', status: 400 })
       }
 
+      let clubName = body.clubName || boxer.clubName || ''
+      if (boxer.clubId) {
+        const boxerClub = await Club.findById(boxer.clubId).lean()
+        if (boxerClub) clubName = boxerClub.name
+      }
+
       const reg = await Registration.create({
         eventId: evId,
-        clubId: user.clubId,
-        clubName: body.clubName || '',
+        clubName,
+        whatsapp: body.whatsapp || '',
+        email: body.email || '',
         numberOfBouts: Number(body.numberOfBouts) || 1,
         boxerId,
         category: {
-          weight: cat.weight || '',
-          age: cat.age || '',
+          weight: cat.weight || boxer.weightCategory || '',
+          age: cat.age || boxer.ageCategory || '',
           gender,
         },
-        status: 'pending_approval',
+        status: user.role === 'promoter' ? 'approved' : 'pending_approval',
       })
       return success({ registration: reg }, 201)
+    }
+
+    if (method === 'DELETE') {
+      if (user.role !== 'promoter') {
+        return errorResponse({ message: 'Only the event manager can remove an entry', status: 403 })
+      }
+      if (!id) return errorResponse({ message: 'Registration id is required', status: 400 })
+      const reg = await Registration.findById(id)
+      if (!reg) return errorResponse({ message: 'Registration not found', status: 404 })
+
+      // Remove any bouts that used this entry so the draw stays consistent.
+      await Bout.deleteMany({ $or: [{ boxerAId: reg._id }, { boxerBId: reg._id }] })
+      await reg.deleteOne()
+      return success({ message: 'Boxer removed from event' })
     }
 
     return errorResponse({ message: 'Method not allowed', status: 405 })

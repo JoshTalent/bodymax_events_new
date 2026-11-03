@@ -25,6 +25,9 @@ const EventSchema = new mongoose.Schema(
 
     registrationToken: { type: String, unique: true, sparse: true },
 
+    // Clubs assigned to this event. Club boxers can then be entered into the event.
+    clubIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Club' }],
+
     requireWeighIn: { type: Boolean, default: true },
 
     registrationOpen: { type: Boolean, default: false },

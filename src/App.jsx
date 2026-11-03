@@ -17,10 +17,6 @@ import EventCreate from './pages/promoter/EventCreate.jsx'
 import EventDetail from './pages/promoter/EventDetail.jsx'
 import Draws from './pages/promoter/Draws.jsx'
 import Results from './pages/promoter/Results.jsx'
-import ClubList from './pages/promoter/ClubList.jsx'
-import ClubDetail from './pages/promoter/ClubDetail.jsx'
-import ClubCreate from './pages/promoter/ClubCreate.jsx'
-import BoxerList from './pages/promoter/BoxerList.jsx'
 import Registrations from './pages/promoter/Registrations.jsx'
 import Users from './pages/promoter/Users.jsx'
 
@@ -68,11 +64,9 @@ export default function App() {
         <Route path="events/:id/draws" element={<ProtectedRoute roles={['promoter']}><Draws /></ProtectedRoute>} />
         <Route path="events/:id/results" element={<ProtectedRoute roles={['promoter']}><Results /></ProtectedRoute>} />
 
-        <Route path="clubs" element={<ProtectedRoute roles={['promoter']}><ClubList /></ProtectedRoute>} />
-        <Route path="clubs/new" element={<ProtectedRoute roles={['promoter']}><ClubCreate /></ProtectedRoute>} />
-        <Route path="clubs/:id" element={<ProtectedRoute roles={['promoter']}><ClubDetail /></ProtectedRoute>} />
+        <Route path="clubs/*" element={<Navigate to="/app/events" replace />} />
+        <Route path="boxers/*" element={<Navigate to="/app/events" replace />} />
 
-        <Route path="boxers" element={<ProtectedRoute roles={['promoter']}><BoxerList /></ProtectedRoute>} />
         <Route path="registrations" element={<ProtectedRoute roles={['promoter','official']}><Registrations /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute roles={['promoter']}><Users /></ProtectedRoute>} />
 

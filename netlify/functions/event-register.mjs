@@ -2,6 +2,7 @@ import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
+import Club from './_shared/models/Club.js'
 import { success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 import { getTransport, getFrom, getReplyTo } from './_shared/mailer.js'
@@ -84,6 +85,14 @@ export default async (event) => {
     const weightCategories = evt.weightCategories || []
     const ageCategories = evt.ageCategories || []
 
+    // Link the submission to an existing club profile when the name matches so
+    // the entry appears under that club in the event's participant manager.
+    let linkedClub = null
+    if (clubName.trim()) {
+      const escaped = clubName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      linkedClub = await Club.findOne({ name: new RegExp(`^${escaped}$`, 'i') }).select('_id').lean()
+    }
+
     const created = []
     let registered = 0
 
@@ -106,6 +115,7 @@ export default async (event) => {
       if (!boxer) {
         boxer = await Boxer.create({
           fullName,
+          clubId: linkedClub?._id || null,
           clubName: clubName || '',
           numberOfBouts: Number(b.numberOfBouts) || 1,
           gender: b.gender || null,

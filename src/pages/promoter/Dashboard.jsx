@@ -482,10 +482,10 @@ export default function PromoterDashboard() {
             <Empty title="No clubs yet" message="Clubs will rank here as registrations come in." />
           )}
           <Link
-            to="/app/clubs"
+            to="/app/events"
             className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
           >
-            View all clubs
+            Manage clubs by event
             <Icon name="arrowRight" className="h-3.5 w-3.5" />
           </Link>
         </Panel>

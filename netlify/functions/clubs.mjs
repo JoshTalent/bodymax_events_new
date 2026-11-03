@@ -15,6 +15,29 @@ export default async (event) => {
 
     const user = await requireAuth(event)
 
+    if (event.httpMethod === 'POST') {
+      await requireRole('promoter')(event)
+      const body = JSON.parse(event.body || '{}')
+      const name = (body.name || '').trim()
+      if (!name) {
+        return errorResponse({ message: 'Club name is required', status: 400 })
+      }
+      const existing = await Club.findOne({ name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') })
+      if (existing) {
+        return errorResponse({ message: 'A club with this name already exists', status: 400 })
+      }
+      const club = await Club.create({
+        name,
+        contactName: body.contactName || '',
+        contactEmail: body.contactEmail || '',
+        contactPhone: body.contactPhone || '',
+        address: body.address || '',
+        logoUrl: body.logoUrl || '',
+        active: body.active !== false,
+      })
+      return success({ club }, 201)
+    }
+
     if (event.httpMethod === 'PUT' || event.httpMethod === 'PATCH' || event.httpMethod === 'DELETE') {
       const promoter = await requireRole('promoter')(event)
       const id = requested || params.id

@@ -23,12 +23,8 @@ function getPageMeta(pathname) {
   if (pathname === '/app/events/new') return { section: 'Events', title: 'Create Event' }
   if (/^\/app\/events\/[^/]+\/draws/.test(pathname)) return { section: 'Events', title: 'Draw & Bouts' }
   if (/^\/app\/events\/[^/]+\/results/.test(pathname)) return { section: 'Events', title: 'Results' }
-  if (/^\/app\/events\/[^/]+/.test(pathname)) return { section: 'Events', title: 'Event Details' }
+  if (/^\/app\/events\/[^/]+/.test(pathname)) return { section: 'Events', title: 'Event Command Center' }
   if (pathname === '/app/registrations') return { section: 'Operations', title: 'Registrations' }
-  if (pathname === '/app/clubs') return { section: 'Network', title: 'Clubs' }
-  if (pathname === '/app/clubs/new') return { section: 'Clubs', title: 'Add Club' }
-  if (/^\/app\/clubs\/[^/]+/.test(pathname)) return { section: 'Clubs', title: 'Club Details' }
-  if (pathname === '/app/boxers') return { section: 'Network', title: 'Boxers' }
   if (pathname === '/app/users') return { section: 'Operations', title: 'Users' }
   if (pathname === '/app/settings') return { section: 'Account', title: 'Settings' }
   return { section: 'Console', title: 'Dashboard' }
@@ -170,16 +166,6 @@ export default function DashboardLayout() {
     if (isPromoter && canManageUsers) ops.push({ to: '/app/users', label: 'Users', icon: 'users' })
     sections.push({ label: isPromoter ? 'Operations' : 'Tournaments', items: ops })
 
-    if (isPromoter) {
-      sections.push({
-        label: 'Network',
-        items: [
-          { to: '/app/clubs', label: 'Clubs', icon: 'clubs' },
-          { to: '/app/boxers', label: 'Boxers', icon: 'boxers' },
-        ],
-      })
-    }
-
     sections.push({ label: 'Account', items: [{ to: '/app/settings', label: 'Settings', icon: 'settings' }] })
     return sections
   }, [isPromoter, isOfficial, canManageUsers, registrationCount])
@@ -191,7 +177,6 @@ export default function DashboardLayout() {
     if (isPromoter) {
       base.push({ to: '/app/events', label: 'Events', icon: 'events' })
       base.push({ to: '/app/registrations', label: 'Entries', icon: 'registrations' })
-      base.push({ to: '/app/clubs', label: 'Clubs', icon: 'clubs' })
     } else {
       base.push({ to: '/app/events', label: 'Events', icon: 'events' })
       base.push({ to: '/app/registrations', label: 'Records', icon: 'registrations' })
