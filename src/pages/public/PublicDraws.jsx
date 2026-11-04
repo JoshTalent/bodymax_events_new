@@ -374,8 +374,9 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-          {cornerA}{cornerB}
+        <div className="mt-4 grid grid-cols-1 gap-2">
+          <>{cornerA}</>
+          <>{cornerB}</>
         </div>
 
         <div className="flex items-center justify-center">
