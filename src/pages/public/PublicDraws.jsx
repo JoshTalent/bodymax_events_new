@@ -4,6 +4,7 @@ import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
 import { LanguageModal } from '../../components/LanguageModal.jsx'
 import { Icon } from '../../components/Icons.jsx'
+import { RadialProgress, BarList } from '../../components/Charts.jsx'
 import { cn } from '../../utils/cn.js'
 import { getSavedLang, persistLang } from '../../utils/language.js'
 
@@ -683,9 +684,9 @@ export default function PublicDraws() {
                   <div className="flex items-center gap-4 px-4 py-4">
                     <RadialProgress value={progress} label={t.complete} size={104} stroke={9} color="#2563eb" />
                     <div className="min-w-0 flex-1">
-                      <LegendRow dot="bg-emerald-500" label={t.completed} value={completed} tone="text-emerald-600" />
-                      <LegendRow dot="bg-amber-500" label={t.liveNow} value={live} tone={live ? 'text-amber-600' : 'text-slate-900'} />
-                      <LegendRow dot="bg-slate-300" label={t.remaining} value={remaining} tone="text-slate-600" />
+                      <span className="text-emerald-600 font-bold text-sm">{completed}</span>
+                      <span className="mx-2 text-amber-600 font-bold text-sm">{live}</span>
+                      <span className="text-slate-600 font-bold text-sm">{remaining}</span>
                     </div>
                   </div>
                   <div className="px-4 pb-4">
