@@ -55,23 +55,34 @@ function initials(name) {
 
 function Corner({ corner, reg, winner }) {
   const name = reg?.boxerId?.fullName
+  const photo = reg?.boxerId?.photoUrl
   const club = reg?.boxerId?.clubName || reg?.clubId?.name
   const isRed = corner === 'red'
   const cornerBase = isRed
     ? { label: 'Red Corner', avatar: 'bg-red-600 text-white', border: 'border-red-200' }
     : { label: 'Blue Corner', avatar: 'bg-blue-600 text-white', border: 'border-blue-200' }
 
+  const avatarClass = cn(
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm',
+    winner ? 'bg-emerald-600 text-white' : cornerBase.avatar
+  )
+
   return (
     <div className={cn(
       'flex flex-1 items-center gap-3 rounded-xl border px-3 py-3 transition',
       winner ? 'border-emerald-300 bg-emerald-50 shadow-sm' : cn('bg-white', cornerBase.border)
     )}>
-      <span className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm',
-        winner ? 'bg-emerald-600 text-white' : cornerBase.avatar
-      )}>
-        {initials(name)}
-      </span>
+      {photo ? (
+        <img
+          src={photo}
+          alt={name || 'Boxer'}
+          className={avatarClass}
+        />
+      ) : (
+        <span className={avatarClass}>
+          {initials(name)}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">{cornerBase.label}</span>
         <span className="block truncate font-semibold text-slate-900">
