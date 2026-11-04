@@ -230,13 +230,16 @@ function Corner({ corner, reg, isWinner, t }) {
           alt={name}
           className={cn(
             'h-16 w-16 shrink-0 rounded-xl object-cover shadow-lg ring-5 ring-white',
+            isWinner ? 'h-18 w-18' : 'h-14 w-14',
             isWinner ? 'ring-emerald-300' : isRed ? 'ring-red-200' : 'ring-blue-200'
           )}
         />
       ) : (
         <span
           className={cn(
-            'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white shadow-lg sm:h-18 sm:w-18',
+            isWinner
+              ? 'flex h-18 w-18 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white shadow-lg sm:h-20 sm:w-20'
+              : 'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-[12px] font-black text-white shadow-sm sm:h-16 sm:w-16',
             isWinner
               ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
               : isRed
@@ -247,7 +250,7 @@ function Corner({ corner, reg, isWinner, t }) {
         </span>
       )}
 
-      <div className="min-w-0 flex-1 flex-col pt-3">
+      <div className="min-w-0 flex-1 flex-col pt-{isWinner ? '3' : '2'}">
         <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-400">
           {isRed ? t.redCorner : t.blueCorner}
         </p>
@@ -374,7 +377,7 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-2">
+        <div className="mt-4 grid grid-cols-{resultRecorded ? '1' : '2'} gap-2">
           <>{cornerA}</>
           <>{cornerB}</>
         </div>
