@@ -106,7 +106,6 @@ export default function EventDetail() {
 
   const [weighReg, setWeighReg] = useState(null)
   const [weighWeight, setWeighWeight] = useState('')
-  const [weighNotes, setWeighNotes] = useState('')
 
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -290,12 +289,27 @@ export default function EventDetail() {
     try {
       await api(`/weighins/record?registrationId=${weighReg._id}`, {
         method: 'POST',
-        body: { officialWeightKg: Number(weighWeight), notes: weighNotes },
+        body: { officialWeightKg: Number(weighWeight) },
       })
       toast('Weigh-in recorded')
       setWeighReg(null)
       setWeighWeight('')
-      setWeighNotes('')
+      load()
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const setEligibility = async (reg, eligible) => {
+    setBusy(true)
+    try {
+      await api(`/registrations/manage?id=${reg._id}`, {
+        method: 'POST',
+        body: { action: eligible ? 'mark_eligible' : 'mark_ineligible' },
+      })
+      toast(eligible ? 'Boxer marked eligible' : 'Boxer marked not eligible')
       load()
     } catch (err) {
       toast(err.message, 'error')
@@ -1219,7 +1233,7 @@ export default function EventDetail() {
                           <div className="flex items-center justify-end gap-1.5">
                             {r.weighIn?.status !== 'successful' ? (
                               <button
-                                onClick={() => { setWeighReg(r); setWeighWeight(r.boxerId?.registeredWeightKg || ''); setWeighNotes('') }}
+                                onClick={() => { setWeighReg(r); setWeighWeight(r.boxerId?.registeredWeightKg || '') }}
                                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                               >
                                 Weigh in
@@ -1389,15 +1403,15 @@ export default function EventDetail() {
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1.5">
                             {r.weighIn?.status !== 'successful' ? (
-                              <Button size="sm" variant="secondary" onClick={() => { setWeighReg(r); setWeighWeight(r.boxerId?.registeredWeightKg || ''); setWeighNotes('') }}>
+                              <Button size="sm" variant="secondary" onClick={() => { setWeighReg(r); setWeighWeight(r.boxerId?.registeredWeightKg || '') }}>
                                 Record weight
                               </Button>
                             ) : (
                               <>
                                 {r.status !== 'eligible' && (
-                                  <Button size="sm" onClick={() => { setActionReg(r); setAction('mark_eligible') }}>Mark eligible</Button>
+                                  <Button size="sm" disabled={busy} onClick={() => setEligibility(r, true)}>Mark eligible</Button>
                                 )}
-                                <Button size="sm" variant="danger" onClick={() => { setActionReg(r); setAction('mark_ineligible') }}>Not eligible</Button>
+                                <Button size="sm" variant="danger" disabled={busy} onClick={() => setEligibility(r, false)}>Not eligible</Button>
                               </>
                             )}
                           </div>
@@ -1659,7 +1673,6 @@ export default function EventDetail() {
       >
         <div className="space-y-4">
           <Input label="Official weight (kg)" type="number" step="0.1" value={weighWeight} onChange={(e) => setWeighWeight(e.target.value)} required />
-          <Textarea label="Notes (optional)" value={weighNotes} onChange={(e) => setWeighNotes(e.target.value)} rows={2} placeholder="Any notes for the officials" />
         </div>
       </Modal>
 
