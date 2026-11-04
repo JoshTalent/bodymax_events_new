@@ -42,10 +42,17 @@ const text = {
     nextUp: 'Next up',
     mainEvent: 'Main event',
     fightCard: 'Fight card',
+    cardProgress: 'Card progress',
     weightClasses: 'Weight classes',
+    record: 'Record',
     yrs: 'yrs',
+    remaining: 'Remaining',
+    liveUpdates: 'Live updates',
+    liveUpdatesBody:
+      'This card refreshes automatically as officials record results. No account is needed — share the link with anyone who wants to follow the action.',
     officialBadge: 'Official card',
     readOnly: 'Read-only',
+    complete: 'complete',
     boutOf: 'Bout {n} of {total}',
     cardLocked: 'Card finalised',
     male: 'Male',
@@ -53,7 +60,7 @@ const text = {
   },
   rw: {
     officialDraw: 'Urutonde rw’imikino',
-    tagline: 'Urutonde rw’imikino · gusoma gusa',
+    tagline: 'Imikino iriho ',
     bouts: 'Imikino',
     venue: 'Aho bizabera',
     location: 'Aho biherereye',
@@ -85,25 +92,23 @@ const text = {
     nextUp: 'Bikurikira',
     mainEvent: 'Umukino nyamukuru',
     fightCard: 'Urutonde rw’imikino',
+    cardProgress: 'Aho urutonde rugeze',
     weightClasses: 'Ibyiciro by’ibiro',
+    record: 'Ibisubizo',
     yrs: 'imyaka',
+    remaining: 'Bisigaye',
+    liveUpdates: 'Amakuru ahita',
+    liveUpdatesBody:
+      'Uru rutonde ruvugururwa ubwo bumwe iyo abacamanza bandika ibisubizo. Nta konti ikenewe — sangiza umurongo uwo ari we wese ushaka gukurikirana imikino.',
     officialBadge: 'Urutonde rwemewe',
     readOnly: 'Gusoma gusa',
+    complete: 'byarangiye',
     boutOf: 'Umukino {n} kuri {total}',
     cardLocked: 'Urutonde rwarangiye',
     male: 'Gabo',
     female: 'Gore',
   },
 }
-
-const RW_MONTHS = [
-  'Mutarama', 'Gashyantare', 'Werurwe', 'Mata', 'Gicurasi', 'Kamena',
-  'Nyakanga', 'Kanama', 'Nzeri', 'Ukwakira', 'Ugushyingo', 'Ukuboza',
-]
-const RW_DAYS = [
-  'Ku cyumweru', 'Kuwa mbere', 'Kuwa kabiri', 'Kuwa gatatu',
-  'Kuwa kane', 'Kuwa gatanu', 'Kuwa gatandatu',
-]
 
 const fmtDate = (iso, lang, opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) => {
   if (!iso) return null
@@ -123,6 +128,15 @@ const fmtDate = (iso, lang, opts = { weekday: 'long', day: 'numeric', month: 'lo
     return d.toLocaleDateString('en-GB')
   }
 }
+
+const RW_MONTHS = [
+  'Mutarama', 'Gashyantare', 'Werurwe', 'Mata', 'Gicurasi', 'Kamena',
+  'Nyakanga', 'Kanama', 'Nzeri', 'Ukwakira', 'Ugushyingo', 'Ukuboza',
+]
+const RW_DAYS = [
+  'Ku cyumweru', 'Kuwa mbere', 'Kuwa kabiri', 'Kuwa gatatu',
+  'Kuwa kane', 'Kuwa gatanu', 'Kuwa gatandatu',
+]
 
 const initialsOf = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
@@ -162,8 +176,7 @@ function StatusPill({ status, t }) {
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset',
         map[status] || 'bg-slate-100 text-slate-600 ring-slate-200'
-      )}
-    >
+      )}>
       {status === 'in_progress' && (
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
@@ -228,8 +241,7 @@ function Corner({ corner, reg, isWinner, t }) {
               : isRed
                 ? 'bg-gradient-to-br from-red-500 to-red-800'
                 : 'bg-gradient-to-br from-blue-500 to-blue-900'
-          )}
-        >
+          )}>
           {initialsOf(name)}
         </span>
       )}
@@ -280,6 +292,21 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
   const hasBye = !bout.boxerAId || !bout.boxerBId
   const isLive = bout.status === 'in_progress'
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
+  const resultRecorded = !!bout.winnerId
+
+  // Determine which corner(s) to show
+  let cornerA, cornerB
+  if (resultRecorded) {
+    // Only show the winner when result is recorded
+    if (isWinnerA) cornerA = <Corner corner="red" reg={bout.boxerAId} isWinner={true} t={t} />
+    else if (isWinnerB) cornerA = <Corner corner="blue" reg={bout.boxerBId} isWinner={true} t={t} />
+    else cornerA = null
+    cornerB = null
+  } else {
+    // Normal mode: show both boxers (skip bye slot if no opponent)
+    cornerA = hasBye ? null : <Corner corner="red" reg={bout.boxerAId} isWinner={isWinnerA} t={t} />
+    cornerB = hasBye ? null : <Corner corner="blue" reg={bout.boxerBId} isWinner={isWinnerB} t={t} />
+  }
 
   const tags = []
   if (isLive) tags.push({ label: t.liveNow, cls: 'bg-amber-500 text-white', pulse: true })
@@ -358,13 +385,7 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
         </div>
 
         <div className="mt-4 grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-          <Corner corner="red" reg={bout.boxerAId} isWinner={isWinnerA} t={t} />
-          <div className="flex items-center justify-center">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ring-4 ring-white">
-              vs
-            </span>
-          </div>
-          <Corner corner="blue" reg={bout.boxerBId} isWinner={isWinnerB} t={t} />
+          {cornerA}{cornerB}
         </div>
 
         {isDone && (
@@ -387,7 +408,7 @@ export default function PublicDraws() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState(getSavedLang() || 'en')
-  const [showLang, setShowLang] = useState(!getSavedLang())
+  const [showLang, setShowLang] = state(!getSavedLang())
   const t = lang === 'rw' ? text.rw : text.en
 
   const chooseLang = (code) => {
@@ -410,7 +431,6 @@ export default function PublicDraws() {
           setError('')
         })
         .catch((e) => {
-          // A failed background refresh should not wipe an already-loaded card.
           if (!active || hasData) return
           setError(e.message)
         })
@@ -437,10 +457,15 @@ export default function PublicDraws() {
     </>
   )
 
-  const visible = (bouts || []).filter((b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName))
+  const visible = (bouts || []).filter(
+    (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
+  )
   const total = visible.length
   const completed = visible.filter((b) => ['completed', 'walkover'].includes(b.status)).length
   const live = visible.filter((b) => b.status === 'in_progress').length
+  const remaining = Math.max(total - completed - live, 0)
+  const progress = total ? Math.round((completed / total) * 100) : 0
+
   const liveBout = visible.find((b) => b.status === 'in_progress')
   const nextBout = visible.find((b) => !['completed', 'walkover', 'in_progress', 'cancelled'].includes(b.status))
   const mainBout = visible[visible.length - 1]
@@ -487,15 +512,14 @@ export default function PublicDraws() {
                   className={cn(
                     'rounded-full px-3 py-1 text-[11px] font-bold transition',
                     lang === code ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
-                  )}
-                >
-                  {code === 'en' ? 'EN' : 'RW'}
-                </button>
-              ))}
+                  )}>
+                    {code === 'en' ? 'EN' : 'RW'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       {error ? (
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
@@ -506,8 +530,7 @@ export default function PublicDraws() {
             <p className="mt-4 text-sm font-semibold text-slate-700">{error}</p>
             <Link
               to="/"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
-            >
+              className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800">
               <Icon name="chevronRight" className="h-3.5 w-3.5 rotate-180" />
               {t.errorBack}
             </Link>
@@ -600,7 +623,7 @@ export default function PublicDraws() {
           </section>
 
           <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-            <div className="mx-auto max-w-4xl">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
               {/* Fight card */}
               <section>
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -647,24 +670,76 @@ export default function PublicDraws() {
                   </div>
                 )}
               </section>
+
+              {/* Side rail */}
+              <aside className="space-y-3 sm:space-y-4 lg:sticky lg:top-20">
+                <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-4 py-3.5">
+                    <h3 className="text-sm font-bold text-slate-900">{t.cardProgress}</h3>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {completed}/{total} {t.completed.toLowerCase()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 px-4 py-4">
+                    <RadialProgress value={progress} label={t.complete} size={104} stroke={9} color="#2563eb" />
+                    <div className="min-w-0 flex-1">
+                      <LegendRow dot="bg-emerald-500" label={t.completed} value={completed} tone="text-emerald-600" />
+                      <LegendRow dot="bg-amber-500" label={t.liveNow} value={live} tone={live ? 'text-amber-600' : 'text-slate-900'} />
+                      <LegendRow dot="bg-slate-300" label={t.remaining} value={remaining} tone="text-slate-600" />
+                    </div>
+                  </div>
+                  <div className="px-4 pb-4">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {classData.length > 0 && (
+                  <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-4 py-3.5">
+                      <h3 className="text-sm font-bold text-slate-900">{t.weightClasses}</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-500">{t.distribution}</p>
+                    </div>
+                    <div className="px-4 py-4">
+                      <BarList data={classData} color="#0f766e" />
+                    </div>
+                  </section>
+                )}
+
+                <section className="overflow-hidden rounded-2xl border border-slate-900/10 bg-slate-950 p-4 text-white shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-emerald-300 ring-1 ring-inset ring-white/10">
+                      <Icon name="pulse" className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-300">{t.liveUpdates}</h3>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">{t.liveUpdatesBody}</p>
+                    </div>
+                  </div>
+                </section>
+              </aside>
             </div>
           </main>
+
+          <footer className="border-t border-slate-200 bg-white py-8">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-[11px] font-black text-white">B</span>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  {t.footerBy} <span className="text-slate-700">Bodymax</span> · {t.footerTag}
+                </p>
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t.autoUpdate}</p>
+            </div>
+          </footer>
+
+          <LanguageModal open={showLang} onSelect={chooseLang} />
         </>
       )}
-
-      <footer className="border-t border-slate-200 bg-white py-8">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-[11px] font-black text-white">B</span>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-              {t.footerBy} <span className="text-slate-700">Bodymax</span> · {t.footerTag}
-            </p>
-          </div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t.autoUpdate}</p>
-        </div>
-      </footer>
-
-      <LanguageModal open={showLang} onSelect={chooseLang} />
     </div>
   )
 }

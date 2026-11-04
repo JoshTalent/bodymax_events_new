@@ -575,7 +575,6 @@ export default function Results() {
             {methods.map((m) => <option key={m} value={m}>{m}</option>)}
           </Select>
           <Input label="Round Finished" type="number" value={form.round} onChange={(e) => setForm({ ...form, round: e.target.value })} placeholder="Optional" />
-          <Textarea label="Notes (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
         </div>
       </Modal>
 
