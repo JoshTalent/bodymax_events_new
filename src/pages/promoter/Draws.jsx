@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../../utils/api.js'
 import { useToast } from '../../context/ToastContext.jsx'
 import { Button } from '../../components/Button.jsx'
-import { Card, CardHeader, CardBody } from '../../components/Card.jsx'
+import { Card } from '../../components/Card.jsx'
 import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
-import { Select, Input } from '../../components/Field.jsx'
+import { Input } from '../../components/Field.jsx'
 import { Modal } from '../../components/Modal.jsx'
-import { PageHeader } from '../../components/PageHeader.jsx'
+import { Icon } from '../../components/Icons.jsx'
+import { RadialProgress, BarList } from '../../components/Charts.jsx'
 import { cn } from '../../utils/cn.js'
 import {
   ELIGIBLE_STATUS,
@@ -16,221 +17,325 @@ import {
   generatePairings,
 } from '../../utils/drawEngine.js'
 
-function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled }) {
-  const a = bout.boxerAId
-  const b = bout.boxerBId
-  const aName = a?.boxerId?.fullName
-  const bName = b?.boxerId?.fullName
-  const aClub = a?.boxerId?.clubName || a?.clubId?.name
-  const bClub = b?.boxerId?.clubName || b?.clubId?.name
-  const winnerId = bout.winnerId
+const selectClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10'
 
-  const slot = (reg, name, club, side) => {
-    const isWinner = winnerId && String(winnerId) === String(reg?._id)
-    const notEligible = reg?.status === 'not_eligible'
-    return (
-      <div className={cn(
-        'relative flex flex-1 items-center gap-3 rounded-xl border px-3 py-2',
-        !reg
-          ? 'border-dashed border-brand-300 bg-brand-50/40'
-          : notEligible
-            ? 'border-rose-300 bg-rose-50'
-            : isWinner
-              ? 'border-emerald-200 bg-emerald-50'
-              : bout.status === 'completed'
-                ? 'border-slate-200 bg-slate-50'
-                : 'border-slate-200 bg-white'
-      )}>
-        {!reg ? (
-          <button
-            type="button"
-            onClick={() => onAddBoxer(bout, side)}
-            disabled={disabled}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50 disabled:opacity-40"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Add Boxer
-            <span className="text-xs font-medium text-brand-400">(Bye)</span>
-          </button>
-        ) : (
-          <>
-            <span className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-              notEligible
-                ? 'bg-rose-600 text-white'
-                : isWinner
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-600'
-            )}>
-              {name?.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className={cn(
-                'block truncate text-sm font-semibold',
-                notEligible ? 'text-rose-700 line-through decoration-rose-400' : isWinner ? 'text-emerald-900' : 'text-slate-900'
-              )}>
-                {name || <span className="italic text-slate-400">Bye</span>}
-                {isWinner && !notEligible && <span className="ml-1.5 text-xs font-bold text-emerald-600">WINNER</span>}
-                {notEligible && <span className="ml-1.5 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Not Eligible</span>}
-              </span>
-              <span className={cn('block truncate text-xs', notEligible ? 'text-rose-500' : 'text-slate-500')}>{club || 'Guest'}</span>
-            </span>
-            <span className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                title="Edit boxer"
-                onClick={() => onEditBoxer(reg, bout)}
-                disabled={disabled}
-                className="rounded-md p-1 text-slate-400 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-30"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                title="Remove boxer from draw"
-                onClick={() => onRemoveBoxer(bout, side)}
-                disabled={disabled}
-                className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </span>
-          </>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <li className="px-5 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 font-bold text-white">
-            {index + 1}
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bout #{bout.boutNumber}</p>
-            <p className="text-xs text-slate-500">
-              {bout.category?.weight || 'All weights'}
-              {bout.category?.age ? ` · ${bout.category.age}` : ''}
-              {bout.category?.gender ? ` · ${bout.category.gender}` : ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="mr-1 flex items-center" title="Reorder">
-            <button
-              type="button"
-              onClick={() => onMove(index, -1)}
-              disabled={disabled || index === 0}
-              className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => onMove(index, 1)}
-              disabled={disabled || index === total - 1}
-              className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-            </button>
-          </div>
-          {a && b && (
-            <Button size="sm" variant="secondary" onClick={() => onSwap(bout)} disabled={disabled}>Swap</Button>
-          )}
-          <button
-            type="button"
-            title="Delete this bout"
-            onClick={() => onDeleteBout(bout)}
-            disabled={disabled}
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-            </svg>
-          </button>
-          <StatusPill status={bout.status} />
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        {slot(a, aName, aClub, 'A')}
-        <span className="px-1 text-center text-xs font-bold uppercase tracking-widest text-slate-300">vs</span>
-        {slot(b, bName, bClub, 'B')}
-      </div>
-
-      {(bout.status === 'completed' || bout.status === 'walkover') && (
-        <p className="mt-2 text-xs text-emerald-700">
-          Result: {bout.result?.method || bout.status === 'walkover' ? 'Walkover' : 'Decision'}{bout.result?.round ? ` · ${bout.result.round}` : ''}
-          {bout.result?.notes ? ` — ${bout.result.notes}` : ''}
-        </p>
-      )}
-    </li>
-  )
+const fmtDate = (iso) => {
+  if (!iso) return 'Date TBA'
+  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+const initials = (name = '') =>
+  name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+
+const isRealBout = (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
 
 function StatusPill({ status }) {
   const map = {
-    scheduled: 'bg-blue-100 text-blue-800',
-    ready: 'bg-blue-100 text-blue-800',
-    in_progress: 'bg-amber-100 text-amber-800',
-    walkover: 'bg-amber-100 text-amber-800',
-    completed: 'bg-emerald-100 text-emerald-800',
-    postponed: 'bg-slate-100 text-slate-600',
-    cancelled: 'bg-slate-100 text-slate-600',
+    scheduled: { label: 'Scheduled', cls: 'bg-blue-50 text-blue-700 ring-blue-200' },
+    ready: { label: 'Ready', cls: 'bg-blue-50 text-blue-700 ring-blue-200' },
+    in_progress: { label: 'Live', cls: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    walkover: { label: 'Walkover', cls: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    completed: { label: 'Completed', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    postponed: { label: 'Postponed', cls: 'bg-slate-100 text-slate-600 ring-slate-200' },
+    cancelled: { label: 'Cancelled', cls: 'bg-slate-100 text-slate-600 ring-slate-200' },
   }
-  const label = {
-    scheduled: 'Scheduled',
-    ready: 'Ready',
-    in_progress: 'In Progress',
-    walkover: 'Walkover',
-    completed: 'Completed',
-    postponed: 'Postponed',
-    cancelled: 'Cancelled',
-  }
+  const meta = map[status] || { label: (status || 'unknown').replace('_', ' '), cls: 'bg-slate-100 text-slate-600 ring-slate-200' }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', map[status] || 'bg-slate-100 text-slate-700')}>
-      {label[status] || status.replace('_', ' ')}
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset', meta.cls)}>
+      <span className="h-1 w-1 rounded-full bg-current" />
+      {meta.label}
     </span>
   )
 }
 
-const isRealBout = (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
+function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disabled }) {
+  const name = reg?.boxerId?.fullName
+  const club = reg?.boxerId?.clubName || reg?.clubId?.name
+  const isWinner = bout.winnerId && String(bout.winnerId) === String(reg?._id)
+  const notEligible = reg?.status === 'not_eligible'
+  const record = reg?.boxerId?.boxingRecord
 
-const selectClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500'
+  if (!reg) {
+    return (
+      <button
+        type="button"
+        onClick={() => onAddBoxer(bout, side)}
+        disabled={disabled}
+        className="group flex min-h-[86px] w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-brand-300 bg-brand-50/40 px-3 py-3 text-center transition hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-brand-600 shadow-sm ring-1 ring-brand-200">
+          <Icon name="plus" className="h-3.5 w-3.5" />
+        </span>
+        <span className="text-xs font-bold text-brand-700">Add boxer</span>
+        <span className="text-[10px] font-medium text-brand-400">Bye slot</span>
+      </button>
+    )
+  }
 
-function Stat({ label, value, tone = 'slate' }) {
+  return (
+    <div
+      className={cn(
+        'relative flex min-h-[86px] items-center gap-3 rounded-2xl border px-3 py-3 transition',
+        notEligible
+          ? 'border-rose-200 bg-rose-50/70'
+          : isWinner
+            ? 'border-emerald-300 bg-emerald-50/70 ring-1 ring-emerald-200'
+            : 'border-slate-200 bg-white hover:border-slate-300'
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white shadow-sm',
+          notEligible
+            ? 'bg-gradient-to-br from-rose-500 to-rose-700'
+            : isWinner
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
+              : 'bg-gradient-to-br from-slate-700 to-slate-950'
+        )}
+      >
+        {initials(name)}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span
+            className={cn(
+              'truncate text-sm font-bold',
+              notEligible ? 'text-rose-700 line-through decoration-rose-400' : isWinner ? 'text-emerald-900' : 'text-slate-900'
+            )}
+          >
+            {name || 'Boxer'}
+          </span>
+          {isWinner && !notEligible && (
+            <span className="shrink-0 rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">Win</span>
+          )}
+          {notEligible && (
+            <span className="shrink-0 rounded bg-rose-600 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">Ineligible</span>
+          )}
+        </span>
+        <span className={cn('mt-0.5 block truncate text-[11px]', notEligible ? 'text-rose-500' : 'text-slate-500')}>
+          {club || 'Unattached'}
+        </span>
+        <span className="mt-1.5 flex flex-wrap items-center gap-1">
+          {reg.category?.weight && (
+            <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-bold', notEligible ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600')}>
+              {reg.category.weight}
+            </span>
+          )}
+          {reg.category?.age && (
+            <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-semibold', notEligible ? 'bg-rose-100 text-rose-600' : 'bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-200')}>
+              {reg.category.age}
+            </span>
+          )}
+          {record && (
+            <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-inset ring-slate-200">
+              {record.wins || 0}-{record.losses || 0}-{record.draws || 0}
+            </span>
+          )}
+        </span>
+      </span>
+
+      <span className="flex shrink-0 flex-col gap-0.5">
+        <button
+          type="button"
+          title="Edit boxer"
+          onClick={() => onEditBoxer(reg, bout)}
+          disabled={disabled}
+          className="rounded-lg p-1.5 text-slate-300 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-30"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.9}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          title="Remove boxer from this bout"
+          onClick={() => onRemoveBoxer(bout, side)}
+          disabled={disabled}
+          className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+        >
+          <Icon name="close" className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    </div>
+  )
+}
+
+function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled }) {
+  const a = bout.boxerAId
+  const b = bout.boxerBId
+  const isBye = !a || !b
+  const isDone = bout.status === 'completed' || bout.status === 'walkover'
+  const resultLabel = bout.result?.method || (bout.status === 'walkover' ? 'Walkover' : 'Decision')
+
+  return (
+    <li className="group relative bg-white transition hover:bg-slate-50/40">
+      <span
+        className={cn(
+          'absolute inset-y-0 left-0 w-1',
+          bout.status === 'completed'
+            ? 'bg-emerald-400'
+            : bout.status === 'in_progress'
+              ? 'bg-amber-400'
+              : isBye
+                ? 'bg-brand-400'
+                : 'bg-slate-200'
+        )}
+      />
+
+      <div className="px-4 py-4 pl-5 sm:px-5 sm:py-5 sm:pl-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-sm">
+              {bout.boutNumber}
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Bout #{bout.boutNumber}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                  {bout.category?.weight || 'All weights'}
+                </span>
+                {bout.category?.age && (
+                  <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                    {bout.category.age}
+                  </span>
+                )}
+                {bout.category?.gender && (
+                  <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                    {bout.category.gender === 'M' ? 'Male' : bout.category.gender === 'F' ? 'Female' : bout.category.gender}
+                  </span>
+                )}
+                {isBye && !isDone && (
+                  <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-200">Bye</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <div className="mr-1 flex items-center gap-1" title="Reorder bout">
+              <button
+                type="button"
+                onClick={() => onMove(index, -1)}
+                disabled={disabled || index === 0}
+                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:opacity-30"
+              >
+                <Icon name="chevronDown" className="h-3.5 w-3.5 rotate-180" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(index, 1)}
+                disabled={disabled || index === total - 1}
+                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:bg-slate-100 disabled:opacity-30"
+              >
+                <Icon name="chevronDown" className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {a && b && (
+              <button
+                type="button"
+                onClick={() => onSwap(bout)}
+                disabled={disabled}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-30"
+              >
+                <Icon name="activity" className="h-3.5 w-3.5" />
+                Swap
+              </button>
+            )}
+            <button
+              type="button"
+              title="Delete this bout"
+              onClick={() => onDeleteBout(bout)}
+              disabled={disabled}
+              className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+            >
+              <Icon name="close" className="h-3.5 w-3.5" />
+            </button>
+            <StatusPill status={bout.status} />
+          </div>
+        </div>
+
+        <div className="mt-4 grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+          <Corner reg={a} bout={bout} side="A" onAddBoxer={onAddBoxer} onEditBoxer={onEditBoxer} onRemoveBoxer={onRemoveBoxer} disabled={disabled} />
+          <div className="flex items-center justify-center">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ring-4 ring-white">
+              vs
+            </span>
+          </div>
+          <Corner reg={b} bout={bout} side="B" onAddBoxer={onAddBoxer} onEditBoxer={onEditBoxer} onRemoveBoxer={onRemoveBoxer} disabled={disabled} />
+        </div>
+
+        {isDone && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-emerald-50/70 px-3 py-2 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-100">
+            <Icon name="checkCircle" className="h-3.5 w-3.5 text-emerald-600" />
+            Result: {resultLabel}
+            {bout.result?.round ? ` · Round ${bout.result.round}` : ''}
+            {bout.result?.notes ? ` — ${bout.result.notes}` : ''}
+          </div>
+        )}
+      </div>
+    </li>
+  )
+}
+
+function Chip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full px-3 py-1 text-[11px] font-bold ring-1 ring-inset transition',
+        active
+          ? 'bg-slate-900 text-white ring-slate-900 shadow-sm'
+          : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 hover:text-slate-900'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function MiniStat({ label, value, tone = 'slate' }) {
   const tones = {
-    slate: 'border-slate-200 bg-white',
-    blue: 'border-blue-200 bg-blue-50',
-    amber: 'border-amber-200 bg-amber-50',
-    emerald: 'border-emerald-200 bg-emerald-50',
+    slate: 'bg-slate-50 text-slate-900 ring-slate-200',
+    blue: 'bg-blue-50 text-blue-700 ring-blue-200',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-200',
+    emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   }
   return (
-    <div className={cn('rounded-xl border px-3 py-2.5 text-center', tones[tone])}>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className={cn('rounded-xl px-3 py-2.5 ring-1 ring-inset', tones[tone])}>
+      <p className="text-lg font-black leading-none">{value}</p>
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-70">{label}</p>
+    </div>
+  )
+}
+
+function MetricRow({ label, value, tone = 'slate' }) {
+  const tones = {
+    slate: 'text-slate-900',
+    amber: 'text-amber-600',
+    emerald: 'text-emerald-600',
+    blue: 'text-blue-600',
+  }
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
+      <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+      <span className={cn('text-sm font-black', tones[tone])}>{value}</span>
     </div>
   )
 }
 
 function SelectedPlayer({ r }) {
   if (!r) return null
-  const initials = (r.boxerId?.fullName || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
   return (
-    <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1.5">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">{initials}</span>
+    <div className="mt-1.5 flex items-center gap-2 rounded-xl bg-slate-50 px-2 py-1.5 ring-1 ring-inset ring-slate-200/70">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-950 text-[9px] font-bold text-white">
+        {initials(r.boxerId?.fullName)}
+      </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-slate-900">{r.boxerId?.fullName || 'Boxer'}</span>
-        <span className="block truncate text-xs text-slate-500">
+        <span className="block truncate text-xs font-bold text-slate-900">{r.boxerId?.fullName || 'Boxer'}</span>
+        <span className="block truncate text-[10px] text-slate-500">
           {r.clubName || r.clubId?.name || 'Guest'}
           {r.category?.weight ? ` · ${r.category.weight}` : ''}
           {r.category?.age ? ` · ${r.category.age}` : ''}
@@ -245,14 +350,17 @@ function Toggle({ checked, onChange, label, description }) {
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300"
+      className={cn(
+        'flex w-full items-start gap-3 rounded-xl border p-3 text-left transition',
+        checked ? 'border-brand-200 bg-brand-50/40' : 'border-slate-200 bg-white hover:border-slate-300'
+      )}
     >
       <span className={cn('mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition', checked ? 'bg-brand-600' : 'bg-slate-300')}>
         <span className={cn('h-4 w-4 rounded-full bg-white shadow transition-transform', checked && 'translate-x-4')} />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-slate-900">{label}</span>
-        {description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}
+        <span className="block text-sm font-bold text-slate-900">{label}</span>
+        {description && <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500">{description}</span>}
       </span>
     </button>
   )
@@ -275,20 +383,20 @@ function BandEditor({ bands, onChange, unit, disabled }) {
             value={band.min}
             disabled={disabled}
             onChange={(e) => update(i, 'min', e.target.value)}
-            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100"
+            className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:bg-slate-100"
             aria-label="Range start"
           />
-          <span className="text-xs font-medium text-slate-400">to</span>
+          <span className="text-xs font-bold text-slate-400">to</span>
           <input
             type="number"
             min="0"
             value={band.max}
             disabled={disabled}
             onChange={(e) => update(i, 'max', e.target.value)}
-            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100"
+            className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:bg-slate-100"
             aria-label="Range end"
           />
-          <span className="text-xs text-slate-500">{unit}</span>
+          <span className="text-xs font-semibold text-slate-500">{unit}</span>
           <button
             type="button"
             onClick={() => onChange(bands.filter((_, x) => x !== i))}
@@ -296,9 +404,7 @@ function BandEditor({ bands, onChange, unit, disabled }) {
             className="ml-auto rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
             title="Remove this range"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Icon name="close" className="h-4 w-4" />
           </button>
         </div>
       ))}
@@ -306,7 +412,7 @@ function BandEditor({ bands, onChange, unit, disabled }) {
         type="button"
         onClick={() => onChange([...bands, { min: '', max: '' }])}
         disabled={disabled}
-        className="text-xs font-semibold text-brand-600 transition hover:text-brand-700 disabled:opacity-40"
+        className="text-[11px] font-bold text-brand-600 transition hover:text-brand-700 disabled:opacity-40"
       >
         + Add range
       </button>
@@ -334,9 +440,15 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
       }
     >
       <div className="space-y-5">
-        <p className="text-sm text-slate-600">
-          Set your matching rules and the system builds the draw for you. Boxers only meet someone they share a range with in every rule you switch on.
-        </p>
+        <div className="flex items-start gap-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/70 to-white px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
+            <Icon name="sparkles" className="h-4 w-4" />
+          </span>
+          <p className="text-xs leading-relaxed text-slate-600">
+            Set your matching rules and the system builds the draw for you. Boxers only meet someone they share a range with
+            in every rule you switch on.
+          </p>
+        </div>
 
         <Toggle
           checked={rules.avoidSameClub}
@@ -354,11 +466,7 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
           />
           {rules.useExperience && (
             <div className="mt-3 border-t border-slate-100 pt-3">
-              <BandEditor
-                bands={rules.experienceBands}
-                onChange={setBands('experienceBands')}
-                unit="bouts"
-              />
+              <BandEditor bands={rules.experienceBands} onChange={setBands('experienceBands')} unit="bouts" />
             </div>
           )}
         </div>
@@ -387,7 +495,7 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
           {rules.useWeight && (
             <div className="mt-3 border-t border-slate-100 pt-3">
               <BandEditor bands={rules.weightBands} onChange={setBands('weightBands')} unit="kg" />
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-[11px] text-slate-400">
                 Uses the weigh-in weight when available, otherwise the weight the boxer registered with.
               </p>
             </div>
@@ -395,7 +503,7 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">When no valid opponent exists</label>
+          <label className="mb-1.5 block text-xs font-bold text-slate-600">When no valid opponent exists</label>
           <select
             value={rules.strict ? 'strict' : 'balanced'}
             onChange={(e) => setRules((r) => ({ ...r, strict: e.target.value === 'strict' }))}
@@ -406,24 +514,26 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
           </select>
         </div>
 
-        <div className="rounded-xl bg-slate-50 px-3 py-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-sm text-slate-700">
-            <span className="font-semibold">{summary.bouts} bout{summary.bouts === 1 ? '' : 's'}</span> from{' '}
+            <span className="font-black">{summary.bouts} bout{summary.bouts === 1 ? '' : 's'}</span> from{' '}
             {summary.boxers} eligible boxer{summary.boxers === 1 ? '' : 's'}
             {summary.byes > 0 && (
               <>
-                {' '}· <span className="font-semibold text-amber-700">{summary.byes} bye{summary.byes === 1 ? '' : 's'}</span>
+                {' '}· <span className="font-bold text-amber-700">{summary.byes} bye{summary.byes === 1 ? '' : 's'}</span>
               </>
             )}
           </p>
           {summary.boxers === 0 && (
-            <p className="mt-1 text-xs text-amber-700">No eligible boxers in this category. Switch off the weight or age filter, or add boxers manually.</p>
+            <p className="mt-1 text-xs text-amber-700">
+              No eligible boxers in this category. Switch off the weight or age filter, or add boxers manually.
+            </p>
           )}
           {unpaired.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
               {unpaired.map((p) => (
                 <li key={p.id}>
-                  <span className="font-medium text-slate-700">{p.name}</span> — {p.reason}
+                  <span className="font-semibold text-slate-700">{p.name}</span> — {p.reason}
                 </li>
               ))}
             </ul>
@@ -534,7 +644,7 @@ export default function Draws() {
 
   const ageCats = event.ageCategories || []
   const showAgeFilter = ageCats.length > 0
-  const byId = new Map(eligible.map((r) => [r._id, r]))
+  const allById = new Map(registrations.map((r) => [String(r._id), r]))
 
   const hasDraw = (bouts || []).filter(isRealBout).length > 0
 
@@ -564,15 +674,24 @@ export default function Draws() {
 
   const usedIds = () => manualPairs.flatMap((p) => [p.a, p.b]).filter(Boolean)
   const assignedCount = usedIds().length
-  const remainingCount = eligible.length - assignedCount
+  const eligibleIdSet = new Set(eligible.map((r) => String(r._id)))
+  const inDrawEligible = [...new Set(usedIds().map(String))].filter((rid) => eligibleIdSet.has(rid)).length
+  const remainingCount = Math.max(eligible.length - inDrawEligible, 0)
 
-  const available = (exclude = []) =>
-    eligible.filter(
-      (r) =>
-        !usedIds().includes(r._id) &&
-        !exclude.includes(r._id) &&
-        (editMode || !drawnIds.has(String(r._id)))
-    )
+  // In edit mode the current selection must stay visible in its own dropdown,
+  // so only boxers used by *other* slots are filtered out.
+  const available = (keepId) => {
+    const list = eligible.slice()
+    if (keepId && !list.some((r) => String(r._id) === String(keepId))) {
+      const current = allById.get(String(keepId))
+      if (current) list.unshift(current)
+    }
+    return list.filter((r) => {
+      if (usedIds().includes(r._id) && r._id !== keepId) return false
+      if (!editMode && drawnIds.has(String(r._id))) return false
+      return true
+    })
+  }
 
   const setPair = (i, key) => (e) => {
     const next = [...manualPairs]
@@ -689,6 +808,22 @@ export default function Draws() {
   }
 
   const ordered = (bouts || []).slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
+
+  const readyCount = ordered.filter((b) => b.boxerAId && b.boxerBId).length
+  const byeCount = ordered.length - readyCount
+  const completedCount = ordered.filter((b) => b.status === 'completed' || b.status === 'walkover').length
+  const readiness = ordered.length ? Math.round((readyCount / ordered.length) * 100) : 0
+  const unplaced = eligible.filter((r) => !drawnIds.has(String(r._id)))
+
+  const categoryMix = Object.entries(
+    ordered.reduce((acc, b) => {
+      const key = b.category?.weight || 'Unassigned'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+  )
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
 
   const reloadDraw = async () => {
     await loadDraw(id, weight, age)
@@ -880,93 +1015,302 @@ export default function Draws() {
     }
   }
 
+  const scopeLabel = [weight || 'All weights', age || 'All ages'].join(' · ')
+
   return (
-    <div>
-      <button onClick={() => navigate(`/app/events/${id}`)} className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-brand-700 hover:text-brand-800">
-        ← Back to event
-      </button>
+    <div className="space-y-5">
+      {/* Control room hero */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 px-5 py-6 text-white shadow-[0_30px_80px_-45px_rgba(2,6,23,0.9)] sm:px-7 sm:py-7">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)',
+            backgroundSize: '44px 44px',
+          }}
+        />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-indigo-500/15 blur-3xl" />
 
-      <PageHeader
-        eyebrow="Draw & bouts"
-        title="Bout pairings"
-        description={`${event.name} · pair eligible boxers into bouts and prepare the fight card.`}
-      />
-
-      <div className="console-card mb-6 flex flex-wrap items-end gap-4 p-4">
-        <div className="w-56">
-          <Select label="Weight Category" value={weight} onChange={(e) => selectWeight(e.target.value)}>
-            <option value="">All weights</option>
-            {event.weightCategories?.map((w) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </Select>
-        </div>
-        {showAgeFilter && (
-          <div className="w-56">
-            <Select label="Age Category" value={age} onChange={(e) => selectAge(e.target.value)}>
-              <option value="">All ages</option>
-              {ageCats.map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </Select>
+        <div className="relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              onClick={() => navigate(`/app/events/${id}`)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1.5 text-[11px] font-bold text-slate-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10 hover:text-white"
+            >
+              <Icon name="chevronRight" className="h-3.5 w-3.5 rotate-180" />
+              Event command center
+            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300 ring-1 ring-inset ring-white/10">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-400" />
+              </span>
+              Draw control room
+            </span>
           </div>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openManual}>
-            {hasDraw ? 'Update Draw' : 'Create Draw'}
-          </Button>
-          <Button variant="secondary" onClick={() => setRulesOpen(true)}>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-            </svg>
-            Smart Auto Draw
-          </Button>
-          {hasDraw && (
-            <Button variant="danger" onClick={deleteDraw} disabled={acting}>
-              Delete Draw
-            </Button>
+
+          <div className="mt-5 flex flex-wrap items-end justify-between gap-5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">{event.name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-4xl">Bout pairings</h1>
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-200 ring-1 ring-inset ring-white/15">
+                  {scopeLabel}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="calendar" className="h-4 w-4 text-slate-500" />
+                  {fmtDate(event.eventDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="flag" className="h-4 w-4 text-slate-500" />
+                  {event.venue || 'Venue TBA'}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="trophy" className="h-4 w-4 text-slate-500" />
+                  {ordered.length} bout{ordered.length === 1 ? '' : 's'} on the card
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-9 border-white/15 bg-white/10 text-white hover:bg-white/15"
+                onClick={() => setRulesOpen(true)}
+              >
+                <Icon name="sparkles" className="mr-1.5 h-3.5 w-3.5" />
+                Smart auto draw
+              </Button>
+              <Button size="sm" className="h-9" onClick={openManual}>
+                <Icon name="plus" className="mr-1.5 h-3.5 w-3.5" />
+                {hasDraw ? 'Update draw' : 'Create draw'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-9 border-white/15 bg-white/10 text-white hover:bg-white/15"
+                onClick={shareDraw}
+                disabled={!event?.registrationToken}
+              >
+                <Icon name="external" className="mr-1.5 h-3.5 w-3.5" />
+                Share
+              </Button>
+              {hasDraw && (
+                <button
+                  onClick={deleteDraw}
+                  disabled={acting}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-rose-300 transition hover:bg-rose-500/15 hover:text-rose-200 disabled:opacity-40"
+                >
+                  <Icon name="close" className="h-3.5 w-3.5" />
+                  Delete draw
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { label: 'Eligible boxers', value: eligible.length, hint: scopeLabel },
+              { label: 'Bouts on card', value: ordered.length, hint: `${readyCount} ready to fight` },
+              { label: 'Bye slots', value: byeCount, hint: byeCount ? 'Awaiting an opponent' : 'No byes' },
+              { label: 'Completed', value: completedCount, hint: `${ordered.length - completedCount} remaining` },
+            ].map((s) => (
+              <div key={s.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{s.label}</p>
+                <p className="mt-1 text-xl font-black leading-none text-white">{s.value}</p>
+                <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{s.hint}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Scope filters */}
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+            <Icon name="scale" className="h-3.5 w-3.5" />
+            Scope
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Chip active={!weight} onClick={() => selectWeight('')}>All weights</Chip>
+            {(event.weightCategories || []).map((w) => (
+              <Chip key={w} active={weight === w} onClick={() => selectWeight(w)}>{w}</Chip>
+            ))}
+          </div>
+          {showAgeFilter && (
+            <>
+              <span className="mx-1 hidden h-4 w-px bg-slate-200 sm:block" />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Chip active={!age} onClick={() => selectAge('')}>All ages</Chip>
+                {ageCats.map((a) => (
+                  <Chip key={a} active={age === a} onClick={() => selectAge(a)}>{a}</Chip>
+                ))}
+              </div>
+            </>
           )}
-          <Button variant="secondary" onClick={shareDraw} disabled={!event?.registrationToken}>
-            Share Draw
-          </Button>
-          <span className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             {eligible.length} eligible
           </span>
         </div>
-      </div>
+      </Card>
 
-      {!hasDraw ? (
-        <Card>
-          <Empty
-            title="No bouts yet"
-            message="Create a draw to pair boxers into bouts. No registered boxers yet? No problem — add them manually from the Create Draw screen."
-            action={<Button onClick={openManual}>Create Draw</Button>}
-          />
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader title="Bout List" subtitle={`${ordered.length} bout${ordered.length === 1 ? '' : 's'} scheduled — record results on the Results page`} />
-          <CardBody>
-            <ul className="divide-y divide-slate-200">
-              {ordered.map((b, i) => (
-                <BoutCard
-                  key={b._id}
-                  bout={b}
-                  index={i}
-                  total={ordered.length}
-                  onEditBoxer={openEditBoxer}
-                  onRemoveBoxer={removeBoxer}
-                  onSwap={swap}
-                  onMove={move}
-                  onDeleteBout={deleteBout}
-                  onAddBoxer={openAssign}
-                  disabled={acting}
-                />
-              ))}
-            </ul>
-          </CardBody>
-        </Card>
-      )}
+      <div className="grid gap-4 xl:grid-cols-3">
+        {/* Main fight card */}
+        <div className="space-y-4 xl:col-span-2">
+          {!hasDraw ? (
+            <Card className="overflow-hidden">
+              <div className="relative overflow-hidden px-6 py-10 text-center">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.08),transparent_65%)]" />
+                <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-900/20">
+                  <Icon name="trophy" className="h-6 w-6" />
+                </span>
+                <h3 className="relative mt-4 text-lg font-black tracking-tight text-slate-900">No bout pairings yet</h3>
+                <p className="relative mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-500">
+                  Build the fight card by hand or let Smart Auto Draw match boxers by age, weight, experience and club.
+                </p>
+                <div className="relative mt-5 flex flex-wrap justify-center gap-2">
+                  <Button onClick={openManual}>
+                    <Icon name="plus" className="mr-1.5 h-4 w-4" />
+                    Create draw
+                  </Button>
+                  <Button variant="secondary" onClick={() => setRulesOpen(true)}>
+                    <Icon name="sparkles" className="mr-1.5 h-4 w-4" />
+                    Smart auto draw
+                  </Button>
+                </div>
+              </div>
+              {eligible.length > 0 && (
+                <div className="border-t border-slate-100 bg-slate-50/40 px-5 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    Eligible boxers in scope · {eligible.length}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {eligible.map((r) => (
+                      <span
+                        key={r._id}
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 shadow-sm"
+                      >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-950 text-[9px] font-bold text-white">
+                          {initials(r.boxerId?.fullName)}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700">{r.boxerId?.fullName || 'Boxer'}</span>
+                        {r.category?.weight && <span className="text-[10px] font-semibold text-slate-400">{r.category.weight}</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          ) : (
+            <Card className="overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-black text-slate-900">
+                    <Icon name="trophy" className="h-4 w-4 text-slate-400" />
+                    Fight card
+                  </h2>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {ordered.length} bout{ordered.length === 1 ? '' : 's'} · {scopeLabel}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {acting && <Spinner className="h-4 w-4" />}
+                  <span className="hidden text-[10px] font-semibold text-slate-400 sm:inline">Use the arrows to reorder</span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{readyCount}/{ordered.length} ready</span>
+                </div>
+              </div>
+              <ol className="divide-y divide-slate-100">
+                {ordered.map((b, i) => (
+                  <BoutCard
+                    key={b._id}
+                    bout={b}
+                    index={i}
+                    total={ordered.length}
+                    onEditBoxer={openEditBoxer}
+                    onRemoveBoxer={removeBoxer}
+                    onSwap={swap}
+                    onMove={move}
+                    onDeleteBout={deleteBout}
+                    onAddBoxer={openAssign}
+                    disabled={acting}
+                  />
+                ))}
+              </ol>
+            </Card>
+          )}
+        </div>
+
+        {/* Side intelligence */}
+        <div className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3 className="text-sm font-bold text-slate-900">Draw readiness</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">Corner coverage across the card</p>
+            </div>
+            <div className="flex items-center gap-4 px-5 py-4">
+              <RadialProgress value={readiness} label="ready" size={112} stroke={10} color="#2563eb" />
+              <div className="min-w-0 flex-1">
+                <MetricRow label="Both corners" value={`${readyCount}/${ordered.length}`} tone="blue" />
+                <MetricRow label="Bye slots" value={byeCount} tone={byeCount ? 'amber' : 'emerald'} />
+                <MetricRow label="Completed" value={completedCount} tone="emerald" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Unplaced boxers</h3>
+                <p className="mt-0.5 text-[11px] text-slate-500">Eligible, not in this draw</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{unplaced.length}</span>
+            </div>
+            <div className="px-3 py-3">
+              {unplaced.length === 0 ? (
+                <p className="px-2 py-4 text-center text-[11px] font-medium text-slate-400">
+                  Every eligible boxer is on the card.
+                </p>
+              ) : (
+                <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
+                  {unplaced.map((r) => (
+                    <li
+                      key={r._id}
+                      className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-950 text-[9px] font-bold text-white">
+                        {initials(r.boxerId?.fullName)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] font-bold text-slate-800">{r.boxerId?.fullName || 'Boxer'}</span>
+                        <span className="block truncate text-[10px] text-slate-400">
+                          {r.category?.weight || 'No weight'} · {r.clubName || r.clubId?.name || 'Unattached'}
+                        </span>
+                      </span>
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3 className="text-sm font-bold text-slate-900">Category mix</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">Bouts per weight class</p>
+            </div>
+            <div className="px-5 py-4">
+              <BarList data={categoryMix} color="#4f46e5" />
+            </div>
+          </Card>
+        </div>
+      </div>
 
       <Modal
         open={manualOpen}
@@ -983,42 +1327,51 @@ export default function Draws() {
       >
         <div className="space-y-5">
           {editMode ? (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">✓</span>
-              <p>Editing the current drawing — tweak the pairings below and save to rebuild the bout list.</p>
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900">
+              <Icon name="checkCircle" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <p>Editing the current draw — tweak the pairings below and save to rebuild the bout list.</p>
             </div>
           ) : drawnIds.size > 0 ? (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              <span className="text-amber-600">!</span>
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <p>
-                {drawnIds.size} boxer{drawnIds.size === 1 ? '' : 's'} already placed in this drawing are hidden from the lists to avoid duplicates.
+                {drawnIds.size} boxer{drawnIds.size === 1 ? '' : 's'} already placed in this draw are hidden from the lists to avoid duplicates.
               </p>
             </div>
           ) : null}
 
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="Eligible" value={eligible.length} />
-            <Stat label="In Draw" value={assignedCount} tone={assignedCount ? 'blue' : 'slate'} />
-            <Stat label="Unassigned" value={remainingCount} tone={remainingCount > 0 ? 'amber' : 'emerald'} />
+            <MiniStat label="Eligible" value={eligible.length} />
+            <MiniStat label="In draw" value={inDrawEligible} tone={inDrawEligible ? 'blue' : 'slate'} />
+            <MiniStat label="Unassigned" value={remainingCount} tone={remainingCount > 0 ? 'amber' : 'emerald'} />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5">
-            <p className="text-sm text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-inset ring-slate-200/70">
+            <p className="text-[11px] font-medium text-slate-500">
               {editMode
                 ? 'Each pairing saves as one scheduled bout. Empty slots become walkover byes.'
                 : 'Pair boxers into bouts. Empty slots become walkover byes.'}
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" onClick={addPair}>+ Bout</Button>
-              <Button size="sm" variant="secondary" onClick={autoPair} disabled={remainingCount === 0}>Auto-pair</Button>
-              <Button size="sm" variant="secondary" onClick={() => setAddBoxerOpen((v) => !v)}>+ Add boxer</Button>
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant="secondary" onClick={addPair}>
+                <Icon name="plus" className="mr-1 h-3 w-3" />
+                Bout
+              </Button>
+              <Button size="sm" variant="secondary" onClick={autoPair} disabled={remainingCount === 0}>
+                <Icon name="sparkles" className="mr-1 h-3 w-3" />
+                Auto-pair
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setAddBoxerOpen((v) => !v)}>
+                <Icon name="usersPlus" className="mr-1 h-3 w-3" />
+                Boxer
+              </Button>
             </div>
           </div>
 
           {addBoxerOpen && (
-            <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-4">
-              <p className="text-sm font-semibold text-slate-900">Add a boxer manually</p>
-              <p className="mb-3 text-xs text-slate-500">Registered in this event and ready to pair below. Leave the club empty for an individual boxer.</p>
+            <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-4">
+              <p className="text-sm font-bold text-slate-900">Add a boxer manually</p>
+              <p className="mb-3 text-[11px] text-slate-500">Registered in this event and ready to pair below. Leave the club empty for an individual boxer.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Input label="Full Name" value={addForm.fullName} onChange={(e) => setAddForm({ ...addForm, fullName: e.target.value })} placeholder="e.g. James Mwangi" />
@@ -1027,7 +1380,7 @@ export default function Draws() {
                   <Input label="Club / Team" value={addForm.clubName} onChange={(e) => setAddForm({ ...addForm, clubName: e.target.value })} placeholder="e.g. Tigers Boxing Club" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-600">Gender</label>
                   <select value={addForm.gender} onChange={(e) => setAddForm({ ...addForm, gender: e.target.value })} className={selectClass}>
                     <option value="">—</option>
                     <option value="M">Male</option>
@@ -1035,7 +1388,7 @@ export default function Draws() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weight Category</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-600">Weight Category</label>
                   {event.weightCategories?.length ? (
                     <select value={addForm.weight} onChange={(e) => setAddForm({ ...addForm, weight: e.target.value })} className={selectClass}>
                       <option value="">—</option>
@@ -1047,7 +1400,7 @@ export default function Draws() {
                 </div>
                 {ageCats.length > 0 && (
                   <div className="sm:col-span-2">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Age Category</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-600">Age Category</label>
                     <select value={addForm.age} onChange={(e) => setAddForm({ ...addForm, age: e.target.value })} className={selectClass}>
                       <option value="">—</option>
                       {ageCats.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -1067,46 +1420,49 @@ export default function Draws() {
           {manualPairs.length === 0 ? (
             <Empty title="No bouts yet" message="Add a bout to start pairing boxers." />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {manualPairs.map((p, i) => (
-                <div key={i} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bout {i + 1}</span>
+                    <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-900 text-[10px] font-black text-white">{i + 1}</span>
+                      Bout {i + 1}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removePair(i)}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50"
+                      className="rounded-md px-2 py-1 text-[11px] font-bold text-rose-500 transition hover:bg-rose-50"
                     >
                       Remove
                     </button>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Boxer A</label>
+                  <div className="grid items-start gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Boxer A</label>
                       <select value={p.a} onChange={setPair(i, 'a')} className={selectClass}>
                         <option value="">— Bye / empty —</option>
-                        {available([p.a]).map((r) => (
+                        {available(p.a).map((r) => (
                           <option key={r._id} value={r._id}>
                             {r.boxerId?.fullName || 'Boxer'} — {r.clubName || r.clubId?.name || 'Guest'}
                             {r.category?.weight ? ` (${r.category.weight})` : ''}
                           </option>
                         ))}
                       </select>
-                      <SelectedPlayer r={p.a ? byId.get(p.a) : null} />
+                      <SelectedPlayer r={p.a ? allById.get(p.a) : null} />
                     </div>
-                    <span className="mt-4 text-sm font-bold text-slate-300">VS</span>
-                    <div className="min-w-0 flex-1">
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Boxer B</label>
+                    <span className="hidden self-center pt-5 text-[10px] font-black tracking-widest text-slate-300 sm:block">VS</span>
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Boxer B</label>
                       <select value={p.b} onChange={setPair(i, 'b')} className={selectClass}>
                         <option value="">— Bye / empty —</option>
-                        {available([p.b]).map((r) => (
+                        {available(p.b).map((r) => (
                           <option key={r._id} value={r._id}>
                             {r.boxerId?.fullName || 'Boxer'} — {r.clubName || r.clubId?.name || 'Guest'}
                             {r.category?.weight ? ` (${r.category.weight})` : ''}
                           </option>
                         ))}
                       </select>
-                      <SelectedPlayer r={p.b ? byId.get(p.b) : null} />
+                      <SelectedPlayer r={p.b ? allById.get(p.b) : null} />
                     </div>
                   </div>
                 </div>
@@ -1134,14 +1490,14 @@ export default function Draws() {
           <Input label="Club / Team" value={editForm.clubName} onChange={(e) => setEditForm({ ...editForm, clubName: e.target.value })} placeholder="e.g. Midlands Boxing Club" />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Weight Category</label>
+              <label className="mb-1.5 block text-xs font-bold text-slate-600">Weight Category</label>
               <select value={editForm.weight} onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })} className={selectClass}>
                 <option value="">—</option>
                 {event.weightCategories?.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Age Category</label>
+              <label className="mb-1.5 block text-xs font-bold text-slate-600">Age Category</label>
               <select value={editForm.age} onChange={(e) => setEditForm({ ...editForm, age: e.target.value })} className={selectClass}>
                 <option value="">—</option>
                 {ageCats.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -1150,7 +1506,7 @@ export default function Draws() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Gender</label>
+              <label className="mb-1.5 block text-xs font-bold text-slate-600">Gender</label>
               <select value={editForm.gender} onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })} className={selectClass}>
                 <option value="">—</option>
                 <option value="M">Male</option>
@@ -1159,8 +1515,8 @@ export default function Draws() {
             </div>
             <Input label="Number of Bouts" type="number" min="1" value={editForm.numberOfBouts} onChange={(e) => setEditForm({ ...editForm, numberOfBouts: e.target.value })} />
           </div>
-          <p className="text-xs text-slate-400">
-            Changes update the boxer's profile and this event's registration. Use the Update Draw option to re-pair boxers after changing weights.
+          <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+            Changes update the boxer's profile and this event's registration. Use Update Draw to re-pair boxers after changing weights.
           </p>
         </div>
       </Modal>
@@ -1180,16 +1536,16 @@ export default function Draws() {
       >
         <div className="space-y-4">
           {assignable.length === 0 ? (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              <span className="text-amber-600">!</span>
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <p>Every registered boxer is already placed in this draw. Add a brand new boxer below to fill the slot.</p>
             </div>
           ) : (
             <div>
-              <p className="mb-3 text-sm text-slate-600">
+              <p className="mb-3 text-xs leading-relaxed text-slate-500">
                 Fill the empty slot with a boxer. Boxers already placed in this draw are hidden. The bout becomes scheduled once both sides are filled.
               </p>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Select Boxer</label>
+              <label className="mb-1.5 block text-xs font-bold text-slate-600">Select Boxer</label>
               <select value={assignId} onChange={(e) => setAssignId(e.target.value)} className={selectClass}>
                 <option value="">— Select a boxer —</option>
                 {assignable.map((r) => (
@@ -1204,16 +1560,14 @@ export default function Draws() {
             </div>
           )}
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60">
             <button
               type="button"
               onClick={() => setShowAddAssign((v) => !v)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold text-brand-700 transition hover:bg-brand-50/50"
+              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-bold text-brand-700 transition hover:bg-brand-50/50"
             >
               <span className="flex items-center gap-2">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+                <Icon name="plus" className="h-3.5 w-3.5" />
                 Add a new boxer manually
               </span>
               <span className="text-lg leading-none text-slate-400">{showAddAssign ? '−' : '+'}</span>
@@ -1221,12 +1575,14 @@ export default function Draws() {
 
             {showAddAssign && (
               <div className="space-y-3 px-3 pb-3">
-                <p className="text-xs text-slate-500">Creates a registration in this event, then places the boxer in the empty slot. Leave the club empty for an individual boxer.</p>
+                <p className="text-[11px] text-slate-500">
+                  Creates a registration in this event, then places the boxer in the empty slot. Leave the club empty for an individual boxer.
+                </p>
                 <Input label="Full Name" value={assignForm.fullName} onChange={(e) => setAssignForm({ ...assignForm, fullName: e.target.value })} placeholder="e.g. Kevin Otieno" />
                 <Input label="Club / Team" value={assignForm.clubName} onChange={(e) => setAssignForm({ ...assignForm, clubName: e.target.value })} placeholder="e.g. Cobra Boxing Club" />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-600">Gender</label>
                     <select value={assignForm.gender} onChange={(e) => setAssignForm({ ...assignForm, gender: e.target.value })} className={selectClass}>
                       <option value="">—</option>
                       <option value="M">Male</option>
@@ -1234,7 +1590,7 @@ export default function Draws() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weight Category</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-600">Weight Category</label>
                     {event.weightCategories?.length ? (
                       <select value={assignForm.weight} onChange={(e) => setAssignForm({ ...assignForm, weight: e.target.value })} className={selectClass}>
                         <option value="">—</option>
@@ -1246,7 +1602,7 @@ export default function Draws() {
                   </div>
                   {ageCats.length > 0 && (
                     <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Age Category</label>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-600">Age Category</label>
                       <select value={assignForm.age} onChange={(e) => setAssignForm({ ...assignForm, age: e.target.value })} className={selectClass}>
                         <option value="">—</option>
                         {ageCats.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -1269,7 +1625,7 @@ export default function Draws() {
         rules={rules}
         setRules={setRules}
         preview={autoPreview}
-        scopeLabel={[weight || 'All weights', age || 'All ages'].join(' · ')}
+        scopeLabel={scopeLabel}
         onGenerate={runSmartAuto}
         busy={autoBusy}
       />

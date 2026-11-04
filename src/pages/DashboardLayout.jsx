@@ -21,7 +21,7 @@ function getPageMeta(pathname) {
   if (pathname === '/app') return { section: 'Overview', title: 'Dashboard' }
   if (pathname === '/app/events') return { section: 'Operations', title: 'Events' }
   if (pathname === '/app/events/new') return { section: 'Events', title: 'Create Event' }
-  if (/^\/app\/events\/[^/]+\/draws/.test(pathname)) return { section: 'Events', title: 'Draw & Bouts' }
+  if (/^\/app\/events\/[^/]+\/draws/.test(pathname)) return { section: 'Events', title: 'Draw Control Room' }
   if (/^\/app\/events\/[^/]+\/results/.test(pathname)) return { section: 'Events', title: 'Results' }
   if (/^\/app\/events\/[^/]+/.test(pathname)) return { section: 'Events', title: 'Event Command Center' }
   if (pathname === '/app/registrations') return { section: 'Operations', title: 'Registrations' }

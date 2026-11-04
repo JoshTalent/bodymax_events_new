@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
 import { LanguageModal } from '../../components/LanguageModal.jsx'
+import { Icon } from '../../components/Icons.jsx'
 import { cn } from '../../utils/cn.js'
 import { getSavedLang, persistLang } from '../../utils/language.js'
 
@@ -37,10 +38,22 @@ const text = {
     errorBack: 'Back to home',
     footerBy: 'Powered by',
     footerTag: 'Live event management',
+    liveNow: 'Live now',
+    nextUp: 'Next up',
+    mainEvent: 'Main event',
+    fightCard: 'Fight card',
+    weightClasses: 'Weight classes',
+    yrs: 'yrs',
+    officialBadge: 'Official card',
+    readOnly: 'Read-only',
+    boutOf: 'Bout {n} of {total}',
+    cardLocked: 'Card finalised',
+    male: 'Male',
+    female: 'Female',
   },
   rw: {
     officialDraw: 'Urutonde rw’imikino',
-    tagline: 'Imikino iriho ',
+    tagline: 'Urutonde rw’imikino · gusoma gusa',
     bouts: 'Imikino',
     venue: 'Aho bizabera',
     location: 'Aho biherereye',
@@ -68,7 +81,61 @@ const text = {
     errorBack: 'Subira ahabanza',
     footerBy: 'Yatanzwe na',
     footerTag: 'Gucunga ibirori',
+    liveNow: 'Biri gukorwa',
+    nextUp: 'Bikurikira',
+    mainEvent: 'Umukino nyamukuru',
+    fightCard: 'Urutonde rw’imikino',
+    weightClasses: 'Ibyiciro by’ibiro',
+    yrs: 'imyaka',
+    officialBadge: 'Urutonde rwemewe',
+    readOnly: 'Gusoma gusa',
+    boutOf: 'Umukino {n} kuri {total}',
+    cardLocked: 'Urutonde rwarangiye',
+    male: 'Gabo',
+    female: 'Gore',
   },
+}
+
+const RW_MONTHS = [
+  'Mutarama', 'Gashyantare', 'Werurwe', 'Mata', 'Gicurasi', 'Kamena',
+  'Nyakanga', 'Kanama', 'Nzeri', 'Ukwakira', 'Ugushyingo', 'Ukuboza',
+]
+const RW_DAYS = [
+  'Ku cyumweru', 'Kuwa mbere', 'Kuwa kabiri', 'Kuwa gatatu',
+  'Kuwa kane', 'Kuwa gatanu', 'Kuwa gatandatu',
+]
+
+const fmtDate = (iso, lang, opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) => {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  if (lang === 'rw') {
+    const parts = []
+    if (opts.weekday) parts.push(RW_DAYS[d.getDay()])
+    if (opts.day) parts.push(String(d.getDate()))
+    if (opts.month) parts.push(RW_MONTHS[d.getMonth()])
+    if (opts.year) parts.push(String(d.getFullYear()))
+    return parts.join(' ')
+  }
+  try {
+    return d.toLocaleDateString('en-GB', opts)
+  } catch {
+    return d.toLocaleDateString('en-GB')
+  }
+}
+
+const initialsOf = (name = '') =>
+  name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+
+function ageFrom(dob) {
+  if (!dob) return null
+  const d = new Date(dob)
+  if (Number.isNaN(d.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  const monthDiff = now.getMonth() - d.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age -= 1
+  return age > 0 && age < 120 ? age : null
 }
 
 function StatusPill({ status, t }) {
@@ -91,65 +158,214 @@ function StatusPill({ status, t }) {
     cancelled: t.cancelled,
   }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1', map[status] || 'bg-slate-100 text-slate-600 ring-slate-200')}>
-      {label[status] || status.replace('_', ' ')}
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset',
+        map[status] || 'bg-slate-100 text-slate-600 ring-slate-200'
+      )}
+    >
+      {status === 'in_progress' && (
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+        </span>
+      )}
+      {label[status] || (status || '').replace('_', ' ')}
     </span>
   )
 }
 
-function Fighter({ corner, reg, isWinner, t }) {
-  const n = reg?.boxerId?.fullName
-  const c = reg?.clubName || reg?.boxerId?.clubName || reg?.clubId?.name || ''
+function Corner({ corner, reg, isWinner, t }) {
   const isRed = corner === 'red'
-  const cornerLabel = isRed ? t.redCorner : t.blueCorner
-  const cornerAccent = isRed ? 'bg-red-600 text-white' : 'bg-blue-700 text-white'
-  const cornerBorder = isRed ? 'border-red-200' : 'border-blue-200'
+  const name = reg?.boxerId?.fullName
+  const club = reg?.clubName || reg?.boxerId?.clubName || reg?.clubId?.name || ''
+  const boxer = reg?.boxerId || {}
+  const rec = boxer.boxingRecord
+  const hasRecord = rec && (Number(rec.wins) || 0) + (Number(rec.losses) || 0) + (Number(rec.draws) || 0) > 0
+  const age = ageFrom(boxer.dateOfBirth)
 
-  if (!n) {
+  if (!name) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4">
-        <span className="text-sm italic text-slate-400">{t.bye}</span>
+      <div className="flex min-h-[88px] flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-center">
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{isRed ? t.redCorner : t.blueCorner}</span>
+        <span className="mt-1 text-xs font-semibold italic text-slate-400">{t.bye}</span>
       </div>
     )
   }
 
-  const initials = n.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-
   return (
-    <div className={cn(
-      'flex flex-1 items-center gap-3 rounded-xl border px-4 py-4',
-      isWinner ? 'border-emerald-300 bg-emerald-50' : cn('bg-white', cornerBorder)
-    )}>
-      <span className={cn(
-        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-        isWinner ? 'bg-emerald-600 text-white' : cornerAccent
-      )}>
-        {initials}
+    <div
+      className={cn(
+        'relative flex min-h-[88px] flex-1 items-center gap-3 overflow-hidden rounded-2xl border px-3 py-3 sm:px-4',
+        isWinner
+          ? 'border-emerald-300 bg-emerald-50/80 ring-1 ring-emerald-200'
+          : isRed
+            ? 'border-red-200 bg-gradient-to-br from-red-50/80 to-white'
+            : 'border-blue-200 bg-gradient-to-br from-blue-50/80 to-white'
+      )}
+    >
+      <span
+        className={cn(
+          'absolute inset-y-0 left-0 w-1',
+          isWinner ? 'bg-emerald-500' : isRed ? 'bg-red-500' : 'bg-blue-500'
+        )}
+      />
+      <span
+        className={cn(
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white shadow-sm sm:h-12 sm:w-12',
+          isWinner
+            ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
+            : isRed
+              ? 'bg-gradient-to-br from-red-500 to-red-800'
+              : 'bg-gradient-to-br from-blue-500 to-blue-900'
+        )}
+      >
+        {initialsOf(name)}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">{cornerLabel}</span>
-        <span className="block truncate text-base font-semibold text-slate-900">{n}</span>
-        <span className="block truncate text-sm text-slate-500">{c || t.individual}</span>
-      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
+          {isRed ? t.redCorner : t.blueCorner}
+        </p>
+        <p className="truncate text-sm font-black text-slate-900 sm:text-[15px]">{name}</p>
+        <p className="truncate text-[11px] font-medium text-slate-500">{club || t.individual}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {hasRecord && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ring-slate-200">
+              <span className="text-emerald-600">{Number(rec.wins) || 0}W</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-rose-500">{Number(rec.losses) || 0}L</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-500">{Number(rec.draws) || 0}D</span>
+            </span>
+          )}
+          {age && (
+            <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+              {age} {t.yrs}
+            </span>
+          )}
+          {boxer.nationality && (
+            <span className="max-w-[110px] truncate rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+              {boxer.nationality}
+            </span>
+          )}
+        </div>
+      </div>
+
       {isWinner && (
-        <span className="shrink-0 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">{t.winner}</span>
+        <span className="shrink-0 self-start rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm">
+          {t.winner}
+        </span>
       )}
     </div>
   )
 }
 
-function InfoRow({ icon, label, value }) {
-  if (!value) return null
+function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
+  const winnerRegId =
+    bout.winnerId && typeof bout.winnerId === 'object' ? bout.winnerId._id : bout.winnerId
+  const isWinnerA = winnerRegId && String(winnerRegId) === String(bout.boxerAId?._id)
+  const isWinnerB = winnerRegId && String(winnerRegId) === String(bout.boxerBId?._id)
+  const hasBye = !bout.boxerAId || !bout.boxerBId
+  const isLive = bout.status === 'in_progress'
+  const isDone = bout.status === 'completed' || bout.status === 'walkover'
+
+  const tags = []
+  if (isLive) tags.push({ label: t.liveNow, cls: 'bg-amber-500 text-white', pulse: true })
+  if (isMain) tags.push({ label: t.mainEvent, cls: 'bg-slate-900 text-white' })
+  if (!hasLive && isNext && !isMain) tags.push({ label: t.nextUp, cls: 'bg-brand-600 text-white' })
+
+  const rail = isLive
+    ? 'bg-amber-400'
+    : bout.status === 'completed'
+      ? 'bg-emerald-400'
+      : isDone
+        ? 'bg-emerald-300'
+        : hasBye
+          ? 'bg-slate-300'
+          : 'bg-brand-400'
+
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/70">
-        {icon}
-      </span>
-      <span>
-        <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
-        <span className="block text-sm font-medium text-white">{value}</span>
-      </span>
-    </div>
+    <article
+      className={cn(
+        'relative overflow-hidden rounded-2xl border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition sm:rounded-3xl',
+        isLive
+          ? 'border-amber-300 shadow-[0_18px_45px_-30px_rgba(245,158,11,0.9)] ring-2 ring-amber-200/70'
+          : 'border-slate-200/80 hover:border-slate-300 hover:shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)]'
+      )}
+    >
+      <span className={cn('absolute inset-y-0 left-0 w-1', rail)} />
+
+      <div className="px-4 py-4 pl-5 sm:px-6 sm:py-5 sm:pl-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-sm">
+              {bout.boutNumber ?? index + 1}
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                {t.boutOf.replace('{n}', bout.boutNumber ?? index + 1).replace('{total}', total)}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                  {bout.category?.weight || t.allWeights}
+                </span>
+                {bout.category?.age && (
+                  <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                    {bout.category.age}
+                  </span>
+                )}
+                {bout.category?.gender && (
+                  <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                    {bout.category.gender === 'M' ? t.male : bout.category.gender === 'F' ? t.female : bout.category.gender}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag.label}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] shadow-sm',
+                  tag.cls
+                )}
+              >
+                {tag.pulse && (
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-80" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                  </span>
+                )}
+                {tag.label}
+              </span>
+            ))}
+            <StatusPill status={bout.status} t={t} />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+          <Corner corner="red" reg={bout.boxerAId} isWinner={isWinnerA} t={t} />
+          <div className="flex items-center justify-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ring-4 ring-white">
+              vs
+            </span>
+          </div>
+          <Corner corner="blue" reg={bout.boxerBId} isWinner={isWinnerB} t={t} />
+        </div>
+
+        {isDone && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-emerald-50/80 px-3 py-2 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-100">
+            <Icon name="checkCircle" className="h-3.5 w-3.5 text-emerald-600" />
+            {bout.status === 'walkover' && hasBye
+              ? t.walkoverNoOpponent
+              : `${t.result}: ${bout.result?.method || 'Decision'}${bout.result?.round ? ` · Round ${bout.result.round}` : ''}`}
+          </div>
+        )}
+      </div>
+    </article>
   )
 }
 
@@ -170,13 +386,37 @@ export default function PublicDraws() {
   }
 
   useEffect(() => {
-    api(`/draws/public?token=${encodeURIComponent(token)}`)
-      .then((d) => {
-        setEvent(d.event)
-        setBouts(d.bouts || [])
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+    let active = true
+    let hasData = false
+
+    const load = () =>
+      api(`/draws/public?token=${encodeURIComponent(token)}`)
+        .then((d) => {
+          if (!active) return
+          hasData = true
+          setEvent(d.event)
+          setBouts(d.bouts || [])
+          setError('')
+        })
+        .catch((e) => {
+          // A failed background refresh should not wipe an already-loaded card.
+          if (!active || hasData) return
+          setError(e.message)
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+
+    load()
+    // Keep the public card in sync while officials record results.
+    const timer = setInterval(() => {
+      if (!document.hidden) load()
+    }, 30000)
+
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
   }, [token])
 
   if (loading) return (
@@ -187,33 +427,58 @@ export default function PublicDraws() {
   )
 
   const visible = (bouts || []).filter((b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName))
+  const total = visible.length
+  const completed = visible.filter((b) => ['completed', 'walkover'].includes(b.status)).length
+  const live = visible.filter((b) => b.status === 'in_progress').length
+  const liveBout = visible.find((b) => b.status === 'in_progress')
+  const nextBout = visible.find((b) => !['completed', 'walkover', 'in_progress', 'cancelled'].includes(b.status))
+  const mainBout = visible[visible.length - 1]
+
+  const classCounts = visible.reduce((acc, b) => {
+    const key = b.category?.weight || t.allWeights
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  const classData = Object.entries(classCounts)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+
+  const eventDateLong = fmtDate(event?.eventDate, lang)
+  const eventDateShort = fmtDate(event?.eventDate, lang, { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-slate-950">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-brand-500 to-brand-700 text-sm font-black text-white">B</span>
-            <span className="text-lg font-bold text-white">Bodymax</span>
+      {/* Top bar */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-black text-white shadow-lg shadow-brand-950/40">
+              B
+            </span>
+            <span className="min-w-0 leading-none">
+              <span className="block truncate text-lg font-black tracking-tight text-white">Bodymax</span>
+              <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.officialBadge}</span>
+            </span>
           </Link>
           <div className="flex items-center gap-3">
-            {event?.eventDate && (
-              <span className="hidden text-xs font-medium text-slate-400 sm:block">
-                {new Date(event.eventDate).toLocaleDateString(lang === 'rw' ? 'rw-RW' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            {eventDateShort && (
+              <span className="hidden items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold text-slate-300 ring-1 ring-inset ring-white/10 sm:inline-flex">
+                <Icon name="calendar" className="h-3.5 w-3.5 text-slate-500" />
+                {eventDateShort}
               </span>
             )}
-            <div className="flex items-center rounded-full bg-white/10 p-0.5 ring-1 ring-white/20">
+            <div className="flex items-center rounded-full bg-white/10 p-0.5 ring-1 ring-inset ring-white/15">
               {(['en', 'rw']).map((code) => (
                 <button
                   key={code}
                   type="button"
                   onClick={() => chooseLang(code)}
                   className={cn(
-                    'rounded-full px-3 py-1 text-xs font-semibold transition',
-                    lang === code ? 'bg-white text-slate-900' : 'text-slate-200 hover:text-white'
+                    'rounded-full px-3 py-1 text-[11px] font-bold transition',
+                    lang === code ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
                   )}
                 >
-                  {code === 'en' ? 'EN' : 'Kinyarwanda'}
+                  {code === 'en' ? 'EN' : 'RW'}
                 </button>
               ))}
             </div>
@@ -222,103 +487,170 @@ export default function PublicDraws() {
       </header>
 
       {error ? (
-        <div className="mx-auto max-w-4xl px-4 py-16 text-center">
-          <p className="text-slate-500">{error}</p>
-          <Link to="/" className="mt-4 inline-block text-brand-600 hover:underline">← {t.errorBack}</Link>
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+              <Icon name="alert" className="h-5 w-5" />
+            </span>
+            <p className="mt-4 text-sm font-semibold text-slate-700">{error}</p>
+            <Link
+              to="/"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+            >
+              <Icon name="chevronRight" className="h-3.5 w-3.5 rotate-180" />
+              {t.errorBack}
+            </Link>
+          </div>
         </div>
       ) : (
-        <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+        <>
           {/* Hero */}
-          <section className="overflow-hidden rounded-3xl bg-slate-950 shadow-xl">
-            <div className="bg-[radial-gradient(60%_120%_at_100%_0%,rgba(59,130,246,0.25),transparent)] px-6 py-8 sm:px-10 sm:py-10">
-              <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-400">{t.officialDraw}</p>
-                  <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">{event?.name}</h1>
-                  <p className="mt-1 text-sm text-slate-400">{t.tagline}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-2xl bg-white px-5 py-3 text-center shadow-lg">
-                    <p className="text-2xl font-bold text-slate-900">{visible.length}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.bouts}</p>
+          <section className="relative overflow-hidden border-b border-white/5 bg-slate-950 text-white">
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage:
+                  'linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)',
+                backgroundSize: '44px 44px',
+              }}
+            />
+            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-500/25 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-32 left-1/4 h-80 w-80 rounded-full bg-indigo-500/15 blur-3xl" />
+
+            <div className="relative mx-auto max-w-6xl px-4 pb-8 pt-8 sm:px-6 sm:pb-10 sm:pt-11">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300 ring-1 ring-inset ring-white/10">
+                  <Icon name="trophy" className="h-3.5 w-3.5 text-brand-400" />
+                  {t.officialDraw}
+                </span>
+                {live > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300 ring-1 ring-inset ring-amber-400/30">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    </span>
+                    {t.liveNow}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 ring-1 ring-inset ring-white/10">
+                    {t.readOnly} · {t.autoUpdate}
+                  </span>
+                )}
+              </div>
+
+              <h1 className="mt-4 max-w-3xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+                {event?.name}
+              </h1>
+              <p className="mt-2 text-sm font-medium text-slate-400">{t.tagline}</p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="calendar" className="h-4 w-4 text-slate-500" />
+                  {eventDateLong || t.tbd}
+                </span>
+                {event?.venue && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon name="flag" className="h-4 w-4 text-slate-500" />
+                    {event.venue}
+                  </span>
+                )}
+                {event?.location && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon name="globe" className="h-4 w-4 text-slate-500" />
+                    {event.location}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {[
+                  { label: t.bouts, value: total },
+                  { label: t.completed, value: completed },
+                  { label: t.liveNow, value: live, live: live > 0 },
+                  { label: t.weightClasses, value: classData.length },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className={cn(
+                      'rounded-2xl border px-4 py-3 backdrop-blur-sm',
+                      s.live
+                        ? 'border-amber-400/30 bg-amber-400/10'
+                        : 'border-white/[0.08] bg-white/[0.045]'
+                    )}
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{s.label}</p>
+                    <p className={cn('mt-1 text-xl font-black leading-none', s.live ? 'text-amber-300' : 'text-white')}>
+                      {s.value}
+                    </p>
                   </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+            <div className="mx-auto max-w-4xl">
+              {/* Fight card */}
+              <section>
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-slate-900">
+                      <Icon name="trophy" className="h-4 w-4 text-slate-400" />
+                      {t.fightCard}
+                    </h2>
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                      {total} {t.bouts.toLowerCase()} · {t.boutOrder}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500 ring-1 ring-inset ring-slate-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    {t.autoUpdate}
+                  </span>
                 </div>
-              </div>
 
-              <div className="mt-8 grid gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
-                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>} label={t.venue} value={event?.venue} />
-                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>} label={t.location} value={event?.location} />
-                <InfoRow icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>} label={t.date} value={event?.eventDate ? new Date(event.eventDate).toLocaleDateString(lang === 'rw' ? 'rw-RW' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : t.tbd} />
-              </div>
+                {visible.length === 0 ? (
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white text-center shadow-sm">
+                    <div className="relative px-6 py-14">
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.08),transparent_65%)]" />
+                      <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-900/20">
+                        <Icon name="trophy" className="h-6 w-6" />
+                      </span>
+                      <h3 className="relative mt-4 text-lg font-black text-slate-900">{t.noBoutsYet}</h3>
+                      <p className="relative mx-auto mt-1 max-w-sm text-sm text-slate-500">{t.noBoutsBody}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 sm:space-y-4">
+                    {visible.map((b, i) => (
+                      <BoutCard
+                        key={b._id}
+                        bout={b}
+                        index={i}
+                        total={total}
+                        isMain={mainBout?._id === b._id}
+                        isNext={nextBout?._id === b._id}
+                        hasLive={!!liveBout}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
-          </section>
-
-          {/* Bout list */}
-          <section className="mt-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">{t.boutOrder}</h2>
-              <span className="text-xs font-medium text-slate-500">{t.autoUpdate}</span>
-            </div>
-
-            {visible.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-900">{t.noBoutsYet}</h3>
-                <p className="mt-1 text-sm text-slate-500">{t.noBoutsBody}</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {visible.map((b, i) => {
-                  const winnerId = b.winnerId
-                  const isWinnerA = winnerId && String(winnerId) === String(b.boxerAId?._id)
-                  const isWinnerB = winnerId && String(winnerId) === String(b.boxerBId?._id)
-                  const hasBye = !b.boxerAId || !b.boxerBId
-                  return (
-                    <article key={b._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
-                            {i + 1}
-                          </span>
-                          <div>
-                            <p className="text-sm font-bold text-slate-900">Bout #{b.boutNumber}</p>
-                            <p className="text-xs text-slate-500">
-                              {b.category?.weight || t.allWeights}
-                              {b.category?.age ? ` · ${b.category.age}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <StatusPill status={b.status} t={t} />
-                      </div>
-
-                      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                        <Fighter corner="red" reg={b.boxerAId} isWinner={isWinnerA} t={t} />
-                        <span className="self-center flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold uppercase text-white sm:mx-1">
-                          vs
-                        </span>
-                        <Fighter corner="blue" reg={b.boxerBId} isWinner={isWinnerB} t={t} />
-                      </div>
-
-                      {(b.status === 'completed' || b.status === 'walkover') && (
-                        <p className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                          {b.status === 'walkover' && hasBye
-                            ? t.walkoverNoOpponent
-                            : `${t.result}: ${b.result?.method || 'Decision'}${b.result?.round ? ` · Round ${b.result.round}` : ''}`}
-                        </p>
-                      )}
-                    </article>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        </main>
+          </main>
+        </>
       )}
 
       <footer className="border-t border-slate-200 bg-white py-8">
-        <p className="text-center text-xs font-semibold uppercase tracking-widest text-slate-400">
-          {t.footerBy} <span className="text-slate-700">Bodymax</span> · {t.footerTag}
-        </p>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-[11px] font-black text-white">B</span>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              {t.footerBy} <span className="text-slate-700">Bodymax</span> · {t.footerTag}
+            </p>
+          </div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t.autoUpdate}</p>
+        </div>
       </footer>
 
       <LanguageModal open={showLang} onSelect={chooseLang} />
