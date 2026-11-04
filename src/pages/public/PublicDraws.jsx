@@ -408,7 +408,7 @@ export default function PublicDraws() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState(getSavedLang() || 'en')
-  const [showLang, setShowLang] = state(!getSavedLang())
+  const [showLang, setShowLang] = useState(!getSavedLang())
   const t = lang === 'rw' ? text.rw : text.en
 
   const chooseLang = (code) => {
