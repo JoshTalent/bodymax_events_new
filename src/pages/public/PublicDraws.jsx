@@ -670,9 +670,9 @@ export default function PublicDraws() {
                   <div className="flex items-center gap-4 px-4 py-4">
                     <RadialProgress value={progress} label={t.complete} size={104} stroke={9} color="#2563eb" />
                     <div className="min-w-0 flex-1">
-                      <LegendRow dot="bg-emerald-500" label={t.completed} value={completed} tone="text-emerald-600" />
-                      <LegendRow dot="bg-amber-500" label={t.liveNow} value={live} tone={live ? 'text-amber-600' : 'text-slate-900'} />
-                      <LegendRow dot="bg-slate-300" label={t.remaining} value={remaining} tone="text-slate-600" />
+                      <span className="text-emerald-600 font-bold text-sm">{completed}</span>
+                      <span className="mx-2 text-amber-600 font-bold text-sm">{live}</span>
+                      <span className="text-slate-600 font-bold text-sm">{remaining}</span>
                     </div>
                   </div>
                   <div className="px-4 pb-4">
@@ -691,8 +691,13 @@ export default function PublicDraws() {
                       <h3 className="text-sm font-bold text-slate-900">{t.weightClasses}</h3>
                       <p className="mt-0.5 text-[11px] text-slate-500">{t.distribution}</p>
                     </div>
-                    <div className="px-4 py-4">
-                      <BarList data={classData} color="#0f766e" />
+                    <div className="px-4 pb-4">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
                     </div>
                   </section>
                 )}

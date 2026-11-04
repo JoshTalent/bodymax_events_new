@@ -153,3 +153,10 @@ With branch statuses: `needs_correction`, `withdrawn`, `not_eligible`, `eliminat
 - Club-facing bracket/schedule/result views
 - Event officials management UI
 - File upload for documents and proof of payment
+
+
+
+git init 
+git add .
+git commit -m "again"
+git push origin main
