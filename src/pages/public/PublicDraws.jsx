@@ -229,14 +229,14 @@ function Corner({ corner, reg, isWinner, t }) {
           src={boxer.photoUrl}
           alt={name}
           className={cn(
-            'h-14 w-14 shrink-0 rounded-xl object-cover shadow-lg ring-4 ring-white',
+            'h-16 w-16 shrink-0 rounded-xl object-cover shadow-lg ring-5 ring-white',
             isWinner ? 'ring-emerald-300' : isRed ? 'ring-red-200' : 'ring-blue-200'
           )}
         />
       ) : (
         <span
           className={cn(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-[12px] font-black text-white shadow-lg sm:h-16 sm:w-16',
+            'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white shadow-lg sm:h-18 sm:w-18',
             isWinner
               ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
               : isRed
@@ -247,7 +247,7 @@ function Corner({ corner, reg, isWinner, t }) {
         </span>
       )}
 
-      <div className="min-w-0 flex-1 flex-col pt-2">
+      <div className="min-w-0 flex-1 flex-col pt-3">
         <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-400">
           {isRed ? t.redCorner : t.blueCorner}
         </p>
