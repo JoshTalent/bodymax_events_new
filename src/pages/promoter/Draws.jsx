@@ -55,6 +55,7 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
   const isWinner = bout.winnerId && String(bout.winnerId) === String(reg?._id)
   const notEligible = reg?.status === 'not_eligible'
   const record = reg?.boxerId?.boxingRecord
+  const photo = reg?.boxerId?.photoUrl
 
   if (!reg) {
     return (
@@ -84,18 +85,29 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
             : 'border-slate-200 bg-white hover:border-slate-300'
       )}
     >
-      <span
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white shadow-sm',
-          notEligible
-            ? 'bg-gradient-to-br from-rose-500 to-rose-700'
-            : isWinner
-              ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
-              : 'bg-gradient-to-br from-slate-700 to-slate-950'
-        )}
-      >
-        {initials(name)}
-      </span>
+      {photo ? (
+        <img
+          src={photo}
+          alt={name || 'Boxer'}
+          className={cn(
+            'h-11 w-11 shrink-0 rounded-xl object-cover shadow-sm ring-2',
+            notEligible ? 'ring-rose-300' : isWinner ? 'ring-emerald-300' : 'ring-white'
+          )}
+        />
+      ) : (
+        <span
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-black text-white shadow-sm',
+            notEligible
+              ? 'bg-gradient-to-br from-rose-500 to-rose-700'
+              : isWinner
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
+                : 'bg-gradient-to-br from-slate-700 to-slate-950'
+          )}
+        >
+          {initials(name)}
+        </span>
+      )}
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
@@ -139,7 +151,7 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
       <span className="flex shrink-0 flex-col gap-0.5">
         <button
           type="button"
-          title="Edit boxer"
+          title="Edit boxer photo & details"
           onClick={() => onEditBoxer(reg, bout)}
           disabled={disabled}
           className="rounded-lg p-1.5 text-slate-300 transition hover:bg-brand-50 hover:text-brand-600 disabled:opacity-30"
@@ -564,7 +576,7 @@ export default function Draws() {
   const [addForm, setAddForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
 
   const [editBoxer, setEditBoxer] = useState(null)
-  const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1 })
+  const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1, photoUrl: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [acting, setActing] = useState(false)
 
@@ -984,6 +996,7 @@ export default function Draws() {
       weight: reg?.category?.weight || reg?.boxerId?.weightCategory || '',
       age: reg?.category?.age || reg?.boxerId?.ageCategory || '',
       numberOfBouts: reg?.numberOfBouts || 1,
+      photoUrl: reg?.boxerId?.photoUrl || '',
     })
   }
 
@@ -1003,6 +1016,7 @@ export default function Draws() {
           weight: editForm.weight || '',
           age: editForm.age || '',
           numberOfBouts: editForm.numberOfBouts,
+          photoUrl: editForm.photoUrl || '',
         },
       })
       toast('Boxer details updated')
@@ -1486,6 +1500,44 @@ export default function Draws() {
         }
       >
         <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+            <div className="flex items-start gap-4">
+              {editForm.photoUrl ? (
+                <img
+                  src={editForm.photoUrl}
+                  alt={editForm.fullName || 'Boxer'}
+                  className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-sm ring-2 ring-white"
+                />
+              ) : (
+                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-700 to-slate-950 text-lg font-black text-white shadow-sm">
+                  {initials(editForm.fullName)}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <Input
+                  label="Photo link"
+                  type="url"
+                  value={editForm.photoUrl}
+                  onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
+                  placeholder="https://example.com/boxer-photo.jpg"
+                />
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] leading-relaxed text-slate-400">
+                    Paste a public image link (JPG, PNG or WebP).
+                  </p>
+                  {editForm.photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((f) => ({ ...f, photoUrl: '' }))}
+                      className="rounded-lg px-2 py-1 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50"
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
           <Input label="Full Name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} required />
           <Input label="Club / Team" value={editForm.clubName} onChange={(e) => setEditForm({ ...editForm, clubName: e.target.value })} placeholder="e.g. Midlands Boxing Club" />
           <div className="grid gap-4 sm:grid-cols-2">

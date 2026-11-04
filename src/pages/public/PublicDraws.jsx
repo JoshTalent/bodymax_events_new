@@ -210,18 +210,29 @@ function Corner({ corner, reg, isWinner, t }) {
           isWinner ? 'bg-emerald-500' : isRed ? 'bg-red-500' : 'bg-blue-500'
         )}
       />
-      <span
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white shadow-sm sm:h-12 sm:w-12',
-          isWinner
-            ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
-            : isRed
-              ? 'bg-gradient-to-br from-red-500 to-red-800'
-              : 'bg-gradient-to-br from-blue-500 to-blue-900'
-        )}
-      >
-        {initialsOf(name)}
-      </span>
+      {boxer.photoUrl ? (
+        <img
+          src={boxer.photoUrl}
+          alt={name}
+          className={cn(
+            'h-11 w-11 shrink-0 rounded-xl object-cover shadow-sm ring-2 sm:h-12 sm:w-12',
+            isWinner ? 'ring-emerald-300' : isRed ? 'ring-red-200' : 'ring-blue-200'
+          )}
+        />
+      ) : (
+        <span
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white shadow-sm sm:h-12 sm:w-12',
+            isWinner
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
+              : isRed
+                ? 'bg-gradient-to-br from-red-500 to-red-800'
+                : 'bg-gradient-to-br from-blue-500 to-blue-900'
+          )}
+        >
+          {initialsOf(name)}
+        </span>
+      )}
 
       <div className="min-w-0 flex-1">
         <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">

@@ -32,6 +32,16 @@ export default async (event) => {
     if (body.fullName !== undefined && body.fullName.trim()) {
       updates.fullName = body.fullName.trim()
     }
+    if (body.photoUrl !== undefined) {
+      const photoUrl = String(body.photoUrl || '').trim()
+      if (photoUrl.length > 2048) {
+        return errorResponse({ message: 'Photo link is too long', status: 400 })
+      }
+      if (photoUrl && !/^https?:\/\//i.test(photoUrl)) {
+        return errorResponse({ message: 'Enter a valid image link starting with http:// or https://', status: 400 })
+      }
+      updates.photoUrl = photoUrl
+    }
     if (body.clubName !== undefined) {
       updates.clubName = (body.clubName || '').trim()
       regUpdates.clubName = updates.clubName
