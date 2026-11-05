@@ -189,7 +189,7 @@ function StatusPill({ status, t }) {
   )
 }
 
-function Corner({ corner, reg, isWinner, t }) {
+function Corner({ corner, reg, isWinner, featured = false, t }) {
   const isRed = corner === 'red'
   const name = reg?.boxerId?.fullName
   const club = reg?.clubName || reg?.boxerId?.clubName || reg?.clubId?.name || ''
@@ -200,7 +200,12 @@ function Corner({ corner, reg, isWinner, t }) {
 
   if (!name) {
     return (
-      <div className="flex min-h-[88px] flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-center">
+      <div
+        className={cn(
+          'flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-center',
+          featured ? 'min-h-[150px] w-full' : 'min-h-[100px] flex-1'
+        )}
+      >
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{isRed ? t.redCorner : t.blueCorner}</span>
         <span className="mt-1 text-xs font-semibold italic text-slate-400">{t.bye}</span>
       </div>
@@ -210,7 +215,10 @@ function Corner({ corner, reg, isWinner, t }) {
   return (
     <div
       className={cn(
-        'relative flex min-h-[100px] flex-1 items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 sm:px-4',
+        'relative flex items-center overflow-hidden rounded-2xl border',
+        featured
+          ? 'min-h-[160px] w-full gap-4 px-4 py-5 sm:min-h-[190px] sm:gap-6 sm:px-7 sm:py-6'
+          : 'min-h-[100px] flex-1 gap-3 px-3 py-3 sm:px-4',
         isWinner
           ? 'border-emerald-300 bg-emerald-50/80 ring-1 ring-emerald-200'
           : isRed
@@ -229,17 +237,16 @@ function Corner({ corner, reg, isWinner, t }) {
           src={boxer.photoUrl}
           alt={name}
           className={cn(
-            'h-16 w-16 shrink-0 rounded-xl object-cover shadow-lg ring-5 ring-white',
-            isWinner ? 'h-18 w-18' : 'h-14 w-14',
+            'shrink-0 rounded-xl object-cover object-top shadow-lg',
+            featured ? 'h-28 w-28 ring-4 sm:h-36 sm:w-36' : 'h-14 w-14 ring-2 sm:h-16 sm:w-16',
             isWinner ? 'ring-emerald-300' : isRed ? 'ring-red-200' : 'ring-blue-200'
           )}
         />
       ) : (
         <span
           className={cn(
-            isWinner
-              ? 'flex h-18 w-18 shrink-0 items-center justify-center rounded-xl text-[14px] font-black text-white shadow-lg sm:h-20 sm:w-20'
-              : 'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-[12px] font-black text-white shadow-sm sm:h-16 sm:w-16',
+            'flex shrink-0 items-center justify-center rounded-xl font-black text-white shadow-lg',
+            featured ? 'h-28 w-28 text-3xl ring-4 ring-white sm:h-36 sm:w-36 sm:text-4xl' : 'h-14 w-14 text-[12px] sm:h-16 sm:w-16',
             isWinner
               ? 'bg-gradient-to-br from-emerald-500 to-teal-700'
               : isRed
@@ -250,27 +257,29 @@ function Corner({ corner, reg, isWinner, t }) {
         </span>
       )}
 
-      <div className="min-w-0 flex-1 flex-col pt-{isWinner ? '3' : '2'}">
-        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-400">
+      <div className={cn('min-w-0 flex-1', featured ? 'space-y-1.5' : 'space-y-1')}>
+        <p className={cn('font-bold uppercase tracking-[0.16em] text-slate-400', featured ? 'text-[10px] sm:text-xs' : 'text-[9px]')}>
           {isRed ? t.redCorner : t.blueCorner}
         </p>
-        <p className="truncate text-sm font-black text-slate-900 sm:text-[15px]">{name}</p>
+        <p className={cn('font-black leading-tight text-slate-900', featured ? 'break-words text-xl sm:text-3xl' : 'truncate text-sm sm:text-[15px]')}>
+          {name}
+        </p>
         {isWinner && (
-          <p className="mt-1 text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+          <p className={cn('font-semibold uppercase tracking-wider text-emerald-600', featured ? 'text-xs sm:text-sm' : 'text-xs')}>
             {t.winner}
           </p>
         )}
-        <p className="mt-1 text-[10px] text-slate-500">{club || t.individual}</p>
+        <p className={cn('text-slate-500', featured ? 'text-xs sm:text-sm' : 'text-[10px]')}>{club || t.individual}</p>
         {hasRecord && (
-          <p className="mt-1 text-[10px] font-semibold text-slate-600">
+          <p className={cn('font-semibold text-slate-600', featured ? 'text-xs sm:text-sm' : 'text-[10px]')}>
             {rec.wins}W {rec.losses}L {rec.draws}D
           </p>
         )}
         {age && (
-          <p className="mt-0.5 text-[10px] text-slate-500">{age} {t.yrs}</p>
+          <p className={cn('text-slate-500', featured ? 'text-xs sm:text-sm' : 'text-[10px]')}>{age} {t.yrs}</p>
         )}
         {boxer.nationality && (
-          <p className="mt-0.5 text-[10px] text-slate-500">{boxer.nationality}</p>
+          <p className={cn('text-slate-500', featured ? 'text-xs sm:text-sm' : 'text-[10px]')}>{boxer.nationality}</p>
         )}
       </div>
     </div>
@@ -293,19 +302,8 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
     .filter(Boolean)
     .join(' × ')
 
-  // Determine which corner(s) to show
-  let cornerA, cornerB
-  if (resultRecorded) {
-    // Only show the winner when result is recorded
-    if (isWinnerA) cornerA = <Corner corner="red" reg={bout.boxerAId} isWinner={true} t={t} />
-    else if (isWinnerB) cornerA = <Corner corner="blue" reg={bout.boxerBId} isWinner={true} t={t} />
-    else cornerA = null
-    cornerB = null
-  } else {
-    // Normal mode: show both boxers (skip bye slot if no opponent)
-    cornerA = hasBye ? null : <Corner corner="red" reg={bout.boxerAId} isWinner={isWinnerA} t={t} />
-    cornerB = hasBye ? null : <Corner corner="blue" reg={bout.boxerBId} isWinner={isWinnerB} t={t} />
-  }
+  // When a result is recorded only the winner is shown, in a full-width showcase.
+  const winnerReg = isWinnerA ? bout.boxerAId : isWinnerB ? bout.boxerBId : null
 
   const tags = []
   if (isLive) tags.push({ label: t.liveNow, cls: 'bg-amber-500 text-white', pulse: true })
@@ -388,18 +386,31 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-{resultRecorded ? '1' : '2'} gap-2">
-          <>{cornerA}</>
-          <>{cornerB}</>
-        </div>
-
-        <div className="flex items-center justify-center">
-          {!resultRecorded && !hasBye && (
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ring-4 ring-white">
-              vs
-            </span>
-          )}
-        </div>
+        {resultRecorded ? (
+          // Result recorded: show the winner alone, large enough to fill the card.
+          <div className="mt-4">
+            <Corner
+              corner={isWinnerB ? 'blue' : 'red'}
+              reg={winnerReg || bout.boxerAId || bout.boxerBId}
+              isWinner
+              featured
+              t={t}
+            />
+          </div>
+        ) : (
+          // No result yet: both boxers side by side with the VS badge between them.
+          <div className="mt-4 flex items-stretch gap-2 sm:gap-3">
+            {bout.boxerAId && <Corner corner="red" reg={bout.boxerAId} isWinner={false} t={t} />}
+            {!hasBye && (
+              <div className="flex shrink-0 items-center justify-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ring-4 ring-white">
+                  vs
+                </span>
+              </div>
+            )}
+            {bout.boxerBId && <Corner corner="blue" reg={bout.boxerBId} isWinner={false} t={t} />}
+          </div>
+        )}
       </div>
     </article>
   )
