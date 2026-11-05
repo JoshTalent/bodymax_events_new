@@ -174,7 +174,7 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
   )
 }
 
-function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled }) {
+function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled, manualPairs, setManualPairs }) {
   const a = bout.boxerAId
   const b = bout.boxerBId
   const isBye = !a || !b
@@ -1295,6 +1295,8 @@ export default function Draws() {
                     onDeleteBout={deleteBout}
                     onAddBoxer={openAssign}
                     disabled={acting}
+                  manualPairs={manualPairs}
+                  setManualPairs={setManualPairs}
                   />
                 ))}
               </ol>
