@@ -180,6 +180,8 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
   const isBye = !a || !b
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
   const resultLabel = bout.result?.method || (bout.status === 'walkover' ? 'Walkover' : 'Decision')
+  const rounds = bout.numberOfRounds || 3
+  const minutes = bout.minutesPerRound || 3
 
   return (
     <li className="group relative bg-white transition hover:bg-slate-50/40">
@@ -265,8 +267,34 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
               <Icon name="close" className="h-3.5 w-3.5" />
             </button>
             <StatusPill status={bout.status} />
+              <div className="flex items-center gap-2 mt-2 text-sm">
+                <span className="text-slate-500">Rounds: </span>
+                <Input
+                  type="number"
+                  value={rounds}
+                  onChange={(e) => {
+                    const next = [...manualPairs]
+                    next[index] = { ...next[index], rounds: Number(e.target.value) || 3 }
+                    setManualPairs(next)
+                  }}
+                  className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+                  min={1}
+                />
+                <span className="text-slate-500">Min/round: </span>
+                <Input
+                  type="number"
+                  value={minutes}
+                  onChange={(e) => {
+                    const next = [...manualPairs]
+                    next[index] = { ...next[index], minutes: Number(e.target.value) || 3 }
+                    setManualPairs(next)
+                  }}
+                  className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+                  min={1}
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
         <div className="mt-4 grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
           <Corner reg={a} bout={bout} side="A" onAddBoxer={onAddBoxer} onEditBoxer={onEditBoxer} onRemoveBoxer={onRemoveBoxer} disabled={disabled} />
