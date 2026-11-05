@@ -675,9 +675,9 @@ export default function Draws() {
     const r1 = hasDraw
       ? ordered
           .slice()
-          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '' }))
+          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '', rounds: b.numberOfRounds || 3, minutes: b.minutesPerRound || 3 }))
       : []
-    setManualPairs(r1.length ? r1 : [{ a: '', b: '' }])
+    setManualPairs(r1.length ? r1 : [{ a: '', b: '', rounds: 3, minutes: 3 }])
     setEditMode(hasDraw)
     setAddForm({ fullName: '', clubName: '', gender: '', weight: weight || '', age: age || '' })
     setAddBoxerOpen(false)
@@ -708,10 +708,18 @@ export default function Draws() {
   const setPair = (i, key) => (e) => {
     const next = [...manualPairs]
     next[i] = { ...next[i], [key]: e.target.value }
+    if (key === 'a' || key === 'b') {
+      // Also update rounds/minutes when boxer is selected
+      const idx = manualPairs.findIndex(p => p.a === next[i].a || p.b === next[i].b)
+      if (idx !== -1) {
+        next[idx].rounds = next[idx].rounds || 3
+        next[idx].minutes = next[idx].minutes || 3
+      }
+    }
     setManualPairs(next)
   }
 
-  const addPair = () => setManualPairs([...manualPairs, { a: '', b: '' }])
+  const addPair = () => setManualPairs([...manualPairs, { a: '', b: '', rounds: 3, minutes: 3 }])
 
   const removePair = (i) => setManualPairs(manualPairs.filter((_, x) => x !== i))
 
@@ -720,8 +728,8 @@ export default function Draws() {
     if (pool.length < 2) return
     const { pairs, unpaired } = generatePairings(pool, rules)
     const rows = [...manualPairs]
-    pairs.forEach((p) => rows.push({ a: p.a.id, b: p.b.id }))
-    unpaired.forEach((p) => rows.push({ a: p.id, b: '' }))
+    pairs.forEach((p) => rows.push({ a: p.a.id, b: p.b.id, rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3 }))
+    unpaired.forEach((p) => rows.push({ a: p.id, b: '', rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3 }))
     setManualPairs(rows)
     if (unpaired.length > 0) {
       toast(`${pairs.length} pairing(s) made, ${unpaired.length} boxer(s) left without a valid opponent`, 'info')
@@ -738,8 +746,8 @@ export default function Draws() {
     if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
 
     const bouts = [
-      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound })),
-      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound })),
+      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: manualPairs[0]?.rounds || 3, minutesPerRound: manualPairs[0]?.minutes || 3 })),
+      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: manualPairs[0]?.rounds || 3, minutesPerRound: manualPairs[0]?.minutes || 3 })),
     ]
 
     setAutoBusy(true)
@@ -793,7 +801,7 @@ export default function Draws() {
 
   const buildManual = async () => {
     const pairs = manualPairs
-      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound }))
+      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: p.rounds || 3, minutesPerRound: p.minutes || 3 }))
       .filter((p) => p.boxerAId || p.boxerBId)
     if (pairs.length === 0) {
       toast('Add at least one pairing', 'error')
@@ -817,6 +825,7 @@ export default function Draws() {
     } finally {
       setBuilding(false)
     }
+  })
   }
 
   const ordered = (bouts || []).slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
