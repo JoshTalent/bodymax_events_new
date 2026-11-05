@@ -88,6 +88,17 @@ export default async (event) => {
       for (const k of allowed) {
         if (body[k] !== undefined) update[k] = body[k]
       }
+
+      // Bout format: number of rounds and minutes per round. An empty value
+      // clears the setting rather than saving NaN.
+      for (const k of ['numberOfRounds', 'minutesPerRound']) {
+        if (body[k] !== undefined) {
+          const n = Number(body[k])
+          update[k] = body[k] === '' || body[k] === null || !Number.isFinite(n) || n <= 0
+            ? null
+            : Math.round(n)
+        }
+      }
       const bout = await Bout.findByIdAndUpdate(id, update, { new: true }).lean()
       if (!bout) return errorResponse({ message: 'Bout not found', status: 404 })
       return success({ bout })

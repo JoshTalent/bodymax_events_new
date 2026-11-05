@@ -174,14 +174,116 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
   )
 }
 
-function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, disabled, manualPairs, setManualPairs }) {
+function BoutTiming({ bout, disabled, onSave }) {
+  const [rounds, setRounds] = useState(bout.numberOfRounds ?? '')
+  const [minutes, setMinutes] = useState(bout.minutesPerRound ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setRounds(bout.numberOfRounds ?? '')
+    setMinutes(bout.minutesPerRound ?? '')
+    setSaved(false)
+  }, [bout._id, bout.numberOfRounds, bout.minutesPerRound])
+
+  const reset = () => {
+    setRounds(bout.numberOfRounds ?? '')
+    setMinutes(bout.minutesPerRound ?? '')
+  }
+
+  const commit = async () => {
+    const nextRounds = rounds === '' ? null : Number(rounds)
+    const nextMinutes = minutes === '' ? null : Number(minutes)
+    const invalid = [nextRounds, nextMinutes].some(
+      (n) => n !== null && (!Number.isFinite(n) || n <= 0)
+    )
+    if (invalid) {
+      reset()
+      return
+    }
+    if (nextRounds === (bout.numberOfRounds ?? null) && nextMinutes === (bout.minutesPerRound ?? null)) return
+
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave(bout._id, { numberOfRounds: nextRounds, minutesPerRound: nextMinutes })
+      setSaved(true)
+    } catch {
+      // Revert the inputs to the last saved values.
+      reset()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') e.currentTarget.blur()
+  }
+
+  const fieldClass =
+    'w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs font-bold text-slate-900 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:bg-slate-100'
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-2 ring-1 ring-inset ring-slate-200/70">
+      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Bout format</span>
+      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+        Rounds
+        <input
+          type="number"
+          min="1"
+          inputMode="numeric"
+          value={rounds}
+          disabled={disabled || saving}
+          onChange={(e) => {
+            setRounds(e.target.value)
+            setSaved(false)
+          }}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+          placeholder="3"
+          className={fieldClass}
+          aria-label={`Number of rounds for bout ${bout.boutNumber}`}
+        />
+      </label>
+      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+        Min / round
+        <input
+          type="number"
+          min="1"
+          inputMode="numeric"
+          value={minutes}
+          disabled={disabled || saving}
+          onChange={(e) => {
+            setMinutes(e.target.value)
+            setSaved(false)
+          }}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+          placeholder="3"
+          className={fieldClass}
+          aria-label={`Minutes per round for bout ${bout.boutNumber}`}
+        />
+      </label>
+      {saving && <Spinner className="h-3.5 w-3.5" />}
+      {!saving && saved && (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+          <Icon name="checkCircle" className="h-3.5 w-3.5" />
+          Saved
+        </span>
+      )}
+      <span className="ml-auto hidden text-[10px] font-medium text-slate-400 sm:inline">
+        Saved automatically — shows on the public draw
+      </span>
+    </div>
+  )
+}
+
+function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, onSaveTiming, disabled }) {
   const a = bout.boxerAId
   const b = bout.boxerBId
   const isBye = !a || !b
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
   const resultLabel = bout.result?.method || (bout.status === 'walkover' ? 'Walkover' : 'Decision')
-  const rounds = bout.numberOfRounds !== undefined ? Number(bout.numberOfRounds) : undefined
-  const minutes = bout.minutesPerRound !== undefined ? Number(bout.minutesPerRound) : undefined
 
   return (
     <li className="group relative bg-white transition hover:bg-slate-50/40">
@@ -267,36 +369,10 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
               <Icon name="close" className="h-3.5 w-3.5" />
             </button>
             <StatusPill status={bout.status} />
-              <div className="flex items-center gap-2 mt-2 text-sm">
-                <span className="text-slate-500">Rounds: </span>
-              <input
-                type="number"
-                value={rounds !== undefined ? String(rounds) : ''}
-                onChange={(e) => {
-                  const next = [...manualPairs]
-                  next[index] = { ...next[index], rounds: e.target.value !== '' ? Number(e.target.value) : undefined }
-                  setManualPairs(next)
-                }}
-                className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-                min={1}
-                defaultValue={rounds !== undefined ? String(rounds) : ''}
-              />
-              <span className="text-slate-500">Min/round: </span>
-              <input
-                type="number"
-                value={minutes !== undefined ? String(minutes) : ''}
-                onChange={(e) => {
-                  const next = [...manualPairs]
-                  next[index] = { ...next[index], minutes: e.target.value !== '' ? Number(e.target.value) : undefined }
-                  setManualPairs(next)
-                }}
-                className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-                min={1}
-                defaultValue={minutes !== undefined ? String(minutes) : ''}
-              />
-              </div>
-            </div>
           </div>
+        </div>
+
+        <BoutTiming bout={bout} disabled={disabled} onSave={onSaveTiming} />
 
         <div className="mt-4 grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
           <Corner reg={a} bout={bout} side="A" onAddBoxer={onAddBoxer} onEditBoxer={onEditBoxer} onRemoveBoxer={onRemoveBoxer} disabled={disabled} />
@@ -705,7 +781,7 @@ export default function Draws() {
     const r1 = hasDraw
       ? ordered
           .slice()
-          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '', rounds: b.numberOfRounds || 3, minutes: b.minutesPerRound || 3 }))
+          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '', rounds: b.numberOfRounds ?? 3, minutes: b.minutesPerRound ?? 3 }))
       : []
     setManualPairs(r1.length ? r1 : [{ a: '', b: '', rounds: 3, minutes: 3 }])
     setEditMode(hasDraw)
@@ -738,14 +814,6 @@ export default function Draws() {
   const setPair = (i, key) => (e) => {
     const next = [...manualPairs]
     next[i] = { ...next[i], [key]: e.target.value }
-    if (key === 'a' || key === 'b') {
-      // Also update rounds/minutes when boxer is selected
-      const idx = manualPairs.findIndex(p => p.a === next[i].a || p.b === next[i].b)
-      if (idx !== -1) {
-        next[idx].rounds = next[idx].rounds || 3
-        next[idx].minutes = next[idx].minutes || 3
-      }
-    }
     setManualPairs(next)
   }
 
@@ -775,9 +843,11 @@ export default function Draws() {
     const scope = [weight || 'all weights', age || 'all ages'].join(' · ')
     if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
 
+    const defaultRounds = manualPairs[0]?.rounds || 3
+    const defaultMinutes = manualPairs[0]?.minutes || 3
     const bouts = [
-      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: manualPairs[0]?.rounds, minutesPerRound: manualPairs[0]?.minutes })),
-      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: manualPairs[0]?.rounds, minutesPerRound: manualPairs[0]?.minutes })),
+      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: defaultRounds, minutesPerRound: defaultMinutes })),
+      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: defaultRounds, minutesPerRound: defaultMinutes })),
     ]
 
     setAutoBusy(true)
@@ -831,7 +901,12 @@ export default function Draws() {
 
   const buildManual = async () => {
     const pairs = manualPairs
-      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: p.rounds, minutesPerRound: p.minutes }))
+      .map((p) => ({
+        boxerAId: p.a || null,
+        boxerBId: p.b || null,
+        numberOfRounds: p.rounds === '' || p.rounds === undefined || p.rounds === null ? null : Number(p.rounds),
+        minutesPerRound: p.minutes === '' || p.minutes === undefined || p.minutes === null ? null : Number(p.minutes),
+      }))
       .filter((p) => p.boxerAId || p.boxerBId)
     if (pairs.length === 0) {
       toast('Add at least one pairing', 'error')
@@ -891,6 +966,20 @@ export default function Draws() {
       await reloadDraw()
     } finally {
       setActing(false)
+    }
+  }
+
+  // Persist just the bout format so managers can tweak rounds/minutes without
+  // rebuilding the whole draw (which would wipe recorded results).
+  const saveTiming = async (boutId, patch) => {
+    try {
+      await api(`/bouts?id=${boutId}`, { method: 'PATCH', body: patch })
+      setBouts((prev) =>
+        (prev || []).map((b) => (String(b._id) === String(boutId) ? { ...b, ...patch } : b))
+      )
+    } catch (err) {
+      toast(err.message, 'error')
+      throw err
     }
   }
 
@@ -1294,9 +1383,8 @@ export default function Draws() {
                     onMove={move}
                     onDeleteBout={deleteBout}
                     onAddBoxer={openAssign}
+                    onSaveTiming={saveTiming}
                     disabled={acting}
-                  manualPairs={manualPairs}
-                  setManualPairs={setManualPairs}
                   />
                 ))}
               </ol>
@@ -1522,6 +1610,26 @@ export default function Draws() {
                       </select>
                       <SelectedPlayer r={p.b ? allById.get(p.b) : null} />
                     </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:max-w-[280px]">
+                    <Input
+                      label="Rounds"
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={p.rounds ?? ''}
+                      placeholder="3"
+                      onChange={(e) => setManualPairs((prev) => prev.map((x, xi) => (xi === i ? { ...x, rounds: e.target.value } : x)))}
+                    />
+                    <Input
+                      label="Min / round"
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={p.minutes ?? ''}
+                      placeholder="3"
+                      onChange={(e) => setManualPairs((prev) => prev.map((x, xi) => (xi === i ? { ...x, minutes: e.target.value } : x)))}
+                    />
                   </div>
                 </div>
               ))}

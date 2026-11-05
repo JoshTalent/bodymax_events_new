@@ -9,6 +9,11 @@ import { normalizeRequest } from './_shared/request.js'
 
 const ELIGIBLE = { $in: ['approved', 'eligible', 'payment_confirmed', 'weighed', 'completed'] }
 
+const positiveInt = (value) => {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null
+}
+
 export default async (event) => {
   event = await normalizeRequest(event)
   try {
@@ -88,6 +93,8 @@ export default async (event) => {
         roundName: 'Bout',
         boutNumber: boutNumber++,
         bracketPosition: saved.length,
+        numberOfRounds: positiveInt(p.numberOfRounds),
+        minutesPerRound: positiveInt(p.minutesPerRound),
         boxerAId: a,
         boxerBId: b,
         status: a && b ? 'scheduled' : 'walkover',

@@ -22,6 +22,8 @@ const BoutSchema = new mongoose.Schema(
 
     boutNumber: { type: Number, default: 0 },
     sortOrder: { type: Number, default: 0 },
+    numberOfRounds: { type: Number, default: null, min: 1 },
+    minutesPerRound: { type: Number, default: null, min: 1 },
     ring: { type: String, default: '' },
     scheduledDate: { type: Date, default: null },
     scheduledTime: { type: String, default: '' },

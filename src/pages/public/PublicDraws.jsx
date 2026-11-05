@@ -266,16 +266,6 @@ function Corner({ corner, reg, isWinner, t }) {
             {rec.wins}W {rec.losses}L {rec.draws}D
           </p>
         )}
-        {bout.numberOfRounds && (
-          <p className="mt-0.5 text-[10px] text-slate-500">
-            {bout.numberOfRounds}R
-          </p>
-        )}
-        {bout.minutesPerRound && (
-          <p className="mt-0.5 text-[10px] text-slate-500">
-            {bout.minutesPerRound}Min
-          </p>
-        )}
         {age && (
           <p className="mt-0.5 text-[10px] text-slate-500">{age} {t.yrs}</p>
         )}
@@ -296,6 +286,12 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
   const isLive = bout.status === 'in_progress'
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
   const resultRecorded = !!bout.winnerId
+  const format = [
+    bout.numberOfRounds ? `${bout.numberOfRounds}R` : null,
+    bout.minutesPerRound ? `${bout.minutesPerRound} min` : null,
+  ]
+    .filter(Boolean)
+    .join(' × ')
 
   // Determine which corner(s) to show
   let cornerA, cornerB
@@ -359,6 +355,11 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
                 {bout.category?.gender && (
                   <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
                     {bout.category.gender === 'M' ? t.male : bout.category.gender === 'F' ? t.female : bout.category.gender}
+                  </span>
+                )}
+                {format && (
+                  <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {format}
                   </span>
                 )}
               </div>
