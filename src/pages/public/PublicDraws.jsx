@@ -266,6 +266,16 @@ function Corner({ corner, reg, isWinner, t }) {
             {rec.wins}W {rec.losses}L {rec.draws}D
           </p>
         )}
+        {bout.numberOfRounds && (
+          <p className="mt-0.5 text-[10px] text-slate-500">
+            {bout.numberOfRounds}R
+          </p>
+        )}
+        {bout.minutesPerRound && (
+          <p className="mt-0.5 text-[10px] text-slate-500">
+            {bout.minutesPerRound}Min
+          </p>
+        )}
         {age && (
           <p className="mt-0.5 text-[10px] text-slate-500">{age} {t.yrs}</p>
         )}

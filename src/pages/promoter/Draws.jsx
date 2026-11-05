@@ -180,8 +180,8 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
   const isBye = !a || !b
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
   const resultLabel = bout.result?.method || (bout.status === 'walkover' ? 'Walkover' : 'Decision')
-  const rounds = bout.numberOfRounds
-  const minutes = bout.minutesPerRound
+  const rounds = bout.numberOfRounds !== undefined ? Number(bout.numberOfRounds) : undefined
+  const minutes = bout.minutesPerRound !== undefined ? Number(bout.minutesPerRound) : undefined
 
   return (
     <li className="group relative bg-white transition hover:bg-slate-50/40">
@@ -269,29 +269,31 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
             <StatusPill status={bout.status} />
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <span className="text-slate-500">Rounds: </span>
-                <Input
-                  type="number"
-                  value={rounds}
-                  onChange={(e) => {
-                    const next = [...manualPairs]
-                    next[index] = { ...next[index], rounds: e.target.value !== '' ? Number(e.target.value) : undefined }
-                    setManualPairs(next)
-                  }}
-                  className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-                  min={1}
-                />
-                <span className="text-slate-500">Min/round: </span>
-                <Input
-                  type="number"
-                  value={minutes !== undefined ? minutes : ''}
-                  onChange={(e) => {
-                    const next = [...manualPairs]
-                    next[index] = { ...next[index], minutes: e.target.value !== '' ? Number(e.target.value) : undefined }
-                    setManualPairs(next)
-                  }}
-                  className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-                  min={1}
-                />
+              <input
+                type="number"
+                value={rounds !== undefined ? String(rounds) : ''}
+                onChange={(e) => {
+                  const next = [...manualPairs]
+                  next[index] = { ...next[index], rounds: e.target.value !== '' ? Number(e.target.value) : undefined }
+                  setManualPairs(next)
+                }}
+                className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+                min={1}
+                defaultValue={rounds !== undefined ? String(rounds) : ''}
+              />
+              <span className="text-slate-500">Min/round: </span>
+              <input
+                type="number"
+                value={minutes !== undefined ? String(minutes) : ''}
+                onChange={(e) => {
+                  const next = [...manualPairs]
+                  next[index] = { ...next[index], minutes: e.target.value !== '' ? Number(e.target.value) : undefined }
+                  setManualPairs(next)
+                }}
+                className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+                min={1}
+                defaultValue={minutes !== undefined ? String(minutes) : ''}
+              />
               </div>
             </div>
           </div>
@@ -774,8 +776,8 @@ export default function Draws() {
     if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
 
     const bouts = [
-      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: manualPairs[0]?.rounds || 3, minutesPerRound: manualPairs[0]?.minutes || 3 })),
-      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: manualPairs[0]?.rounds || 3, minutesPerRound: manualPairs[0]?.minutes || 3 })),
+      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: manualPairs[0]?.rounds, minutesPerRound: manualPairs[0]?.minutes })),
+      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: manualPairs[0]?.rounds, minutesPerRound: manualPairs[0]?.minutes })),
     ]
 
     setAutoBusy(true)
@@ -829,7 +831,7 @@ export default function Draws() {
 
   const buildManual = async () => {
     const pairs = manualPairs
-      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: p.rounds || 3, minutesPerRound: p.minutes || 3 }))
+      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: p.rounds, minutesPerRound: p.minutes }))
       .filter((p) => p.boxerAId || p.boxerBId)
     if (pairs.length === 0) {
       toast('Add at least one pairing', 'error')
