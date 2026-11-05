@@ -825,7 +825,6 @@ export default function Draws() {
     } finally {
       setBuilding(false)
     }
-  })
   }
 
   const ordered = (bouts || []).slice().sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
