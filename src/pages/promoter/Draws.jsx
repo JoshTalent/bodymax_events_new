@@ -576,7 +576,7 @@ export default function Draws() {
   const [addForm, setAddForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '' })
 
   const [editBoxer, setEditBoxer] = useState(null)
-  const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1, photoUrl: '' })
+  const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1, numberOfRounds: 3, minutesPerRound: 3, photoUrl: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [acting, setActing] = useState(false)
 
@@ -738,8 +738,8 @@ export default function Draws() {
     if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
 
     const bouts = [
-      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id })),
-      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null })),
+      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound })),
+      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound })),
     ]
 
     setAutoBusy(true)
@@ -793,7 +793,7 @@ export default function Draws() {
 
   const buildManual = async () => {
     const pairs = manualPairs
-      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null }))
+      .map((p) => ({ boxerAId: p.a || null, boxerBId: p.b || null, numberOfRounds: editForm.numberOfRounds, minutesPerRound: editForm.minutesPerRound }))
       .filter((p) => p.boxerAId || p.boxerBId)
     if (pairs.length === 0) {
       toast('Add at least one pairing', 'error')
@@ -996,6 +996,8 @@ export default function Draws() {
       weight: reg?.category?.weight || reg?.boxerId?.weightCategory || '',
       age: reg?.category?.age || reg?.boxerId?.ageCategory || '',
       numberOfBouts: reg?.numberOfBouts || 1,
+      numberOfRounds: reg?.numberOfRounds || 3,
+      minutesPerRound: reg?.minutesPerRound || 3,
       photoUrl: reg?.boxerId?.photoUrl || '',
     })
   }
@@ -1016,6 +1018,8 @@ export default function Draws() {
           weight: editForm.weight || '',
           age: editForm.age || '',
           numberOfBouts: editForm.numberOfBouts,
+          numberOfRounds: editForm.numberOfRounds,
+          minutesPerRound: editForm.minutesPerRound,
           photoUrl: editForm.photoUrl || '',
         },
       })
