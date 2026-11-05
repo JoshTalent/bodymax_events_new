@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import { Loading } from './components/Loading.jsx'
 
+
 import Home from './pages/public/Home.jsx'
 import PublicEvents from './pages/public/PublicEvents.jsx'
 import PublicEventDetail from './pages/public/PublicEventDetail.jsx'
