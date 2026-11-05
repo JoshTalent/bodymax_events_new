@@ -180,8 +180,8 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
   const isBye = !a || !b
   const isDone = bout.status === 'completed' || bout.status === 'walkover'
   const resultLabel = bout.result?.method || (bout.status === 'walkover' ? 'Walkover' : 'Decision')
-  const rounds = bout.numberOfRounds || 3
-  const minutes = bout.minutesPerRound || 3
+  const rounds = bout.numberOfRounds
+  const minutes = bout.minutesPerRound
 
   return (
     <li className="group relative bg-white transition hover:bg-slate-50/40">
@@ -274,7 +274,7 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
                   value={rounds}
                   onChange={(e) => {
                     const next = [...manualPairs]
-                    next[index] = { ...next[index], rounds: Number(e.target.value) || 3 }
+                    next[index] = { ...next[index], rounds: e.target.value !== '' ? Number(e.target.value) : undefined }
                     setManualPairs(next)
                   }}
                   className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
@@ -283,10 +283,10 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
                 <span className="text-slate-500">Min/round: </span>
                 <Input
                   type="number"
-                  value={minutes}
+                  value={minutes !== undefined ? minutes : ''}
                   onChange={(e) => {
                     const next = [...manualPairs]
-                    next[index] = { ...next[index], minutes: Number(e.target.value) || 3 }
+                    next[index] = { ...next[index], minutes: e.target.value !== '' ? Number(e.target.value) : undefined }
                     setManualPairs(next)
                   }}
                   className="w-16 rounded-lg border border-slate-200 px-1.5 py-1.5 text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
