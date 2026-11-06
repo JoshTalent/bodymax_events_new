@@ -63,7 +63,7 @@ function fitText(doc, text, maxWidth) {
   return `${out.trimEnd()}...`
 }
 
-function loadPhoto(url) {
+export async function loadPhoto(url) {
   if (!url || typeof document === 'undefined') return Promise.resolve(null)
   return new Promise((resolve) => {
     let settled = false
@@ -414,6 +414,9 @@ export async function buildFightCardPdf({ event, bouts }) {
   const pageH = doc.internal.pageSize.getHeight()
   const contentW = pageW - M * 2
 
+  // Brand logo for the document header.
+  const logo = await loadPhoto('/logo.png')
+
   // Preload boxer photos once per URL; failures fall back to initials.
   const urls = [
     ...new Set(
@@ -429,36 +432,43 @@ export async function buildFightCardPdf({ event, bouts }) {
 
   const drawPageHeader = (continued = false) => {
     if (continued) {
+      if (logo) {
+        doc.addImage(logo.dataUrl, logo.format, M, 6, 12, 12)
+      }
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7)
       doc.setTextColor(...GRAY)
-      doc.text(fitText(doc, `Official fight card · ${event?.name || 'Event'}`, contentW), M, 16)
+      doc.text(fitText(doc, `Official fight card · ${event?.name || 'Event'}`, contentW), M, 21)
       doc.setDrawColor(...LINE)
       doc.setLineWidth(0.3)
-      doc.line(M, 19.5, pageW - M, 19.5)
-      return 26
+      doc.line(M, 26.5, pageW - M, 26.5)
+      return 32
+    }
+
+    if (logo) {
+      doc.addImage(logo.dataUrl, logo.format, M, 4, 12, 12)
     }
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...BLUE)
-    doc.text('OFFICIAL FIGHT CARD', M, 15)
+    doc.text('OFFICIAL FIGHT CARD', M, 20)
 
     doc.setFontSize(16)
     doc.setTextColor(...INK)
-    doc.text(fitText(doc, event?.name || 'Event', contentW), M, 23)
+    doc.text(fitText(doc, event?.name || 'Event', contentW), M, 27)
 
     if (metaLine) {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7.5)
       doc.setTextColor(...GRAY)
-      doc.text(fitText(doc, metaLine, contentW), M, 28.6)
+      doc.text(fitText(doc, metaLine, contentW), M, 32)
     }
 
     doc.setDrawColor(...LINE)
     doc.setLineWidth(0.3)
-    doc.line(M, 32.5, pageW - M, 32.5)
-    return 39
+    doc.line(M, 38, pageW - M, 38)
+    return 44
   }
 
   let y = drawPageHeader(false)

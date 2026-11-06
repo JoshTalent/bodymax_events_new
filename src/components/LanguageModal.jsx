@@ -1,3 +1,5 @@
+import { Logo } from './Logo.jsx'
+
 export function LanguageModal({ open, onSelect }) {
   if (!open) return null
 
@@ -20,9 +22,7 @@ export function LanguageModal({ open, onSelect }) {
       <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="bg-slate-950 px-6 py-6 text-center">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg">
-            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" />
-            </svg>
+            <Logo className="h-6 w-6" />
           </span>
           <h2 className="mt-4 text-lg font-bold text-white">Choose your language</h2>
           <p className="mt-1 text-sm text-slate-400">Hitamo ururimi</p>

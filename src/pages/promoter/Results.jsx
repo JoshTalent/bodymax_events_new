@@ -8,6 +8,7 @@ import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Select, Input, Textarea } from '../../components/Field.jsx'
 import { cn } from '../../utils/cn.js'
+import { loadPhoto } from '../../utils/fightCardPdf.js'
 
 const methods = ['Decision', 'KO', 'TKO', 'RSC', 'Disqualification', 'Walkover', 'Other']
 
@@ -235,11 +236,18 @@ export default function Results() {
     const pageW = doc.internal.pageSize.getWidth()
     const M = 14
 
+    // Brand logo for the document header.
+    const logo = await loadPhoto('/logo.png')
+
     // Branded header band
     doc.setFillColor(...slate)
     doc.rect(0, 0, pageW, 30, 'F')
     doc.setFillColor(...red)
     doc.rect(0, 30, pageW, 1.2, 'F')
+
+    if (logo) {
+      doc.addImage(logo.dataUrl, logo.format, pageW - M - 11, 5, 11, 11)
+    }
 
     doc.setTextColor(255)
     doc.setFont('helvetica', 'bold')
@@ -253,14 +261,14 @@ export default function Results() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(255)
-    doc.text('OFFICIAL EVENT RESULTS', pageW - M, 14, { align: 'right' })
+    doc.text('OFFICIAL EVENT RESULTS', pageW - M, 21, { align: 'right' })
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.5)
     doc.setTextColor(148, 163, 184)
     doc.text(
       `Generated ${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
       pageW - M,
-      20,
+      26,
       { align: 'right' }
     )
 

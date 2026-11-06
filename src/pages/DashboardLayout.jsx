@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../utils/api.js'
 import { cn } from '../utils/cn.js'
 import { Icon } from '../components/Icons.jsx'
+import { Logo } from '../components/Logo.jsx'
 
 function initials(name = '') {
   return (
@@ -73,7 +74,7 @@ function BrandMark({ compact = false }) {
     <div className="flex items-center gap-3">
       <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-brand-500 via-blue-600 to-indigo-700 shadow-lg shadow-brand-900/40">
         <span className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white/20 blur-md" />
-        <span className="relative text-lg font-black tracking-tighter text-white">B</span>
+        <Logo className="h-6 w-6" />
       </span>
       {!compact && (
         <span className="min-w-0">
@@ -319,9 +320,7 @@ export default function DashboardLayout() {
             <Icon name="menu" className="h-5 w-5" />
           </button>
           <Link to="/app" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-indigo-700 text-xs font-black text-white">
-              B
-            </span>
+            <Logo className="h-7 w-7 rounded-lg" />
             <span className="text-sm font-black text-slate-900">Bodymax</span>
           </Link>
         </div>

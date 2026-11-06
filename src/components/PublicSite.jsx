@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn.js'
+import { Logo } from './Logo.jsx'
 
 export function PublicNavbar({ active }) {
   const link = (to, label, key) => (
@@ -18,11 +19,7 @@ export function PublicNavbar({ active }) {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-600/30">
-            <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </span>
+          <Logo className="h-9 w-9 rounded-xl shadow-lg shadow-brand-600/30" />
           <span className="text-lg font-black tracking-tight text-white">Bodymax</span>
         </Link>
 
@@ -42,11 +39,7 @@ export function PublicFooter() {
         <div className="flex flex-col items-center justify-between gap-8 md:flex-row md:items-start">
           <div className="text-center md:text-left">
             <Link to="/" className="inline-flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700">
-                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </span>
+              <Logo className="h-8 w-8 rounded-lg" />
               <span className="text-lg font-black tracking-tight text-white">Bodymax</span>
             </Link>
             <p className="mt-3 max-w-xs text-sm text-slate-500">Live event management for championship boxing — draws, results and everything between.</p>

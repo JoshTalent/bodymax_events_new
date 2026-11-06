@@ -5,6 +5,7 @@ import { Button } from '../components/Button.jsx'
 import { Input } from '../components/Field.jsx'
 import { Spinner } from '../components/Loading.jsx'
 import { Icon } from '../components/Icons.jsx'
+import { Logo } from '../components/Logo.jsx'
 
 export default function Login() {
   const { login } = useAuth()
@@ -40,9 +41,7 @@ export default function Login() {
       <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
         <div className="hidden lg:block">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 via-blue-600 to-indigo-700 text-xl font-black text-white shadow-xl shadow-brand-900/40">
-              B
-            </span>
+            <Logo className="h-12 w-12 rounded-2xl shadow-xl shadow-brand-900/40" />
             <div>
               <p className="text-xl font-black tracking-tight text-white">Bodymax</p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Events Platform</p>
@@ -88,9 +87,7 @@ export default function Login() {
 
         <div className="mx-auto w-full max-w-md">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-indigo-700 text-lg font-black text-white shadow-lg">
-              B
-            </span>
+            <Logo className="h-11 w-11 rounded-xl shadow-lg" />
             <div>
               <p className="text-lg font-black text-white">Bodymax</p>
               <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">Events Platform</p>
