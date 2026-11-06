@@ -1,13 +1,18 @@
-// Builds a printable "official fight card" PDF that mirrors the public draw
-// page's bout cards. Only the fight card is included — no hero, stats or side rail.
+// Builds a premium printable "official fight card" PDF for an event.
+// Only the fight card is included — no hero, stats or side rail.
+// Every card carries real boxer data (gender, weight category, record, age).
 
 const INK = [15, 23, 42]
+const SLATE_800 = [30, 41, 59]
+const SLATE_700 = [51, 65, 85]
+const SLATE_600 = [71, 85, 105]
 const GRAY = [100, 116, 139]
 const LIGHT_GRAY = [148, 163, 184]
 const LINE = [226, 232, 240]
 const SOFT = [248, 250, 252]
 const WHITE = [255, 255, 255]
 const BLUE = [37, 99, 235]
+const BLUE_LIGHT = [147, 197, 253]
 const BLUE_SOFT = [239, 246, 255]
 const BLUE_BORDER = [191, 219, 254]
 const RED = [220, 38, 38]
@@ -16,29 +21,32 @@ const RED_BORDER = [254, 202, 202]
 const EMERALD = [5, 150, 105]
 const EMERALD_SOFT = [236, 253, 245]
 const EMERALD_BORDER = [167, 243, 208]
-const AMBER = [217, 119, 6]
+const AMBER = [180, 83, 9]
 const AMBER_SOFT = [255, 251, 235]
 const SLATE_SOFT = [241, 245, 249]
+const GOLD = [245, 158, 11]
 
 const STATUS = {
   scheduled: { label: 'SCHEDULED', bg: BLUE_SOFT, fg: [29, 78, 216], rail: [96, 165, 250] },
   ready: { label: 'READY', bg: BLUE_SOFT, fg: [29, 78, 216], rail: [96, 165, 250] },
-  in_progress: { label: 'LIVE', bg: AMBER_SOFT, fg: [180, 83, 9], rail: [251, 191, 36] },
+  in_progress: { label: 'LIVE', bg: AMBER_SOFT, fg: AMBER, rail: GOLD },
   completed: { label: 'COMPLETED', bg: EMERALD_SOFT, fg: [4, 120, 87], rail: [52, 211, 153] },
-  walkover: { label: 'WALKOVER', bg: AMBER_SOFT, fg: [180, 83, 9], rail: [110, 231, 183] },
-  postponed: { label: 'POSTPONED', bg: SLATE_SOFT, fg: [71, 85, 105], rail: [203, 213, 225] },
-  cancelled: { label: 'CANCELLED', bg: SLATE_SOFT, fg: [71, 85, 105], rail: [203, 213, 225] },
+  walkover: { label: 'WALKOVER', bg: AMBER_SOFT, fg: AMBER, rail: [110, 231, 183] },
+  postponed: { label: 'POSTPONED', bg: SLATE_SOFT, fg: SLATE_600, rail: [203, 213, 225] },
+  cancelled: { label: 'CANCELLED', bg: SLATE_SOFT, fg: SLATE_600, rail: [203, 213, 225] },
 }
 
 const M = 14
-const CARD_GAP = 5
-const CARD_PAD = 4.5
-const HEADER_H = 15
-const BODY_H_BOTH = 24
-const BODY_H_SINGLE = 30
+const CARD_GAP = 6
+const CARD_PAD = 5
+const HEADER_H = 16
 
 const initials = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
+
+const genderLabel = (gender) => (gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender || '')
+
+const uniqueParts = (values) => [...new Set(values.filter(Boolean))]
 
 function ageFrom(dob) {
   if (!dob) return null
@@ -105,159 +113,271 @@ export async function loadPhoto(url) {
   })
 }
 
-function badge(doc, x, y, number) {
-  doc.setFillColor(...INK)
-  doc.roundedRect(x, y, 8, 8, 2, 2, 'F')
+function chipWidth(doc, text, size = 5.6, padX = 2.2) {
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...WHITE)
-  doc.text(String(number), x + 4, y + 5.4, { align: 'center' })
+  doc.setFontSize(size)
+  return doc.getTextWidth(text) + padX * 2
 }
 
-function chip(doc, text, x, y, bg, fg) {
+function drawChip(doc, { text, x, y, bg, fg, border, size = 5.6, height = 4.6, padX = 2.2 }) {
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.6)
-  const width = doc.getTextWidth(text) + 3.8
+  doc.setFontSize(size)
+  const width = doc.getTextWidth(text) + padX * 2
   doc.setFillColor(...bg)
-  doc.roundedRect(x, y, width, 4.3, 1.2, 1.2, 'F')
+  if (border) {
+    doc.setDrawColor(...border)
+    doc.setLineWidth(0.25)
+    doc.roundedRect(x, y, width, height, height / 2, height / 2, 'FD')
+  } else {
+    doc.roundedRect(x, y, width, height, height / 2, height / 2, 'F')
+  }
   doc.setTextColor(...fg)
-  doc.text(text, x + 1.9, y + 3)
+  doc.text(text, x + width / 2, y + height / 2 + size * 0.13, { align: 'center' })
   return width
 }
 
-function statusPill(doc, status, xRight, y) {
+function drawStatusPill(doc, status, xRight, y) {
   const meta = STATUS[status] || STATUS.scheduled
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.6)
-  const width = doc.getTextWidth(meta.label) + 5
-  const x = xRight - width
-  doc.setFillColor(...meta.bg)
-  doc.roundedRect(x, y, width, 5.2, 2.6, 2.6, 'F')
-  doc.setTextColor(...meta.fg)
-  doc.text(meta.label, x + width / 2, y + 3.5, { align: 'center' })
+  const width = chipWidth(doc, meta.label, 5.6, 2.6)
+  drawChip(doc, {
+    text: meta.label,
+    x: xRight - width,
+    y,
+    bg: meta.bg,
+    fg: meta.fg,
+    size: 5.6,
+    height: 5.4,
+    padX: 2.6,
+  })
 }
 
-function drawAvatar(doc, { x, y, size, photo, fallbackColor, name }) {
+function drawBadge(doc, { x, y, number, size = 9.5, fill, fg }) {
+  doc.setFillColor(...fill)
+  doc.roundedRect(x, y, size, size, 2.4, 2.4, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(...fg)
+  doc.text(String(number ?? ''), x + size / 2, y + size / 2 + 1.55, { align: 'center' })
+}
+
+// Photo avatar with genuinely rounded corners (clipped), or an initials tile.
+function drawAvatar(doc, { x, y, size, radius = 2.6, photo, name, fill = INK }) {
   if (photo) {
+    doc.setFillColor(...WHITE)
+    doc.setDrawColor(...WHITE)
+    doc.setLineWidth(0.6)
+    doc.roundedRect(x - 1, y - 1, size + 2, size + 2, radius + 0.6, radius + 0.6, 'FD')
+
+    doc.saveGraphicsState()
+    let embedded = false
     try {
-      // White ring behind the photo keeps it crisp on the tinted background.
-      doc.setFillColor(...WHITE)
-      doc.roundedRect(x - 0.9, y - 0.9, size + 1.8, size + 1.8, 1.6, 1.6, 'F')
+      doc.roundedRect(x, y, size, size, radius, radius, null)
+      doc.clip()
+      doc.discardPath()
       doc.addImage(photo.dataUrl, photo.format, x, y, size, size)
+      embedded = true
+    } catch {
+      // Fall back to the initials tile below.
+    }
+    doc.restoreGraphicsState()
+
+    if (embedded) {
       doc.setDrawColor(...WHITE)
       doc.setLineWidth(0.4)
-      doc.roundedRect(x - 0.9, y - 0.9, size + 1.8, size + 1.8, 1.6, 1.6, 'S')
+      doc.roundedRect(x - 1, y - 1, size + 2, size + 2, radius + 0.6, radius + 0.6, 'S')
       return
-    } catch {
-      // Fall through to initials if the image cannot be embedded.
     }
   }
 
-  doc.setFillColor(...fallbackColor)
-  doc.roundedRect(x, y, size, size, 1.8, 1.8, 'F')
+  doc.setFillColor(...fill)
+  doc.roundedRect(x, y, size, size, radius, radius, 'F')
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(size >= 18 ? 9 : 5.8)
+  doc.setFontSize(size >= 18 ? 10 : 6.6)
   doc.setTextColor(...WHITE)
-  doc.text(initials(name), x + size / 2, y + size / 2 + (size >= 18 ? 3 : 2), { align: 'center' })
+  doc.text(initials(name), x + size / 2, y + size / 2 + (size >= 18 ? 3.4 : 2.3), { align: 'center' })
 }
 
-function drawCorner(doc, { x, y, w, h, boxer, photo, side, winner, featured }) {
+function boxerInfo(reg, photos) {
+  const boxer = reg?.boxerId
+  const rec = boxer?.boxingRecord
+  const wins = Number(rec?.wins) || 0
+  const losses = Number(rec?.losses) || 0
+  const draws = Number(rec?.draws) || 0
+  return {
+    name: boxer?.fullName || '',
+    club: reg?.clubName || boxer?.clubName || reg?.clubId?.name || 'Individual',
+    photo: boxer?.photoUrl ? photos.get(boxer.photoUrl) : null,
+    age: ageFrom(boxer?.dateOfBirth),
+    nationality: boxer?.nationality || '',
+    record: wins + losses + draws > 0 ? `${wins}W ${losses}L ${draws}D` : '',
+    gender: genderLabel(boxer?.gender),
+    weight: boxer?.weightCategory || (boxer?.registeredWeightKg ? `${boxer.registeredWeightKg} kg` : ''),
+    ageCategory: boxer?.ageCategory || '',
+  }
+}
+
+function drawCornerPanel(doc, { x, y, w, h, boxer, side, large }) {
   const isRed = side === 'A'
-  const soft = winner ? EMERALD_SOFT : isRed ? RED_SOFT : BLUE_SOFT
-  const border = winner ? EMERALD_BORDER : isRed ? RED_BORDER : BLUE_BORDER
-  const rail = winner ? EMERALD : isRed ? RED : BLUE
+  const soft = isRed ? RED_SOFT : BLUE_SOFT
+  const border = isRed ? RED_BORDER : BLUE_BORDER
+  const rail = isRed ? RED : BLUE
   const cornerLabel = isRed ? 'RED CORNER' : 'BLUE CORNER'
 
   doc.setFillColor(...soft)
   doc.setDrawColor(...border)
   doc.setLineWidth(0.3)
-  doc.roundedRect(x, y, w, h, 2, 2, 'FD')
+  doc.roundedRect(x, y, w, h, 2.6, 2.6, 'FD')
 
   doc.setFillColor(...rail)
-  doc.roundedRect(x, y + 0.1, 1.7, h - 0.2, 0.85, 0.85, 'F')
+  doc.roundedRect(x, y + 0.2, 1.7, h - 0.4, 0.85, 0.85, 'F')
 
-  const avatarSize = featured ? 22 : 13
+  const avatarSize = large ? 18 : 14
   const avatarX = x + 4
   const avatarY = y + (h - avatarSize) / 2
   drawAvatar(doc, {
     x: avatarX,
     y: avatarY,
     size: avatarSize,
+    radius: large ? 3.2 : 2.8,
     photo: boxer?.photo || null,
-    fallbackColor: rail,
+    fill: rail,
     name: boxer?.name,
   })
 
-  const tx = avatarX + avatarSize + 3.5
-  const maxWidth = x + w - tx - 3.5
+  const tx = avatarX + avatarSize + 3.4
+  const maxWidth = x + w - tx - 4
 
-  if (!boxer?.name) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5.5)
-    doc.setTextColor(...LIGHT_GRAY)
-    doc.text(cornerLabel, tx, y + (featured ? 12 : 10))
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...rail)
+  if (large) {
+    doc.setFontSize(6)
+    doc.text(cornerLabel, tx, y + 8.6)
+
+    doc.setFontSize(11.5)
+    doc.setTextColor(...INK)
+    doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 15.4)
+
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...GRAY)
-    doc.text('Bye — no opponent', tx, y + (featured ? 17 : 14.5))
-    return
-  }
+    doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 20.6)
 
-  if (featured) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(...LIGHT_GRAY)
-    doc.text(cornerLabel, tx, y + 7)
-
-    doc.setFontSize(13)
-    doc.setTextColor(...INK)
-    doc.text(fitText(doc, boxer.name, maxWidth), tx, y + 13.8)
-
-    if (winner) {
-      doc.setFontSize(7)
-      doc.setTextColor(...EMERALD)
-      doc.text('WINNER', tx, y + 18.4)
+    const details = [boxer?.gender, boxer?.weight].filter(Boolean).join(' · ')
+    if (details) {
+      doc.setFontSize(6.2)
+      doc.text(fitText(doc, details, maxWidth), tx, y + 25.4)
     }
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...GRAY)
-    doc.text(fitText(doc, boxer.club || 'Individual', maxWidth), tx, y + (winner ? 23.2 : 19.5))
-
-    const meta = [boxer.record, boxer.age ? `${boxer.age} yrs` : null, boxer.nationality]
+    const record = [boxer?.record, boxer?.age ? `${boxer.age} yrs` : null, boxer?.nationality]
       .filter(Boolean)
       .join(' · ')
-    if (meta) {
-      doc.setFontSize(6.5)
-      doc.setTextColor(...GRAY)
-      doc.text(fitText(doc, meta, maxWidth), tx, y + (winner ? 27.2 : 24))
+    if (record) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(5.6)
+      doc.text(fitText(doc, record, maxWidth), tx, y + 29.8)
     }
     return
   }
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.5)
-  doc.setTextColor(...LIGHT_GRAY)
-  doc.text(cornerLabel, tx, y + 6)
+  doc.setFontSize(5.2)
+  doc.text(cornerLabel, tx, y + 7)
 
-  doc.setFontSize(9)
+  doc.setFontSize(9.4)
   doc.setTextColor(...INK)
-  doc.text(fitText(doc, boxer.name, maxWidth), tx, y + 10.6)
+  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 12)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.4)
+  doc.setFontSize(6.3)
   doc.setTextColor(...GRAY)
-  doc.text(fitText(doc, boxer.club || 'Individual', maxWidth), tx, y + 14.5)
+  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 16.2)
 
-  const meta = [boxer.record, boxer.age ? `${boxer.age} yrs` : null].filter(Boolean).join(' · ')
+  const meta = [boxer?.gender, boxer?.weight, boxer?.record].filter(Boolean).join(' · ')
   if (meta) {
-    doc.setFontSize(5.8)
-    doc.setTextColor(...GRAY)
-    doc.text(fitText(doc, meta, maxWidth), tx, y + 18)
+    doc.setFontSize(5.7)
+    doc.text(fitText(doc, meta, maxWidth), tx, y + 20.2)
   }
 }
 
-function drawBoutCard(doc, { x, y, w, bout, photos }) {
+function drawFeatured(doc, { x, y, w, h, boxer, side, isMain, bye, resultLabel }) {
+  const isRed = side === 'A'
+  const soft = bye ? SLATE_SOFT : EMERALD_SOFT
+  const border = bye ? [203, 213, 225] : EMERALD_BORDER
+  const rail = bye ? LIGHT_GRAY : EMERALD
+  const cornerLabel = isRed ? 'RED CORNER' : 'BLUE CORNER'
+
+  doc.setFillColor(...soft)
+  doc.setDrawColor(...border)
+  doc.setLineWidth(0.35)
+  if (bye) doc.setLineDashPattern([1.6, 1.2], 0)
+  doc.roundedRect(x, y, w, h, 2.6, 2.6, 'FD')
+  doc.setLineDashPattern([], 0)
+
+  doc.setFillColor(...rail)
+  doc.roundedRect(x, y + 0.2, 1.8, h - 0.4, 0.9, 0.9, 'F')
+
+  const avatarSize = 22
+  const avatarX = x + 5
+  const avatarY = y + (h - avatarSize) / 2
+  drawAvatar(doc, {
+    x: avatarX,
+    y: avatarY,
+    size: avatarSize,
+    radius: 3.6,
+    photo: boxer?.photo || null,
+    fill: bye ? GRAY : EMERALD,
+    name: boxer?.name,
+  })
+
+  const resultWidth = resultLabel || bye ? 36 : 0
+  const tx = avatarX + avatarSize + 4.5
+  const maxWidth = x + w - 5 - (resultWidth ? resultWidth + 4 : 0) - tx
+
+  const eyebrow = `${isMain ? 'MAIN EVENT · ' : ''}${cornerLabel}${bye ? ' · BYE' : ' WINNER'}`
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(5.8)
+  doc.setTextColor(...(bye ? GRAY : EMERALD))
+  doc.text(fitText(doc, eyebrow, w - 46), tx, y + 11)
+
+  doc.setFontSize(14)
+  doc.setTextColor(...INK)
+  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 18.6)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 24)
+
+  const meta = [
+    boxer?.gender,
+    boxer?.weight,
+    boxer?.record,
+    boxer?.age ? `${boxer.age} yrs` : null,
+    boxer?.nationality,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  if (meta) {
+    doc.setFontSize(6.4)
+    doc.text(fitText(doc, meta, maxWidth), tx, y + 28.8)
+  }
+
+  // Result / status box on the right.
+  const rw = 36
+  const rh = 17
+  const rx = x + w - 5 - rw
+  const ry = y + (h - rh) / 2
+  doc.setFillColor(...INK)
+  doc.roundedRect(rx, ry, rw, rh, 2.4, 2.4, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(4.8)
+  doc.setTextColor(...LIGHT_GRAY)
+  doc.text(bye ? 'STATUS' : 'WINNER', rx + 4, ry + 5.6)
+  doc.setFontSize(7.4)
+  doc.setTextColor(...WHITE)
+  doc.text(fitText(doc, bye ? 'ADVANCES' : resultLabel || 'DECISION', rw - 8), rx + 4, ry + 11.8)
+}
+
+function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
   const winnerRegId = bout.winnerId && typeof bout.winnerId === 'object' ? bout.winnerId._id : bout.winnerId
   const isWinnerA = winnerRegId && String(winnerRegId) === String(bout.boxerAId?._id)
   const isWinnerB = winnerRegId && String(winnerRegId) === String(bout.boxerBId?._id)
@@ -266,136 +386,214 @@ function drawBoutCard(doc, { x, y, w, bout, photos }) {
   const hasB = !!bout.boxerBId?.boxerId?.fullName
   const hasBye = !hasA || !hasB
   const single = resultRecorded || hasBye
-  const bodyH = single ? BODY_H_SINGLE : BODY_H_BOTH
+  const large = isMain && !single
+  const bodyH = single ? 34 : large ? 36 : 28
   const h = HEADER_H + bodyH + CARD_PAD
   const meta = STATUS[bout.status] || STATUS.scheduled
 
+  // Soft drop shadow.
+  doc.setFillColor(...SLATE_SOFT)
+  doc.roundedRect(x + 0.6, y + 0.9, w, h, 3, 3, 'F')
+
+  // Card shell.
   doc.setFillColor(...WHITE)
   doc.setDrawColor(...LINE)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(x, y, w, h, 2.4, 2.4, 'FD')
+  doc.setLineWidth(0.35)
+  doc.roundedRect(x, y, w, h, 3, 3, 'FD')
 
-  // Colour rail on the left edge.
+  // Header strip clipped to the rounded card outline.
+  doc.saveGraphicsState()
+  doc.roundedRect(x, y, w, h, 3, 3, null)
+  doc.clip()
+  doc.discardPath()
+  doc.setFillColor(...(isMain ? INK : SOFT))
+  doc.rect(x, y, w, HEADER_H, 'F')
+  doc.restoreGraphicsState()
+
+  doc.setDrawColor(...(isMain ? GOLD : LINE))
+  doc.setLineWidth(isMain ? 0.5 : 0.3)
+  doc.line(x, y + HEADER_H, x + w, y + HEADER_H)
+
+  // Status rail down the left edge.
   doc.setFillColor(...meta.rail)
-  doc.roundedRect(x, y + 0.1, 1.8, h - 0.2, 0.9, 0.9, 'F')
+  doc.roundedRect(x, y + 0.2, 2, h - 0.4, 1, 1, 'F')
 
-  badge(doc, x + CARD_PAD, y + 4, bout.boutNumber ?? '')
+  const number = bout.boutNumber ?? ''
+  drawBadge(doc, {
+    x: x + CARD_PAD,
+    y: y + 4.4,
+    number,
+    fill: isMain ? GOLD : INK,
+    fg: isMain ? INK : WHITE,
+  })
+
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.8)
-  doc.setTextColor(...LIGHT_GRAY)
-  doc.text(`BOUT #${bout.boutNumber ?? ''}`, x + CARD_PAD + 10.5, y + 6.6)
+  doc.setFontSize(6)
+  doc.setTextColor(...(isMain ? [203, 213, 225] : LIGHT_GRAY))
+  doc.text(`BOUT #${number}`, x + CARD_PAD + 12, y + 7.7)
 
-  let cx = x + CARD_PAD + 10.5
-  const chipY = y + 9.2
-  if (bout.category?.weight) cx += chip(doc, bout.category.weight, cx, chipY, SLATE_SOFT, INK) + 1.5
-  if (bout.category?.age) cx += chip(doc, bout.category.age, cx, chipY, SLATE_SOFT, GRAY) + 1.5
-  if (bout.category?.gender) {
-    const gender = bout.category.gender === 'M' ? 'Male' : bout.category.gender === 'F' ? 'Female' : bout.category.gender
-    cx += chip(doc, gender, cx, chipY, SLATE_SOFT, GRAY) + 1.5
-  }
+  // Real boxer category, falling back to the event category.
+  const cat = bout.category || {}
+  const aBoxer = boxerInfo(bout.boxerAId, photos)
+  const bBoxer = boxerInfo(bout.boxerBId, photos)
+  const weight = uniqueParts([aBoxer.weight || cat.weight, bBoxer.weight || cat.weight]).join(' / ')
+  const ageCategory = uniqueParts([aBoxer.ageCategory || cat.age, bBoxer.ageCategory || cat.age]).join(' / ')
+  const gender = uniqueParts([
+    aBoxer.gender || genderLabel(cat.gender),
+    bBoxer.gender || genderLabel(cat.gender),
+  ]).join(' / ')
   const format = [
     bout.numberOfRounds ? `${bout.numberOfRounds}R` : null,
     bout.minutesPerRound ? `${bout.minutesPerRound} min` : null,
   ]
     .filter(Boolean)
     .join(' × ')
-  if (format) chip(doc, format, cx, chipY, INK, WHITE)
 
-  statusPill(doc, bout.status, x + w - CARD_PAD, y + 4.2)
+  const chipY = y + 10.2
+  const chipLimit = x + w - CARD_PAD - (isMain ? 31 : 0)
+  let cx = x + CARD_PAD + 12
 
-  if (resultRecorded && bout.result?.method) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5.8)
-    doc.setTextColor(...GRAY)
-    const result = [bout.result.method, bout.result.round ? `R${bout.result.round}` : null]
-      .filter(Boolean)
-      .join(' · ')
-    doc.text(fitText(doc, result, 34), x + w - CARD_PAD, y + 12.7, { align: 'right' })
+  const chips = []
+  if (bout.roundName) {
+    chips.push(
+      isMain
+        ? { text: bout.roundName, bg: SLATE_700, fg: WHITE }
+        : { text: bout.roundName, bg: [226, 232, 240], fg: SLATE_600 }
+    )
+  }
+  if (weight) {
+    chips.push(
+      isMain
+        ? { text: weight, bg: SLATE_700, fg: WHITE }
+        : { text: weight, bg: WHITE, fg: INK, border: LINE }
+    )
+  }
+  if (gender) {
+    chips.push(
+      isMain
+        ? { text: gender, bg: SLATE_700, fg: WHITE }
+        : { text: gender, bg: WHITE, fg: GRAY, border: LINE }
+    )
+  }
+  if (ageCategory) {
+    chips.push(
+      isMain
+        ? { text: ageCategory, bg: SLATE_700, fg: WHITE }
+        : { text: ageCategory, bg: WHITE, fg: GRAY, border: LINE }
+    )
+  }
+  if (format) {
+    chips.push(
+      isMain
+        ? { text: format, bg: WHITE, fg: INK }
+        : { text: format, bg: INK, fg: WHITE }
+    )
+  }
+
+  for (const chip of chips) {
+    const cw = chipWidth(doc, chip.text)
+    if (cx + cw > chipLimit) break
+    drawChip(doc, { ...chip, x: cx, y: chipY })
+    cx += cw + 1.6
+  }
+
+  drawStatusPill(doc, bout.status, x + w - CARD_PAD, y + 4.6)
+
+  if (isMain) {
+    const mainW = chipWidth(doc, 'MAIN EVENT')
+    drawChip(doc, {
+      text: 'MAIN EVENT',
+      x: x + w - CARD_PAD - mainW,
+      y: chipY,
+      bg: GOLD,
+      fg: INK,
+      size: 5.4,
+      height: 4.6,
+    })
   }
 
   const bodyY = y + HEADER_H
-  const innerW = w - CARD_PAD * 2
   const innerX = x + CARD_PAD
+  const innerW = w - CARD_PAD * 2
 
-  const boxerInfo = (reg) => {
-    const boxer = reg?.boxerId
-    const rec = boxer?.boxingRecord
-    const wins = Number(rec?.wins) || 0
-    const losses = Number(rec?.losses) || 0
-    const draws = Number(rec?.draws) || 0
-    return {
-      name: boxer?.fullName || '',
-      club: reg?.clubName || boxer?.clubName || reg?.clubId?.name || '',
-      photo: boxer?.photoUrl ? photos.get(boxer.photoUrl) : null,
-      age: ageFrom(boxer?.dateOfBirth),
-      nationality: boxer?.nationality || '',
-      record: wins + losses + draws > 0 ? `${wins}W ${losses}L ${draws}D` : '',
-    }
-  }
+  const method = bout.result?.method
+  const resultLabel = method
+    ? `${method}${bout.result?.round ? ` · R${bout.result.round}` : ''}`
+    : ''
 
   if (resultRecorded) {
     const winnerReg = isWinnerA ? bout.boxerAId : isWinnerB ? bout.boxerBId : bout.boxerAId || bout.boxerBId
-    drawCorner(doc, {
+    drawFeatured(doc, {
       x: innerX,
       y: bodyY,
       w: innerW,
       h: bodyH,
-      boxer: boxerInfo(winnerReg),
+      boxer: winnerReg?.boxerId?.fullName ? boxerInfo(winnerReg, photos) : boxerInfo(bout.boxerAId || bout.boxerBId, photos),
       side: isWinnerB ? 'B' : 'A',
+      isMain,
       winner: true,
-      featured: true,
+      bye: false,
+      resultLabel,
     })
     return h
   }
 
   if (hasBye) {
     const reg = hasA ? bout.boxerAId : bout.boxerBId
-    drawCorner(doc, {
+    drawFeatured(doc, {
       x: innerX,
       y: bodyY,
       w: innerW,
       h: bodyH,
-      boxer: boxerInfo(reg),
+      boxer: boxerInfo(reg, photos),
       side: hasA ? 'A' : 'B',
+      isMain,
       winner: false,
-      featured: true,
+      bye: true,
+      resultLabel: '',
     })
     return h
   }
 
-  const vsGap = 10
+  const vsGap = 12
   const cornerW = (innerW - vsGap) / 2
 
-  drawCorner(doc, {
+  drawCornerPanel(doc, {
     x: innerX,
     y: bodyY,
     w: cornerW,
     h: bodyH,
-    boxer: boxerInfo(bout.boxerAId),
+    boxer: aBoxer,
     side: 'A',
-    winner: false,
-    featured: false,
+    large,
   })
-  drawCorner(doc, {
+  drawCornerPanel(doc, {
     x: innerX + innerW - cornerW,
     y: bodyY,
     w: cornerW,
     h: bodyH,
-    boxer: boxerInfo(bout.boxerBId),
+    boxer: bBoxer,
     side: 'B',
-    winner: false,
-    featured: false,
+    large,
   })
 
-  // VS badge centred between the two corners.
-  const vsX = x + w / 2
+  // Dashed divider + VS medallion.
+  const midX = x + w / 2
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.3)
+  doc.setLineDashPattern([1.2, 1.2], 0)
+  doc.line(midX, bodyY + 4, midX, bodyY + bodyH - 4)
+  doc.setLineDashPattern([], 0)
+
   const vsY = bodyY + bodyH / 2
+  doc.setFillColor(...WHITE)
+  doc.circle(midX, vsY, 5, 'F')
   doc.setFillColor(...INK)
-  doc.circle(vsX, vsY, 4, 'F')
+  doc.circle(midX, vsY, 4.2, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6)
   doc.setTextColor(...WHITE)
-  doc.text('VS', vsX, vsY + 2.1, { align: 'center' })
+  doc.text('VS', midX, vsY + 2.1, { align: 'center' })
 
   return h
 }
@@ -414,7 +612,7 @@ export async function buildFightCardPdf({ event, bouts }) {
   const pageH = doc.internal.pageSize.getHeight()
   const contentW = pageW - M * 2
 
-  // Brand logo for the document header.
+  // Brand logo for the document header and footer.
   const logo = await loadPhoto('/logo.png')
 
   // Preload boxer photos once per URL; failures fall back to initials.
@@ -432,59 +630,132 @@ export async function buildFightCardPdf({ event, bouts }) {
 
   const drawPageHeader = (continued = false) => {
     if (continued) {
-      if (logo) {
-        doc.addImage(logo.dataUrl, logo.format, M, 6, 12, 12)
-      }
+      doc.setFillColor(...INK)
+      doc.rect(0, 0, pageW, 20, 'F')
+      doc.setFillColor(...RED)
+      doc.rect(0, 20, pageW, 1, 'F')
+
+      if (logo) doc.addImage(logo.dataUrl, logo.format, M, 4.5, 10, 10)
+
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(7)
-      doc.setTextColor(...GRAY)
-      doc.text(fitText(doc, `Official fight card · ${event?.name || 'Event'}`, contentW), M, 21)
-      doc.setDrawColor(...LINE)
-      doc.setLineWidth(0.3)
-      doc.line(M, 26.5, pageW - M, 26.5)
-      return 32
+      doc.setFontSize(9.5)
+      doc.setTextColor(...WHITE)
+      doc.text('BODYMAX', M + 13, 10)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(...BLUE_LIGHT)
+      doc.text('OFFICIAL FIGHT CARD', M + 13, 13.6)
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.6)
+      doc.setTextColor(...WHITE)
+      doc.text(fitText(doc, event?.name || 'Event', contentW * 0.55), pageW - M, 9.4, { align: 'right' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.2)
+      doc.setTextColor(...LIGHT_GRAY)
+      doc.text(fitText(doc, date || '', contentW * 0.55), pageW - M, 13.4, { align: 'right' })
+      return 27
     }
 
-    if (logo) {
-      doc.addImage(logo.dataUrl, logo.format, M, 4, 12, 12)
-    }
+    // Cover band.
+    doc.setFillColor(...INK)
+    doc.rect(0, 0, pageW, 44, 'F')
+
+    // Decorative circles clipped to the band.
+    doc.saveGraphicsState()
+    doc.rect(0, 0, pageW, 44, null)
+    doc.clip()
+    doc.discardPath()
+    doc.setFillColor(...SLATE_800)
+    doc.circle(pageW - 8, -8, 34, 'F')
+    doc.setFillColor(24, 34, 53)
+    doc.circle(pageW - 52, 48, 26, 'F')
+    doc.restoreGraphicsState()
+
+    doc.setFillColor(...RED)
+    doc.rect(0, 44, pageW, 1.2, 'F')
+
+    if (logo) doc.addImage(logo.dataUrl, logo.format, M, 6, 13, 13)
 
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(...BLUE)
-    doc.text('OFFICIAL FIGHT CARD', M, 20)
+    doc.setFontSize(12)
+    doc.setTextColor(...WHITE)
+    doc.text('BODYMAX', M + 16, 12)
 
-    doc.setFontSize(16)
-    doc.setTextColor(...INK)
-    doc.text(fitText(doc, event?.name || 'Event', contentW), M, 27)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.2)
+    doc.setTextColor(...BLUE_LIGHT)
+    doc.text('OFFICIAL FIGHT CARD', M + 16, 16.4)
+
+    // Tournament-style bout count tile.
+    const tileW = 40
+    const tileH = 17
+    const tileX = pageW - M - tileW
+    const tileY = 8
+    doc.setFillColor(...SLATE_800)
+    doc.setDrawColor(...SLATE_700)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(tileX, tileY, tileW, tileH, 2.6, 2.6, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('TOTAL BOUTS', tileX + 4, tileY + 5.6)
+    doc.setFontSize(13)
+    doc.setTextColor(...WHITE)
+    doc.text(String(bouts.length), tileX + 4, tileY + 13.6)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(18)
+    doc.setTextColor(...WHITE)
+    doc.text(fitText(doc, event?.name || 'Event', contentW - 52), M, 28)
 
     if (metaLine) {
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7.5)
-      doc.setTextColor(...GRAY)
-      doc.text(fitText(doc, metaLine, contentW), M, 32)
+      doc.setFontSize(7.6)
+      doc.setTextColor(...LIGHT_GRAY)
+      doc.text(fitText(doc, metaLine, contentW - 52), M, 34.6)
     }
+
+    // Section heading.
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...INK)
+    doc.text('FIGHT CARD', M, 52)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.4)
+    doc.setTextColor(...GRAY)
+    doc.text(
+      `${bouts.length} BOUT${bouts.length === 1 ? '' : 'S'} · ORDERED BY BOUT NUMBER`,
+      pageW - M,
+      52,
+      { align: 'right' }
+    )
 
     doc.setDrawColor(...LINE)
     doc.setLineWidth(0.3)
-    doc.line(M, 38, pageW - M, 38)
-    return 44
+    doc.line(M, 54.5, pageW - M, 54.5)
+    return 60
   }
 
   let y = drawPageHeader(false)
 
-  bouts.forEach((bout) => {
+  bouts.forEach((bout, index) => {
+    const isMain = index === bouts.length - 1
     const hasA = !!bout.boxerAId?.boxerId?.fullName
     const hasB = !!bout.boxerBId?.boxerId?.fullName
     const single = !!bout.winnerId || !hasA || !hasB
-    const cardH = HEADER_H + (single ? BODY_H_SINGLE : BODY_H_BOTH) + CARD_PAD
+    const bodyH = single ? 34 : isMain ? 36 : 28
+    const cardH = HEADER_H + bodyH + CARD_PAD
 
-    if (y + cardH > pageH - M) {
+    if (y + cardH > pageH - 18) {
       doc.addPage()
       y = drawPageHeader(true)
     }
 
-    drawBoutCard(doc, { x: M, y, w: contentW, bout, photos })
+    drawBoutCard(doc, { x: M, y, w: contentW, bout, photos, isMain })
     y += cardH + CARD_GAP
   })
 
@@ -492,11 +763,20 @@ export async function buildFightCardPdf({ event, bouts }) {
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.5)
+    doc.setDrawColor(...LINE)
+    doc.setLineWidth(0.3)
+    doc.line(M, pageH - 12, pageW - M, pageH - 12)
+
+    if (logo) doc.addImage(logo.dataUrl, logo.format, M, pageH - 9.6, 4.4, 4.4)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6)
     doc.setTextColor(...GRAY)
-    doc.text('Bodymax · Official fight card', M, pageH - 8)
-    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 8, { align: 'right' })
+    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M + 6.4, pageH - 6.4)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.2)
+    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 6.4, { align: 'right' })
   }
 
   const safeName = (event?.name || 'event')
