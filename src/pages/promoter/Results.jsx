@@ -54,10 +54,30 @@ function initials(name) {
   return (name || '—').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 }
 
+function genderLabel(gender) {
+  return gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender || ''
+}
+
+// Real registration data for the boxer, used instead of the event category.
+function boxerDetails(reg) {
+  const boxer = reg?.boxerId
+  return {
+    gender: genderLabel(boxer?.gender),
+    weight: boxer?.weightCategory || (boxer?.registeredWeightKg ? `${boxer.registeredWeightKg} kg` : ''),
+    age: boxer?.ageCategory || '',
+  }
+}
+
+function uniqueParts(values) {
+  return [...new Set(values.filter(Boolean))]
+}
+
 function Corner({ corner, reg, winner }) {
   const name = reg?.boxerId?.fullName
   const photo = reg?.boxerId?.photoUrl
   const club = reg?.boxerId?.clubName || reg?.clubId?.name
+  const details = boxerDetails(reg)
+  const meta = [details.gender, details.weight].filter(Boolean).join(' · ')
   const isRed = corner === 'red'
   const cornerBase = isRed
     ? { label: 'Red Corner', avatar: 'bg-red-600 text-white', border: 'border-red-200' }
@@ -90,6 +110,12 @@ function Corner({ corner, reg, winner }) {
           {name || <span className="italic text-slate-400">Bye</span>}
         </span>
         <span className="block truncate text-xs text-slate-500">{club || 'Guest'}</span>
+        {meta && (
+          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+            <span className="h-1 w-1 rounded-full bg-slate-400" />
+            {meta}
+          </span>
+        )}
       </span>
       {winner && (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
@@ -333,11 +359,16 @@ export default function Results() {
       cancelled: 'CANCELLED',
     }
 
-    const cornerMeta = (reg) => ({
-      name: reg?.boxerId?.fullName || '',
-      club: reg?.boxerId?.clubName || reg?.clubId?.name || 'Individual',
-      photo: photoFor(reg),
-    })
+    const cornerMeta = (reg, fallback = {}) => {
+      const details = boxerDetails(reg)
+      return {
+        name: reg?.boxerId?.fullName || '',
+        club: reg?.boxerId?.clubName || reg?.clubId?.name || 'Individual',
+        photo: photoFor(reg),
+        // Real boxer data, falling back to the event category when missing.
+        info: [details.gender || genderLabel(fallback.gender), details.weight || fallback.weight].filter(Boolean).join(' · '),
+      }
+    }
 
     const rowMeta = displayed.map((b) => {
       const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
@@ -345,7 +376,12 @@ export default function Results() {
       const aWin = decided && b.boxerAId && String(b.boxerAId._id) === winnerId
       const bWin = decided && b.boxerBId && String(b.boxerBId._id) === winnerId
       const cat = b.category || {}
-      const gender = cat.gender === 'M' ? 'Male' : cat.gender === 'F' ? 'Female' : cat.gender || ''
+      const aDetails = boxerDetails(b.boxerAId)
+      const bDetails = boxerDetails(b.boxerBId)
+      // The bout category follows the real boxers; the event category is only a fallback.
+      const weight = uniqueParts([aDetails.weight || cat.weight, bDetails.weight || cat.weight]).join(' vs ') || 'Category TBD'
+      const age = uniqueParts([aDetails.age || cat.age, bDetails.age || cat.age]).join(' vs ')
+      const gender = uniqueParts([aDetails.gender || genderLabel(cat.gender), bDetails.gender || genderLabel(cat.gender)]).join(' vs ')
       const format = [
         b.numberOfRounds ? `${b.numberOfRounds}R` : null,
         b.minutesPerRound ? `${b.minutesPerRound} min` : null,
@@ -359,10 +395,10 @@ export default function Results() {
         status: b.status,
         aWin: !!aWin,
         bWin: !!bWin,
-        a: cornerMeta(b.boxerAId),
-        b: cornerMeta(b.boxerBId),
-        weight: cat.weight || 'Category TBD',
-        ageGender: [cat.age, gender].filter(Boolean).join(' · ') || '—',
+        a: cornerMeta(b.boxerAId, cat),
+        b: cornerMeta(b.boxerBId, cat),
+        weight,
+        ageGender: [age, gender].filter(Boolean).join(' · ') || '—',
         format,
         method: `${b.result?.method || 'Decision'}${b.result?.round ? ` · R${b.result.round}` : ''}`,
         winnerName: b.winnerId?.boxerId?.fullName || '',
@@ -432,7 +468,7 @@ export default function Results() {
         lineWidth: 0.25,
         overflow: 'linebreak',
       },
-      bodyStyles: { minCellHeight: 17, valign: 'middle', fillColor: 255 },
+      bodyStyles: { minCellHeight: 19, valign: 'middle', fillColor: 255 },
       headStyles: {
         fillColor: slate,
         textColor: 255,
@@ -517,29 +553,39 @@ export default function Results() {
 
           drawAvatar(corner.photo, corner.name, winner, isA ? 'red' : 'blue', cx, midY, r)
 
+          const nameY = corner.info ? midY - 3.6 : midY - 1.2
+          const clubY = corner.info ? midY + 4.2 : midY + 3.2
+
           doc.setFont('helvetica', 'bold')
           doc.setFontSize(8)
           doc.setTextColor(...(winner ? emerald : ink))
-          doc.text(fit(corner.name, maxW, 8, 'bold'), tx, midY - 0.9)
+          doc.text(fit(corner.name, maxW, 8, 'bold'), tx, nameY)
+
+          if (corner.info) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(6.2)
+            doc.setTextColor(...(winner ? emerald : ink))
+            doc.text(fit(corner.info, maxW, 6.2, 'bold'), tx, midY + 0.6)
+          }
 
           doc.setFont('helvetica', 'normal')
-          doc.setFontSize(6.2)
+          doc.setFontSize(5.8)
           doc.setTextColor(...gray)
-          doc.text(fit(corner.club, maxW, 6.2), tx, midY + 3)
+          doc.text(fit(corner.club, maxW, 5.8), tx, clubY)
           return
         }
 
-        // Category (weight / age / gender) plus the bout format chip.
+        // Category (real boxer weight / age / gender) plus the bout format chip.
         if (data.column.index === 3) {
           doc.setFont('helvetica', 'bold')
           doc.setFontSize(7.4)
           doc.setTextColor(...ink)
-          doc.text(fit(meta.weight, width - pad * 2, 7.4, 'bold'), x + pad, top + 5)
+          doc.text(fit(meta.weight, width - pad * 2, 7.4, 'bold'), x + pad, top + 5.6)
 
           doc.setFont('helvetica', 'normal')
           doc.setFontSize(6.4)
           doc.setTextColor(...gray)
-          doc.text(fit(meta.ageGender, width - pad * 2, 6.4), x + pad, top + 8.4)
+          doc.text(fit(meta.ageGender, width - pad * 2, 6.4), x + pad, top + 9.2)
 
           if (meta.format) {
             doc.setFont('helvetica', 'bold')
@@ -556,7 +602,7 @@ export default function Results() {
             doc.setFont('helvetica', 'normal')
             doc.setFontSize(6.2)
             doc.setTextColor(...gray)
-            doc.text('Format TBD', x + pad, top + height - 4)
+            doc.text('Format TBD', x + pad, top + height - 4.4)
           }
           return
         }
@@ -573,11 +619,11 @@ export default function Results() {
             doc.setFont('helvetica', 'bold')
             doc.setFontSize(7.8)
             doc.setTextColor(...emerald)
-            doc.text(fit(meta.method, maxW, 7.8, 'bold'), rx, top + 7)
+            doc.text(fit(meta.method, maxW, 7.8, 'bold'), rx, top + 8.2)
             doc.setFont('helvetica', 'normal')
             doc.setFontSize(6.3)
             doc.setTextColor(...ink)
-            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 11)
+            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 12.5)
             return
           }
 
@@ -585,22 +631,22 @@ export default function Results() {
             doc.setFont('helvetica', 'bold')
             doc.setFontSize(7.8)
             doc.setTextColor(...amber)
-            doc.text('WALKOVER', rx, top + 7)
+            doc.text('WALKOVER', rx, top + 8.2)
             doc.setFont('helvetica', 'normal')
             doc.setFontSize(6.3)
             doc.setTextColor(...ink)
-            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 11)
+            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 12.5)
             return
           }
 
           doc.setFont('helvetica', 'bold')
           doc.setFontSize(7.4)
           doc.setTextColor(...meta.accent)
-          doc.text(meta.label || 'PENDING', rx, top + 7)
+          doc.text(meta.label || 'PENDING', rx, top + 8.2)
           doc.setFont('helvetica', 'normal')
           doc.setFontSize(6.2)
           doc.setTextColor(...gray)
-          doc.text('Awaiting result', rx, top + 11)
+          doc.text('Awaiting result', rx, top + 12.5)
         }
       },
     })
@@ -741,6 +787,11 @@ export default function Results() {
             const isWalkover = b.status === 'walkover'
             const isRecorded = b.status === 'completed' || isWalkover
             const winnerName = aWin ? a?.boxerId?.fullName : bWin ? bb?.boxerId?.fullName : b.winnerId?.boxerId?.fullName
+            const aInfo = boxerDetails(a)
+            const bInfo = boxerDetails(bb)
+            const boutWeight = uniqueParts([aInfo.weight || b.category?.weight, bInfo.weight || b.category?.weight]).join(' / ') || 'All weights'
+            const boutAge = uniqueParts([aInfo.age || b.category?.age, bInfo.age || b.category?.age]).join(' / ')
+            const boutGender = uniqueParts([aInfo.gender || genderLabel(b.category?.gender), bInfo.gender || genderLabel(b.category?.gender)]).join(' / ')
 
             return (
               <article key={b._id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -751,9 +802,9 @@ export default function Results() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bout #{b.boutNumber}</p>
                       <p className="text-xs text-slate-500">
-                        <span className="font-medium text-slate-600">{b.category?.weight || 'All weights'}</span>
-                        {b.category?.age ? ` · ${b.category.age}` : ''}
-                        {b.category?.gender ? ` · ${b.category.gender}` : ''}
+                        <span className="font-medium text-slate-600">{boutWeight || 'All weights'}</span>
+                        {boutAge ? ` · ${boutAge}` : ''}
+                        {boutGender ? ` · ${boutGender}` : ''}
                         {b.ring ? ` · ${b.ring}` : ''}
                         {b.scheduledTime ? ` · ${b.scheduledTime}` : ''}
                         {(b.numberOfRounds || b.minutesPerRound) && (
