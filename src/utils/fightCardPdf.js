@@ -76,11 +76,16 @@ function loadPhoto(url) {
 
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    const timer = setTimeout(() => finish(null), 8000)
+    img.referrerPolicy = 'no-referrer'
+    const timer = setTimeout(() => finish(null), 12000)
 
     img.onload = () => {
       try {
-        const size = 320
+        if (!img.width || !img.height) {
+          finish(null)
+          return
+        }
+        const size = 400
         const canvas = document.createElement('canvas')
         canvas.width = size
         canvas.height = size
@@ -90,7 +95,7 @@ function loadPhoto(url) {
         const h = img.height * scale
         // Crop towards the top so faces stay visible in the square avatar.
         ctx.drawImage(img, (size - w) / 2, 0, w, h)
-        finish({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), format: 'JPEG' })
+        finish({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), format: 'JPEG' })
       } catch {
         finish(null)
       }
@@ -171,14 +176,14 @@ function drawCorner(doc, { x, y, w, h, boxer, photo, side, winner, featured }) {
   doc.setFillColor(...rail)
   doc.roundedRect(x, y + 0.1, 1.7, h - 0.2, 0.85, 0.85, 'F')
 
-  const avatarSize = featured ? 20 : 12
+  const avatarSize = featured ? 22 : 13
   const avatarX = x + 4
   const avatarY = y + (h - avatarSize) / 2
   drawAvatar(doc, {
     x: avatarX,
     y: avatarY,
     size: avatarSize,
-    photo,
+    photo: boxer?.photo || null,
     fallbackColor: rail,
     name: boxer?.name,
   })
