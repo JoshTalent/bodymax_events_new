@@ -10,6 +10,7 @@ import { Modal } from '../../components/Modal.jsx'
 import { Icon } from '../../components/Icons.jsx'
 import { RadialProgress, BarList } from '../../components/Charts.jsx'
 import { cn } from '../../utils/cn.js'
+import { buildFightCardPdf } from '../../utils/fightCardPdf.js'
 import {
   ELIGIBLE_STATUS,
   loadRules,
@@ -685,6 +686,7 @@ export default function Draws() {
   const [editForm, setEditForm] = useState({ fullName: '', clubName: '', gender: '', weight: '', age: '', numberOfBouts: 1, numberOfRounds: 3, minutesPerRound: 3, photoUrl: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [acting, setActing] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const [assignTarget, setAssignTarget] = useState(null)
   const [assignId, setAssignId] = useState('')
@@ -742,6 +744,29 @@ export default function Draws() {
       toast('Public draw link copied')
     } catch {
       toast(url, 'info')
+    }
+  }
+
+  // Download the event's full fight card as a PDF that mirrors the public draw
+  // cards (only the bout cards — no hero, stats or side panels).
+  const exportFightCard = async () => {
+    setExporting(true)
+    try {
+      const d = await api(`/draws/get?eventId=${id}`)
+      const card = (d.bouts || [])
+        .filter(isRealBout)
+        .sort((a, b) => (a.sortOrder - b.sortOrder) || (a.boutNumber - b.boutNumber))
+      if (card.length === 0) {
+        toast('No bouts to export yet', 'error')
+        return
+      }
+      const { doc, fileName } = await buildFightCardPdf({ event, bouts: card })
+      doc.save(fileName)
+      toast('Fight card PDF downloaded')
+    } catch (err) {
+      toast(err.message || 'Could not export the fight card', 'error')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -1233,6 +1258,20 @@ export default function Draws() {
               <Button size="sm" className="h-9" onClick={openManual}>
                 <Icon name="plus" className="mr-1.5 h-3.5 w-3.5" />
                 {hasDraw ? 'Update draw' : 'Create draw'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-9 border-white/15 bg-white/10 text-white hover:bg-white/15"
+                onClick={exportFightCard}
+                disabled={!hasDraw || exporting}
+              >
+                {exporting ? (
+                  <Spinner className="h-3.5 w-3.5" />
+                ) : (
+                  <Icon name="download" className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {exporting ? 'Exporting…' : 'Export PDF'}
               </Button>
               <Button
                 variant="secondary"
