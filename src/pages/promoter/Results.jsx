@@ -311,6 +311,21 @@ export default function Results() {
 
     const rows = []
     const rowMeta = []
+
+    // Preload boxer photos (if any) for the avatar column in the results table.
+    const photoUrls = [
+      ...new Set(
+        displayed
+          .flatMap((b) => [b.boxerAId?.boxerId?.photoUrl, b.boxerBId?.boxerId?.photoUrl])
+          .filter(Boolean)
+      ),
+    ]
+    const photoMap = new Map(await Promise.all(photoUrls.map(async (url) => [url, await loadPhoto(url)])))
+    const photoFor = (reg) => {
+      const url = reg?.boxerId?.photoUrl
+      return url ? photoMap.get(url) || null : null
+    }
+
     displayed.forEach((b) => {
       const a = b.boxerAId?.boxerId?.fullName || 'Bye'
       const bb = b.boxerBId?.boxerId?.fullName || 'Bye'
@@ -323,7 +338,13 @@ export default function Results() {
           ? `Walkover · ${b.winnerId?.boxerId?.fullName || '—'}`
           : 'Pending'
       rows.push([`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, result])
-      rowMeta.push({ status: b.status, aWin, bWin })
+      rowMeta.push({
+        status: b.status,
+        aWin,
+        bWin,
+        photoA: photoFor(b.boxerAId),
+        photoB: photoFor(b.boxerBId),
+      })
     })
 
     autoTable(doc, {
@@ -333,6 +354,7 @@ export default function Results() {
       body: rows,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 2.6, textColor: ink, lineColor: line, lineWidth: 0.25 },
+      bodyStyles: { minCellHeight: 11, valign: 'middle' },
       headStyles: { fillColor: slate, textColor: 255, fontStyle: 'bold', fontSize: 7.5, halign: 'left' },
       alternateRowStyles: { fillColor: light },
       columnStyles: {
@@ -355,6 +377,33 @@ export default function Results() {
             data.cell.styles.textColor = emerald
             data.cell.styles.fontStyle = 'bold'
           }
+          // Leave room for the boxer photo when one is available.
+          const photo = data.column.index === 1 ? meta.photoA : meta.photoB
+          if (photo) {
+            data.cell.styles.cellPadding = { top: 2.2, right: 2.2, bottom: 2.2, left: 11.5 }
+          }
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.section !== 'body') return
+        if (data.column.index !== 1 && data.column.index !== 2) return
+        const meta = rowMeta[data.row.index]
+        if (!meta) return
+        const photo = data.column.index === 1 ? meta.photoA : meta.photoB
+        if (!photo) return
+
+        const size = 7
+        const x = data.cell.x + 2.4
+        const y = data.cell.y + (data.cell.height - size) / 2
+        try {
+          doc.setFillColor(255, 255, 255)
+          doc.roundedRect(x - 0.6, y - 0.6, size + 1.2, size + 1.2, 1.4, 1.4, 'F')
+          doc.addImage(photo.dataUrl, photo.format, x, y, size, size)
+          doc.setDrawColor(...line)
+          doc.setLineWidth(0.25)
+          doc.roundedRect(x - 0.6, y - 0.6, size + 1.2, size + 1.2, 1.4, 1.4, 'S')
+        } catch {
+          // If the image can't be embedded the boxer name still displays.
         }
       },
     })
