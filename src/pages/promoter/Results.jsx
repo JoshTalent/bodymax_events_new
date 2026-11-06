@@ -226,12 +226,14 @@ export default function Results() {
 
     const slate = [15, 23, 42]
     const red = [220, 38, 38]
+    const blue = [37, 99, 235]
     const emerald = [5, 150, 105]
     const amber = [180, 83, 9]
     const gray = [100, 116, 139]
     const ink = [30, 41, 59]
     const line = [226, 232, 240]
     const light = [248, 250, 252]
+    const emeraldSoft = [236, 253, 245]
 
     const pageW = doc.internal.pageSize.getWidth()
     const M = 14
@@ -309,10 +311,7 @@ export default function Results() {
     })
     y += 12 + 7
 
-    const rows = []
-    const rowMeta = []
-
-    // Preload boxer photos (if any) for the avatar column in the results table.
+    // Preload boxer photos (if any) so avatars can be embedded in the table.
     const photoUrls = [
       ...new Set(
         displayed
@@ -326,84 +325,282 @@ export default function Results() {
       return url ? photoMap.get(url) || null : null
     }
 
-    displayed.forEach((b) => {
-      const a = b.boxerAId?.boxerId?.fullName || 'Bye'
-      const bb = b.boxerBId?.boxerId?.fullName || 'Bye'
-      const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
-      const aWin = b.status === 'completed' && b.boxerAId && String(b.boxerAId._id) === winnerId
-      const bWin = b.status === 'completed' && b.boxerBId && String(b.boxerBId._id) === winnerId
-      const result = b.status === 'completed'
-        ? `${b.winnerId?.boxerId?.fullName || '—'} · ${b.result?.method || 'Decision'}${b.result?.round ? ` · R${b.result.round}` : ''}`
-        : b.status === 'walkover'
-          ? `Walkover · ${b.winnerId?.boxerId?.fullName || '—'}`
-          : 'Pending'
-      rows.push([`#${b.boutNumber}`, aWin ? `W  ${a}` : a, bWin ? `W  ${bb}` : bb, result])
-      rowMeta.push({
-        status: b.status,
-        aWin,
-        bWin,
-        photoA: photoFor(b.boxerAId),
-        photoB: photoFor(b.boxerBId),
-      })
+    const STATUS_LABEL = {
+      in_progress: 'LIVE',
+      ready: 'READY',
+      scheduled: 'PENDING',
+      postponed: 'POSTPONED',
+      cancelled: 'CANCELLED',
+    }
+
+    const cornerMeta = (reg) => ({
+      name: reg?.boxerId?.fullName || '',
+      club: reg?.boxerId?.clubName || reg?.clubId?.name || 'Individual',
+      photo: photoFor(reg),
     })
+
+    const rowMeta = displayed.map((b) => {
+      const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
+      const decided = b.status === 'completed' || b.status === 'walkover'
+      const aWin = decided && b.boxerAId && String(b.boxerAId._id) === winnerId
+      const bWin = decided && b.boxerBId && String(b.boxerBId._id) === winnerId
+      const cat = b.category || {}
+      const gender = cat.gender === 'M' ? 'Male' : cat.gender === 'F' ? 'Female' : cat.gender || ''
+      const format = [
+        b.numberOfRounds ? `${b.numberOfRounds}R` : null,
+        b.minutesPerRound ? `${b.minutesPerRound} min` : null,
+      ]
+        .filter(Boolean)
+        .join(' × ')
+
+      return {
+        number: b.boutNumber,
+        roundName: b.roundName || '',
+        status: b.status,
+        aWin: !!aWin,
+        bWin: !!bWin,
+        a: cornerMeta(b.boxerAId),
+        b: cornerMeta(b.boxerBId),
+        weight: cat.weight || 'Category TBD',
+        ageGender: [cat.age, gender].filter(Boolean).join(' · ') || '—',
+        format,
+        method: `${b.result?.method || 'Decision'}${b.result?.round ? ` · R${b.result.round}` : ''}`,
+        winnerName: b.winnerId?.boxerId?.fullName || '',
+        label: b.status === 'completed' ? null : b.status === 'walkover' ? 'WALKOVER' : STATUS_LABEL[b.status] || String(b.status || '').toUpperCase(),
+        accent: b.status === 'completed' ? emerald : b.status === 'walkover' ? amber : b.status === 'in_progress' ? red : gray,
+      }
+    })
+
+    // Width-aware truncation so painted labels never spill over cell borders.
+    const fit = (text, maxWidth, size, style = 'normal') => {
+      doc.setFont('helvetica', style)
+      doc.setFontSize(size)
+      let out = String(text ?? '')
+      if (doc.getTextWidth(out) <= maxWidth) return out
+      while (out.length > 1 && doc.getTextWidth(`${out}…`) > maxWidth) out = out.slice(0, -1)
+      return `${out.trimEnd()}…`
+    }
+
+    // Circular avatar with the photo clipped to the circle, or initials as a fallback.
+    const drawAvatar = (photo, name, winner, corner, cx, cy, r) => {
+      doc.setFillColor(255, 255, 255)
+      doc.setDrawColor(...line)
+      doc.setLineWidth(0.25)
+      doc.circle(cx, cy, r + 0.7, 'FD')
+
+      let embedded = false
+      if (photo) {
+        doc.saveGraphicsState()
+        try {
+          doc.circle(cx, cy, r, null)
+          doc.clip()
+          doc.discardPath()
+          doc.addImage(photo.dataUrl, photo.format, cx - r, cy - r, r * 2, r * 2)
+          embedded = true
+        } catch {
+          // If the image can't be embedded, fall back to the initials below.
+        }
+        doc.restoreGraphicsState()
+      }
+
+      if (!embedded) {
+        doc.setFillColor(...(winner ? emerald : corner === 'red' ? red : blue))
+        doc.circle(cx, cy, r, 'F')
+        doc.setTextColor(255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7)
+        doc.text(initials(name), cx, cy + 1.1, { align: 'center' })
+      }
+
+      doc.setDrawColor(...(winner ? emerald : corner === 'red' ? red : blue))
+      doc.setLineWidth(0.5)
+      doc.circle(cx, cy, r + 0.1, 'S')
+    }
 
     autoTable(doc, {
       startY: y,
-      margin: { left: M, right: M },
-      head: [['BOUT', 'RED CORNER · BOXER A', 'BLUE CORNER · BOXER B', 'RESULT']],
-      body: rows,
+      margin: { left: M, right: M, bottom: 24 },
+      head: [['BOUT', 'RED CORNER', 'BLUE CORNER', 'BOUT DETAILS', 'RESULT']],
+      body: displayed.map(() => ['', '', '', '', '']),
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2.6, textColor: ink, lineColor: line, lineWidth: 0.25 },
-      bodyStyles: { minCellHeight: 11, valign: 'middle' },
-      headStyles: { fillColor: slate, textColor: 255, fontStyle: 'bold', fontSize: 7.5, halign: 'left' },
+      rowPageBreak: 'avoid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        textColor: ink,
+        lineColor: line,
+        lineWidth: 0.25,
+        overflow: 'linebreak',
+      },
+      bodyStyles: { minCellHeight: 17, valign: 'middle', fillColor: 255 },
+      headStyles: {
+        fillColor: slate,
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 7,
+        lineWidth: 0,
+        valign: 'middle',
+        cellPadding: { top: 3.2, right: 3, bottom: 3.2, left: 3.4 },
+      },
       alternateRowStyles: { fillColor: light },
       columnStyles: {
-        0: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
-        1: { cellWidth: 50 },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 66 },
+        0: { cellWidth: 16, halign: 'center' },
+        1: { cellWidth: 44 },
+        2: { cellWidth: 44 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 44 },
       },
       didParseCell: (data) => {
         if (data.section !== 'body') return
         const meta = rowMeta[data.row.index]
         if (!meta) return
-        if (data.column.index === 3) {
-          data.cell.styles.textColor = meta.status === 'completed' ? emerald : meta.status === 'walkover' ? amber : gray
-          if (meta.status === 'completed') data.cell.styles.fontStyle = 'bold'
-        }
-        if (data.column.index === 1 || data.column.index === 2) {
-          const isWinner = data.column.index === 1 ? meta.aWin : meta.bWin
-          if (isWinner) {
-            data.cell.styles.textColor = emerald
-            data.cell.styles.fontStyle = 'bold'
-          }
-          // Leave room for the boxer photo when one is available.
-          const photo = data.column.index === 1 ? meta.photoA : meta.photoB
-          if (photo) {
-            data.cell.styles.cellPadding = { top: 2.2, right: 2.2, bottom: 2.2, left: 11.5 }
-          }
-        }
+        // The table is only a layout scaffold; all content is painted in didDrawCell.
+        data.cell.text = []
+        if (data.column.index === 1 && meta.aWin) data.cell.styles.fillColor = emeraldSoft
+        if (data.column.index === 2 && meta.bWin) data.cell.styles.fillColor = emeraldSoft
       },
       didDrawCell: (data) => {
         if (data.section !== 'body') return
-        if (data.column.index !== 1 && data.column.index !== 2) return
         const meta = rowMeta[data.row.index]
         if (!meta) return
-        const photo = data.column.index === 1 ? meta.photoA : meta.photoB
-        if (!photo) return
 
-        const size = 7
-        const x = data.cell.x + 2.4
-        const y = data.cell.y + (data.cell.height - size) / 2
-        try {
-          doc.setFillColor(255, 255, 255)
-          doc.roundedRect(x - 0.6, y - 0.6, size + 1.2, size + 1.2, 1.4, 1.4, 'F')
-          doc.addImage(photo.dataUrl, photo.format, x, y, size, size)
-          doc.setDrawColor(...line)
-          doc.setLineWidth(0.25)
-          doc.roundedRect(x - 0.6, y - 0.6, size + 1.2, size + 1.2, 1.4, 1.4, 'S')
-        } catch {
-          // If the image can't be embedded the boxer name still displays.
+        const { x, y: top, width, height } = data.cell
+        const pad = 3
+        const midY = top + height / 2
+
+        // Bout number badge (with the round name underneath when known).
+        if (data.column.index === 0) {
+          const bw = 10.5
+          const bh = 6.2
+          const bx = x + (width - bw) / 2
+          const by = midY - bh / 2 - (meta.roundName ? 2.2 : 0)
+          doc.setFillColor(...slate)
+          doc.roundedRect(bx, by, bw, bh, 1.6, 1.6, 'F')
+          doc.setTextColor(255)
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(7.8)
+          doc.text(`#${meta.number}`, bx + bw / 2, by + bh / 2 + 1.25, { align: 'center' })
+
+          if (meta.roundName) {
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(5.2)
+            doc.setTextColor(...gray)
+            doc.text(fit(meta.roundName.toUpperCase(), width - 2, 5.2), x + width / 2, by + bh + 4, { align: 'center' })
+          }
+          return
+        }
+
+        // Boxer corners with circular avatar, name and club.
+        if (data.column.index === 1 || data.column.index === 2) {
+          const isA = data.column.index === 1
+          const corner = isA ? meta.a : meta.b
+          const winner = isA ? meta.aWin : meta.bWin
+          const r = 4.1
+          const cx = x + pad + r
+          const tx = cx + r + 2.4
+          const maxW = width - (tx - x) - pad
+
+          if (!corner.name) {
+            doc.setFillColor(...light)
+            doc.setDrawColor(...line)
+            doc.setLineWidth(0.25)
+            doc.circle(cx, midY, r, 'FD')
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(7.4)
+            doc.setTextColor(...gray)
+            doc.text('Bye', tx, midY - 0.4)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(6.2)
+            doc.text('No opponent', tx, midY + 3.1)
+            return
+          }
+
+          drawAvatar(corner.photo, corner.name, winner, isA ? 'red' : 'blue', cx, midY, r)
+
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(8)
+          doc.setTextColor(...(winner ? emerald : ink))
+          doc.text(fit(corner.name, maxW, 8, 'bold'), tx, midY - 0.9)
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(6.2)
+          doc.setTextColor(...gray)
+          doc.text(fit(corner.club, maxW, 6.2), tx, midY + 3)
+          return
+        }
+
+        // Category (weight / age / gender) plus the bout format chip.
+        if (data.column.index === 3) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(7.4)
+          doc.setTextColor(...ink)
+          doc.text(fit(meta.weight, width - pad * 2, 7.4, 'bold'), x + pad, top + 5)
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(6.4)
+          doc.setTextColor(...gray)
+          doc.text(fit(meta.ageGender, width - pad * 2, 6.4), x + pad, top + 8.4)
+
+          if (meta.format) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(6)
+            const chipW = Math.min(width - pad * 2, doc.getTextWidth(meta.format) + 5)
+            const chipH = 4.8
+            const chipX = x + pad
+            const chipY = top + height - chipH - 2.2
+            doc.setFillColor(...slate)
+            doc.roundedRect(chipX, chipY, chipW, chipH, 1.4, 1.4, 'F')
+            doc.setTextColor(255)
+            doc.text(meta.format, chipX + chipW / 2, chipY + chipH / 2 + 1.1, { align: 'center' })
+          } else {
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(6.2)
+            doc.setTextColor(...gray)
+            doc.text('Format TBD', x + pad, top + height - 4)
+          }
+          return
+        }
+
+        // Result: method + finishing round, winner, or the current status.
+        if (data.column.index === 4) {
+          const rx = x + 3.6
+          const maxW = width - 6.6
+
+          doc.setFillColor(...meta.accent)
+          doc.roundedRect(x + 0.9, top + 3, 1, height - 6, 0.5, 0.5, 'F')
+
+          if (meta.status === 'completed') {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(7.8)
+            doc.setTextColor(...emerald)
+            doc.text(fit(meta.method, maxW, 7.8, 'bold'), rx, top + 7)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(6.3)
+            doc.setTextColor(...ink)
+            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 11)
+            return
+          }
+
+          if (meta.status === 'walkover') {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(7.8)
+            doc.setTextColor(...amber)
+            doc.text('WALKOVER', rx, top + 7)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(6.3)
+            doc.setTextColor(...ink)
+            doc.text(fit(meta.winnerName || 'Winner', maxW, 6.3), rx, top + 11)
+            return
+          }
+
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(7.4)
+          doc.setTextColor(...meta.accent)
+          doc.text(meta.label || 'PENDING', rx, top + 7)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(6.2)
+          doc.setTextColor(...gray)
+          doc.text('Awaiting result', rx, top + 11)
         }
       },
     })
@@ -411,9 +608,15 @@ export default function Results() {
     const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || y
 
     if (pending > 0) {
+      const pageH = doc.internal.pageSize.getHeight()
+      let noteY = finalY + 6
+      if (noteY > pageH - 14) {
+        doc.addPage()
+        noteY = 24
+      }
       doc.setFontSize(8)
       doc.setTextColor(...amber)
-      doc.text(`${pending} bout${pending === 1 ? '' : 's'} still pending — results will appear once recorded.`, M, finalY + 6)
+      doc.text(`${pending} bout${pending === 1 ? '' : 's'} still pending — results will appear once recorded.`, M, noteY)
     }
 
     // Footer with page numbers
@@ -529,7 +732,7 @@ export default function Results() {
         </div>
       ) : (
         <div className="mt-5 space-y-4">
-          {displayed.map((b, i) => {
+          {displayed.map((b) => {
             const a = b.boxerAId
             const bb = b.boxerBId
             const winnerId = b.winnerId ? String(b.winnerId._id || b.winnerId) : null
@@ -544,7 +747,7 @@ export default function Results() {
                 {/* Bout header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white shadow-sm">{i + 1}</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white shadow-sm">{b.boutNumber}</span>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bout #{b.boutNumber}</p>
                       <p className="text-xs text-slate-500">
@@ -553,6 +756,11 @@ export default function Results() {
                         {b.category?.gender ? ` · ${b.category.gender}` : ''}
                         {b.ring ? ` · ${b.ring}` : ''}
                         {b.scheduledTime ? ` · ${b.scheduledTime}` : ''}
+                        {(b.numberOfRounds || b.minutesPerRound) && (
+                          <span className="ml-1.5 inline-flex items-center rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            {[b.numberOfRounds ? `${b.numberOfRounds}R` : null, b.minutesPerRound ? `${b.minutesPerRound} min` : null].filter(Boolean).join(' × ')}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
