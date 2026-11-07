@@ -37,9 +37,19 @@ const STATUS = {
 }
 
 const M = 14
-const CARD_GAP = 6
-const CARD_PAD = 5
-const HEADER_H = 16
+const CARD_GAP = 5.5
+const CARD_PAD = 4.6
+const HEADER_H = 15
+
+// Shared card metrics so pagination and drawing always agree.
+function cardMetrics(bout, isMain) {
+  const hasA = !!bout.boxerAId?.boxerId?.fullName
+  const hasB = !!bout.boxerBId?.boxerId?.fullName
+  const single = !!bout.winnerId || !hasA || !hasB
+  const large = isMain && !single
+  const bodyH = single ? 32 : large ? 34 : 27
+  return { hasA, hasB, single, large, bodyH, h: HEADER_H + bodyH + CARD_PAD }
+}
 
 const initials = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
@@ -69,6 +79,50 @@ function fitText(doc, text, maxWidth) {
     out = out.slice(0, -1)
   }
   return `${out.trimEnd()}...`
+}
+
+// Loads the brand logo at its natural aspect (no square crop) on a white
+// backing, so it reads cleanly on the dark cover band.
+async function loadLogo(url) {
+  if (!url || typeof document === 'undefined') return null
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(value)
+    }
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.referrerPolicy = 'no-referrer'
+    const timer = setTimeout(() => finish(null), 12000)
+
+    img.onload = () => {
+      try {
+        if (!img.width || !img.height) {
+          finish(null)
+          return
+        }
+        const scale = Math.min(1, 500 / Math.max(img.width, img.height))
+        const w = Math.max(1, Math.round(img.width * scale))
+        const h = Math.max(1, Math.round(img.height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, w, h)
+        ctx.drawImage(img, 0, 0, w, h)
+        finish({ dataUrl: canvas.toDataURL('image/jpeg', 0.94), format: 'JPEG', ratio: w / h })
+      } catch {
+        finish(null)
+      }
+    }
+    img.onerror = () => finish(null)
+    img.src = url
+  })
 }
 
 export async function loadPhoto(url) {
@@ -134,6 +188,25 @@ function drawChip(doc, { text, x, y, bg, fg, border, size = 5.6, height = 4.6, p
   doc.setTextColor(...fg)
   doc.text(text, x + width / 2, y + height / 2 + size * 0.13, { align: 'center' })
   return width
+}
+
+function drawLogoBadge(doc, logo, { x, y, w, h, radius = 2 }) {
+  if (!logo) return
+  doc.setFillColor(...WHITE)
+  doc.setDrawColor(...WHITE)
+  doc.setLineWidth(0.3)
+  doc.roundedRect(x, y, w, h, radius, radius, 'F')
+
+  const inset = Math.min(w, h) * 0.12
+  const maxW = w - inset * 2
+  const maxH = h - inset * 2
+  let lw = maxW
+  let lh = lw / (logo.ratio || 1)
+  if (lh > maxH) {
+    lh = maxH
+    lw = lh * (logo.ratio || 1)
+  }
+  doc.addImage(logo.dataUrl, logo.format, x + (w - lw) / 2, y + (h - lh) / 2, lw, lh)
 }
 
 function drawStatusPill(doc, status, xRight, y) {
@@ -251,21 +324,21 @@ function drawCornerPanel(doc, { x, y, w, h, boxer, side, large }) {
   doc.setTextColor(...rail)
   if (large) {
     doc.setFontSize(6)
-    doc.text(cornerLabel, tx, y + 8.6)
+    doc.text(cornerLabel, tx, y + 7.6)
 
     doc.setFontSize(11.5)
     doc.setTextColor(...INK)
-    doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 15.4)
+    doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 14.6)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...GRAY)
-    doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 20.6)
+    doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 19.6)
 
     const details = [boxer?.gender, boxer?.weight].filter(Boolean).join(' · ')
     if (details) {
       doc.setFontSize(6.2)
-      doc.text(fitText(doc, details, maxWidth), tx, y + 25.4)
+      doc.text(fitText(doc, details, maxWidth), tx, y + 24.2)
     }
 
     const record = [boxer?.record, boxer?.age ? `${boxer.age} yrs` : null, boxer?.nationality]
@@ -274,31 +347,31 @@ function drawCornerPanel(doc, { x, y, w, h, boxer, side, large }) {
     if (record) {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(5.6)
-      doc.text(fitText(doc, record, maxWidth), tx, y + 29.8)
+      doc.text(fitText(doc, record, maxWidth), tx, y + 28.4)
     }
     return
   }
 
   doc.setFontSize(5.2)
-  doc.text(cornerLabel, tx, y + 7)
+  doc.text(cornerLabel, tx, y + 6.8)
 
   doc.setFontSize(9.4)
   doc.setTextColor(...INK)
-  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 12)
+  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 11.8)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.3)
   doc.setTextColor(...GRAY)
-  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 16.2)
+  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 15.9)
 
   const meta = [boxer?.gender, boxer?.weight, boxer?.record].filter(Boolean).join(' · ')
   if (meta) {
     doc.setFontSize(5.7)
-    doc.text(fitText(doc, meta, maxWidth), tx, y + 20.2)
+    doc.text(fitText(doc, meta, maxWidth), tx, y + 20)
   }
 }
 
-function drawFeatured(doc, { x, y, w, h, boxer, side, isMain, bye, resultLabel }) {
+function drawFeatured(doc, { x, y, w, h, boxer, opponent, side, isMain, bye, resultLabel }) {
   const isRed = side === 'A'
   const soft = bye ? SLATE_SOFT : EMERALD_SOFT
   const border = bye ? [203, 213, 225] : EMERALD_BORDER
@@ -336,16 +409,16 @@ function drawFeatured(doc, { x, y, w, h, boxer, side, isMain, bye, resultLabel }
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(5.8)
   doc.setTextColor(...(bye ? GRAY : EMERALD))
-  doc.text(fitText(doc, eyebrow, w - 46), tx, y + 11)
+  doc.text(fitText(doc, eyebrow, w - 46), tx, y + 10.2)
 
-  doc.setFontSize(14)
+  doc.setFontSize(13.5)
   doc.setTextColor(...INK)
-  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 18.6)
+  doc.text(fitText(doc, boxer?.name || 'TBD', maxWidth), tx, y + 17.8)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(7.8)
   doc.setTextColor(...GRAY)
-  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 24)
+  doc.text(fitText(doc, boxer?.club || 'Individual', maxWidth), tx, y + 23)
 
   const meta = [
     boxer?.gender,
@@ -357,24 +430,31 @@ function drawFeatured(doc, { x, y, w, h, boxer, side, isMain, bye, resultLabel }
     .filter(Boolean)
     .join(' · ')
   if (meta) {
-    doc.setFontSize(6.4)
-    doc.text(fitText(doc, meta, maxWidth), tx, y + 28.8)
+    doc.setFontSize(6.2)
+    doc.text(fitText(doc, meta, maxWidth), tx, y + 27.6)
   }
 
   // Result / status box on the right.
   const rw = 36
-  const rh = 17
+  const rh = 19
   const rx = x + w - 5 - rw
   const ry = y + (h - rh) / 2
   doc.setFillColor(...INK)
   doc.roundedRect(rx, ry, rw, rh, 2.4, 2.4, 'F')
+  doc.setFillColor(...(bye ? LIGHT_GRAY : GOLD))
+  doc.roundedRect(rx + 3, ry + 3, 4.5, 1.1, 0.55, 0.55, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(4.8)
   doc.setTextColor(...LIGHT_GRAY)
-  doc.text(bye ? 'STATUS' : 'WINNER', rx + 4, ry + 5.6)
+  doc.text(bye ? 'STATUS' : 'WINNER', rx + 9, ry + 5.4)
   doc.setFontSize(7.4)
   doc.setTextColor(...WHITE)
-  doc.text(fitText(doc, bye ? 'ADVANCES' : resultLabel || 'DECISION', rw - 8), rx + 4, ry + 11.8)
+  doc.text(fitText(doc, bye ? 'ADVANCES' : resultLabel || 'DECISION', rw - 8), rx + 4, ry + 11.2)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(4.6)
+  doc.setTextColor(...LIGHT_GRAY)
+  const subline = bye ? 'No opponent' : opponent ? `def. ${opponent}` : ''
+  if (subline) doc.text(fitText(doc, subline, rw - 8), rx + 4, ry + 15.7)
 }
 
 function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
@@ -382,13 +462,8 @@ function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
   const isWinnerA = winnerRegId && String(winnerRegId) === String(bout.boxerAId?._id)
   const isWinnerB = winnerRegId && String(winnerRegId) === String(bout.boxerBId?._id)
   const resultRecorded = !!bout.winnerId
-  const hasA = !!bout.boxerAId?.boxerId?.fullName
-  const hasB = !!bout.boxerBId?.boxerId?.fullName
+  const { hasA, hasB, large, bodyH, h } = cardMetrics(bout, isMain)
   const hasBye = !hasA || !hasB
-  const single = resultRecorded || hasBye
-  const large = isMain && !single
-  const bodyH = single ? 34 : large ? 36 : 28
-  const h = HEADER_H + bodyH + CARD_PAD
   const meta = STATUS[bout.status] || STATUS.scheduled
 
   // Soft drop shadow.
@@ -449,7 +524,7 @@ function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
     .filter(Boolean)
     .join(' × ')
 
-  const chipY = y + 10.2
+  const chipY = y + 10
   const chipLimit = x + w - CARD_PAD - (isMain ? 31 : 0)
   let cx = x + CARD_PAD + 12
 
@@ -523,12 +598,15 @@ function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
 
   if (resultRecorded) {
     const winnerReg = isWinnerA ? bout.boxerAId : isWinnerB ? bout.boxerBId : bout.boxerAId || bout.boxerBId
+    const winnerBoxer = winnerReg?.boxerId?.fullName ? boxerInfo(winnerReg, photos) : boxerInfo(bout.boxerAId || bout.boxerBId, photos)
+    const opponent = [aBoxer.name, bBoxer.name].find((name) => name && name !== winnerBoxer.name) || ''
     drawFeatured(doc, {
       x: innerX,
       y: bodyY,
       w: innerW,
       h: bodyH,
-      boxer: winnerReg?.boxerId?.fullName ? boxerInfo(winnerReg, photos) : boxerInfo(bout.boxerAId || bout.boxerBId, photos),
+      boxer: winnerBoxer,
+      opponent,
       side: isWinnerB ? 'B' : 'A',
       isMain,
       winner: true,
@@ -598,6 +676,133 @@ function drawBoutCard(doc, { x, y, w, bout, photos, isMain }) {
   return h
 }
 
+// Closing back-matter: card summary, event details and sign-off. Keeps the
+// final page from ending in a large empty area on shorter cards.
+function drawClosing(doc, { x, y, w, bouts, event, date, generatedOn }) {
+  const completed = bouts.filter((b) => b.status === 'completed' || b.status === 'walkover').length
+  const live = bouts.filter((b) => b.status === 'in_progress').length
+  const upcoming = bouts.length - completed - live
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(...INK)
+  doc.text('CARD SUMMARY', x, y + 3.4)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(6)
+  doc.setTextColor(...GRAY)
+  doc.text('OFFICIAL TOURNAMENT RECORD', x + w, y + 3.4, { align: 'right' })
+
+  // Dark summary band echoing the cover.
+  const bandY = y + 7
+  const bandH = 27
+  doc.setFillColor(...INK)
+  doc.roundedRect(x, bandY, w, bandH, 3, 3, 'F')
+
+  doc.saveGraphicsState()
+  doc.roundedRect(x, bandY, w, bandH, 3, 3, null)
+  doc.clip()
+  doc.discardPath()
+  doc.setFillColor(...SLATE_800)
+  doc.circle(x + w - 14, bandY + 36, 24, 'F')
+  doc.setFillColor(24, 34, 53)
+  doc.circle(x + w - 58, bandY - 10, 16, 'F')
+  doc.setFillColor(...RED)
+  doc.rect(x, bandY + bandH - 1, w, 1, 'F')
+  doc.restoreGraphicsState()
+
+  const tiles = [
+    { label: 'TOTAL BOUTS', value: bouts.length, gold: true },
+    { label: 'COMPLETED', value: completed },
+    { label: 'LIVE NOW', value: live },
+    { label: 'UPCOMING', value: upcoming },
+  ]
+  const pad = 4
+  const gap = 3
+  const tileW = (w - pad * 2 - gap * (tiles.length - 1)) / tiles.length
+
+  tiles.forEach((tile, index) => {
+    const tx = x + pad + index * (tileW + gap)
+
+    if (index > 0) {
+      doc.setDrawColor(...SLATE_700)
+      doc.setLineWidth(0.25)
+      doc.line(tx - gap / 2, bandY + 5.5, tx - gap / 2, bandY + 21.5)
+    }
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.7)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(tile.label, tx, bandY + 7)
+
+    doc.setFontSize(14)
+    doc.setTextColor(...(tile.gold ? GOLD : WHITE))
+    doc.text(String(tile.value), tx, bandY + 17.8)
+  })
+
+  // Event details.
+  const infoHeadY = bandY + bandH + 9
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(...INK)
+  doc.text('EVENT DETAILS', x, infoHeadY)
+
+  const infoY = infoHeadY + 4
+  const infoH = 30
+  doc.setFillColor(...WHITE)
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.35)
+  doc.roundedRect(x, infoY, w, infoH, 2.8, 2.8, 'FD')
+
+  const rows = [
+    ['DATE', date || 'To be announced'],
+    ['VENUE', event?.venue || 'To be confirmed'],
+    ['LOCATION', event?.location || 'To be confirmed'],
+    ['FORMAT', `${bouts.length} bout${bouts.length === 1 ? '' : 's'} · Official card`],
+  ]
+  const colGap = 6
+  const cellW = (w - pad * 2 - colGap) / 2
+  rows.forEach(([label, value], index) => {
+    const col = index % 2
+    const row = Math.floor(index / 2)
+    const cx = x + pad + col * (cellW + colGap)
+    const cy = infoY + 6.4 + row * 10.4
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.7)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(label, cx, cy)
+
+    doc.setFontSize(7)
+    doc.setTextColor(...INK)
+    doc.text(fitText(doc, value, cellW), cx, cy + 4.4)
+  })
+
+  // Sign-off.
+  const signY = infoY + infoH + 12
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.3)
+  doc.line(x, signY, x + 58, signY)
+  doc.line(x + w - 58, signY, x + w, signY)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(5.2)
+  doc.setTextColor(...GRAY)
+  doc.text('Tournament Director', x, signY + 4)
+  doc.text('Date', x + w - 58, signY + 4)
+
+  doc.setFontSize(5.4)
+  doc.setTextColor(...LIGHT_GRAY)
+  doc.text(
+    `This fight card is subject to change · Generated ${generatedOn} · BODYMAX Boxing Games`,
+    x + w / 2,
+    signY + 10,
+    { align: 'center' }
+  )
+
+  return signY + 13 - y
+}
+
 function fmtLongDate(iso) {
   if (!iso) return null
   const d = new Date(iso)
@@ -613,7 +818,7 @@ export async function buildFightCardPdf({ event, bouts }) {
   const contentW = pageW - M * 2
 
   // Brand logo for the document header and footer.
-  const logo = await loadPhoto('/logo.png')
+  const logo = await loadLogo('/logo.png')
 
   // Preload boxer photos once per URL; failures fall back to initials.
   const urls = [
@@ -635,17 +840,17 @@ export async function buildFightCardPdf({ event, bouts }) {
       doc.setFillColor(...RED)
       doc.rect(0, 20, pageW, 1, 'F')
 
-      if (logo) doc.addImage(logo.dataUrl, logo.format, M, 4.5, 10, 10)
+      if (logo) drawLogoBadge(doc, logo, { x: M, y: 4.6, w: 14, h: 10.8, radius: 1.8 })
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9.5)
       doc.setTextColor(...WHITE)
-      doc.text('BODYMAX', M + 13, 10)
+      doc.text('BODYMAX', M + 17.4, 9.4)
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
       doc.setTextColor(...BLUE_LIGHT)
-      doc.text('OFFICIAL FIGHT CARD', M + 13, 13.6)
+      doc.text('OFFICIAL FIGHT CARD', M + 17.4, 13.3)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7.6)
@@ -677,17 +882,17 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setFillColor(...RED)
     doc.rect(0, 44, pageW, 1.2, 'F')
 
-    if (logo) doc.addImage(logo.dataUrl, logo.format, M, 6, 13, 13)
+    drawLogoBadge(doc, logo, { x: M, y: 6, w: 18.5, h: 13.5, radius: 2.2 })
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.setTextColor(...WHITE)
-    doc.text('BODYMAX', M + 16, 12)
+    doc.text('BODYMAX', M + 23.4, 12.2)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6.2)
     doc.setTextColor(...BLUE_LIGHT)
-    doc.text('OFFICIAL FIGHT CARD', M + 16, 16.4)
+    doc.text('OFFICIAL FIGHT CARD', M + 23.4, 16.6)
 
     // Tournament-style bout count tile.
     const tileW = 40
@@ -744,11 +949,7 @@ export async function buildFightCardPdf({ event, bouts }) {
 
   bouts.forEach((bout, index) => {
     const isMain = index === bouts.length - 1
-    const hasA = !!bout.boxerAId?.boxerId?.fullName
-    const hasB = !!bout.boxerBId?.boxerId?.fullName
-    const single = !!bout.winnerId || !hasA || !hasB
-    const bodyH = single ? 34 : isMain ? 36 : 28
-    const cardH = HEADER_H + bodyH + CARD_PAD
+    const cardH = cardMetrics(bout, isMain).h
 
     if (y + cardH > pageH - 18) {
       doc.addPage()
@@ -759,6 +960,25 @@ export async function buildFightCardPdf({ event, bouts }) {
     y += cardH + CARD_GAP
   })
 
+  // Summary back-matter, only when it fits on the current page (never alone).
+  const generatedOn = new Date().toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+  const closingH = 104
+  if (y + closingH <= pageH - 18) {
+    drawClosing(doc, {
+      x: M,
+      y: y + 1.5,
+      w: contentW,
+      bouts,
+      event,
+      date,
+      generatedOn,
+    })
+  }
+
   // Page footers.
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
@@ -767,12 +987,16 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setLineWidth(0.3)
     doc.line(M, pageH - 12, pageW - M, pageH - 12)
 
-    if (logo) doc.addImage(logo.dataUrl, logo.format, M, pageH - 9.6, 4.4, 4.4)
+    if (logo) {
+      const lw = 7.4
+      const lh = lw / (logo.ratio || 1)
+      doc.addImage(logo.dataUrl, logo.format, M, pageH - 8.2 - lh / 2, lw, lh)
+    }
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6)
     doc.setTextColor(...GRAY)
-    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M + 6.4, pageH - 6.4)
+    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M + 9.4, pageH - 6.4)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(6.2)

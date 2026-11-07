@@ -569,6 +569,17 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
           </p>
         </div>
 
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+            <Icon name="shield" className="h-4 w-4" />
+          </span>
+          <p className="text-xs leading-relaxed text-emerald-900">
+            <span className="font-bold">Same-gender only.</span> Male and female boxers are never matched against each
+            other, whatever the event or category. Boxers without a recorded gender are left as byes until their profile
+            is updated.
+          </p>
+        </div>
+
         <Toggle
           checked={rules.avoidSameClub}
           onChange={(v) => setRules((r) => ({ ...r, avoidSameClub: v }))}
@@ -1356,7 +1367,7 @@ export default function Draws() {
                 </span>
                 <h3 className="relative mt-4 text-lg font-black tracking-tight text-slate-900">No bout pairings yet</h3>
                 <p className="relative mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-500">
-                  Build the fight card by hand or let Smart Auto Draw match boxers by age, weight, experience and club.
+                  Build the fight card by hand or let Smart Auto Draw match boxers by gender, age, weight, experience and club.
                 </p>
                 <div className="relative mt-5 flex flex-wrap justify-center gap-2">
                   <Button onClick={openManual}>

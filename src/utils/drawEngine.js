@@ -6,6 +6,10 @@
 //   3. Age   - group age into ranges ("20-26 years can face each other").
 //   4. Weight- group body weight into ranges ("48-51 kg can face each other").
 //
+// A male boxer is never auto-matched against a female boxer, regardless of
+// the event's category or the rules above. Gender is a hard constraint; boxers
+// without a recorded gender are left as byes rather than guessed.
+//
 // Two boxers may be paired when they share at least one range in every
 // dimension that has ranges configured. Ranges may overlap on purpose
 // (20-26 and 26-31) so a 26 year old can meet either a 22 or a 30 year old.
@@ -112,6 +116,19 @@ export function boutsOf(reg) {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+// Real gender of the boxer, with the registration category as a fallback.
+// "Mixed" is deliberately ignored: individual boxers still need a real gender
+// before they can be auto-matched.
+export function genderOf(reg) {
+  const candidates = [reg.boxerId?.gender, reg.gender, reg.category?.gender]
+  for (const raw of candidates) {
+    const value = String(raw ?? '').trim().toLowerCase()
+    if (value === 'm' || value === 'male' || value === 'man') return 'M'
+    if (value === 'f' || value === 'female' || value === 'woman') return 'F'
+  }
+  return null
+}
+
 function parseWeight(value) {
   if (value === null || value === undefined || value === '') return null
   const text = String(value)
@@ -144,6 +161,7 @@ export function normalizeParticipant(reg) {
     weight: weightOf(reg),
     weightCategory: reg.category?.weight || '',
     ageCategory: reg.category?.age || '',
+    gender: genderOf(reg),
   }
 }
 
@@ -161,6 +179,10 @@ const within = (value, band) => Number.isFinite(value) && value >= band.min && v
 const sharesBand = (a, b, bands) => bands.some((band) => within(a, band) && within(b, band))
 
 function canPair(x, y, pass, cfg) {
+  // Hard safety rule: never match a male boxer with a female boxer.
+  // Unknown gender is also blocked rather than guessed.
+  if (!x.gender || !y.gender || x.gender !== y.gender) return false
+
   if (cfg.avoidSameClub && x.clubKey && x.clubKey === y.clubKey) return false
 
   if (pass.experience && hasBands(cfg.experienceBands)) {
@@ -191,7 +213,14 @@ function pairScore(x, y) {
 
 function reasonFor(p, rest, cfg) {
   if (rest.length < 2) return 'Nobody else left to pair with'
-  if (cfg.avoidSameClub && rest.every((o) => o.clubKey && o.clubKey === p.clubKey)) {
+  if (!p.gender) return 'Gender not recorded — add it to the boxer profile'
+
+  const sameGender = rest.filter((o) => o !== p && o.gender === p.gender)
+  if (sameGender.length === 0) {
+    return p.gender === 'M' ? 'No other male boxer available' : 'No other female boxer available'
+  }
+
+  if (cfg.avoidSameClub && sameGender.every((o) => o.clubKey && o.clubKey === p.clubKey)) {
     return 'Only boxers from the same club remain'
   }
   if (hasBands(cfg.experienceBands) && p.bouts === null) return 'Bouts played not recorded'
