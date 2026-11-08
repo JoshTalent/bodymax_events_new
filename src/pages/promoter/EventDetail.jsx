@@ -1267,7 +1267,7 @@ export default function EventDetail() {
                 <option value="all">All weights</option>
                 {eventWeightClasses.length
                   ? eventWeightClasses.map((c, i) => <option key={c.name} value={eventWeightLabels[i]}>{eventWeightLabels[i]}</option>)
-                  : <option value="none">Not configured</option>}
+                  : null}
               </select>
               <select
                 value={ageFilter}
