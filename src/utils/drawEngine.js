@@ -10,6 +10,11 @@
 // the event's category or the rules above. Gender is a hard constraint; boxers
 // without a recorded gender are left as byes rather than guessed.
 //
+// Boxers are also only ever paired with another boxer in the same event weight
+// category. If one boxer has a category and the other does not, they are not
+// paired. Only when neither boxer has a category (legacy events without event
+// categories) can they meet.
+//
 // Two boxers may be paired when they share at least one range in every
 // dimension that has ranges configured. Ranges may overlap on purpose
 // (20-26 and 26-31) so a 26 year old can meet either a 22 or a 30 year old.
@@ -151,6 +156,7 @@ export function weightOf(reg) {
 }
 
 export function normalizeParticipant(reg) {
+  const weightCategory = String(reg.category?.weight || reg.boxerId?.weightCategory || '').trim()
   return {
     id: String(reg._id),
     name: reg.boxerId?.fullName || 'Boxer',
@@ -159,7 +165,7 @@ export function normalizeParticipant(reg) {
     bouts: boutsOf(reg),
     age: ageOf(reg),
     weight: weightOf(reg),
-    weightCategory: reg.category?.weight || '',
+    weightCategory,
     ageCategory: reg.category?.age || '',
     gender: genderOf(reg),
   }
@@ -182,6 +188,11 @@ function canPair(x, y, pass, cfg) {
   // Hard safety rule: never match a male boxer with a female boxer.
   // Unknown gender is also blocked rather than guessed.
   if (!x.gender || !y.gender || x.gender !== y.gender) return false
+
+  // Hard safety rule: only boxers in the same event weight category can meet.
+  // A boxer without a category is never paired with a categorized boxer. Two
+  // uncategorized boxers may meet so legacy events without categories still draw.
+  if ((x.weightCategory || '') !== (y.weightCategory || '')) return false
 
   if (cfg.avoidSameClub && x.clubKey && x.clubKey === y.clubKey) return false
 
@@ -220,8 +231,15 @@ function reasonFor(p, rest, cfg) {
     return p.gender === 'M' ? 'No other male boxer available' : 'No other female boxer available'
   }
 
-  if (cfg.avoidSameClub && sameGender.every((o) => o.clubKey && o.clubKey === p.clubKey)) {
-    return 'Only boxers from the same club remain'
+  const sameCategory = sameGender.filter((o) => (o.weightCategory || '') === (p.weightCategory || ''))
+  if (sameCategory.length === 0) {
+    return p.weightCategory
+      ? 'No other boxer in their weight category'
+      : 'Weight category not recorded — assign one to this boxer'
+  }
+
+  if (cfg.avoidSameClub && sameCategory.every((o) => o.clubKey && o.clubKey === p.clubKey)) {
+    return 'Only boxers from the same club and weight category remain'
   }
   if (hasBands(cfg.experienceBands) && p.bouts === null) return 'Bouts played not recorded'
   if (hasBands(cfg.ageBands) && p.age === null) return 'Age not recorded'

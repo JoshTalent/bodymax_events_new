@@ -29,7 +29,7 @@ export default async (event) => {
     if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
 
     const body = JSON.parse(event.body || '{}')
-    const { weight = '', age = '', gender = '', bouts } = body
+    const { weight = '', age = '', gender = '', bouts, clearAllWeights = false } = body
     if (!Array.isArray(bouts) || bouts.length === 0) {
       return errorResponse({ message: 'Provide at least one pairing (bouts)', status: 400 })
     }
@@ -80,9 +80,17 @@ export default async (event) => {
       'category.gender': gender,
     })
 
-    // Create a flat list of bouts for the event (single round, no bracket rounds)
+    // Create a flat list of bouts for the event (single round, no bracket rounds).
+    // Numbering continues after any other category's bouts so an all-weights card
+    // never shows duplicate bout numbers or positions.
+    const remainingBouts = await Bout.find({ eventId }).select('boutNumber bracketPosition').lean()
+    const lastNumber = remainingBouts.reduce((max, b) => Math.max(max, Number(b.boutNumber) || 0), 0)
+    const lastPosition = remainingBouts.reduce((max, b) => {
+      const n = Number(b.bracketPosition)
+      return Number.isFinite(n) ? Math.max(max, n) : max
+    }, -1)
+    let boutNumber = lastNumber + 1
     const saved = []
-    let boutNumber = 1
     for (const p of bouts) {
       const a = p.boxerAId || null
       const b = p.boxerBId || null
@@ -92,7 +100,7 @@ export default async (event) => {
         round: 1,
         roundName: 'Bout',
         boutNumber: boutNumber++,
-        bracketPosition: saved.length,
+        bracketPosition: lastPosition + 1 + saved.length,
         numberOfRounds: positiveInt(p.numberOfRounds),
         minutesPerRound: positiveInt(p.minutesPerRound),
         boxerAId: a,

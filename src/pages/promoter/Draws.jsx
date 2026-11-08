@@ -539,7 +539,7 @@ function BandEditor({ bands, onChange, unit, disabled }) {
   )
 }
 
-function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabel, onGenerate, busy }) {
+function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabel, categoryGroups = 1, onGenerate, busy }) {
   const setBands = (key) => (bands) => setRules((r) => ({ ...r, [key]: bands }))
   const { summary, unpaired } = preview
 
@@ -577,6 +577,20 @@ function AutoDrawRulesModal({ open, onClose, rules, setRules, preview, scopeLabe
             <span className="font-bold">Same-gender only.</span> Male and female boxers are never matched against each
             other, whatever the event or category. Boxers without a recorded gender are left as byes until their profile
             is updated.
+          </p>
+        </div>
+
+        <div className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
+            <Icon name="scale" className="h-4 w-4" />
+          </span>
+          <p className="text-xs leading-relaxed text-sky-900">
+            <span className="font-bold">Same weight category only.</span> Boxers only meet an opponent registered in the
+            same event weight category — cross-category bouts are never created.
+            {categoryGroups > 1 && (
+              <> This rebuild creates {categoryGroups} separate category draws.</>
+            )}{' '}
+            Boxers without a category can only meet other uncategorised boxers.
           </p>
         </div>
 
@@ -792,7 +806,40 @@ export default function Draws() {
     [registrations, weight, age]
   )
 
-  const autoPreview = useMemo(() => generatePairings(eligible, rules), [eligible, rules])
+  // Auto draw always runs per weight category. When the promoter is viewing
+  // "All weights" on an event that has categories, each category becomes its
+  // own draw so saved bouts land in the right category bucket. Boxers without
+  // a category form a separate legacy group (only another uncategorized boxer
+  // can meet them).
+  const autoGroups = useMemo(() => {
+    const categories = event?.weightCategories || []
+    if (weight || categories.length === 0) return [{ weight: weight || '', boxers: eligible }]
+
+    const known = new Set(categories)
+    const groups = categories.map((w) => ({
+      weight: w,
+      boxers: eligible.filter((r) => (r.category?.weight || '') === w),
+    }))
+    const uncategorized = eligible.filter((r) => !known.has(r.category?.weight || ''))
+    if (uncategorized.length > 0) groups.push({ weight: '', boxers: uncategorized })
+    return groups.filter((g) => g.boxers.length > 0)
+  }, [event, eligible, weight])
+
+  const autoPreview = useMemo(() => {
+    const groups = autoGroups.map((g) => ({ ...g, result: generatePairings(g.boxers, rules) }))
+    return {
+      groups,
+      summary: groups.reduce(
+        (acc, g) => ({
+          boxers: acc.boxers + g.result.summary.boxers,
+          bouts: acc.bouts + g.result.summary.bouts,
+          byes: acc.byes + g.result.summary.byes,
+        }),
+        { boxers: 0, bouts: 0, byes: 0 }
+      ),
+      unpaired: groups.flatMap((g) => g.result.unpaired),
+    }
+  }, [autoGroups, rules])
 
   if (!event || !registrations) return <Loading />
 
@@ -871,34 +918,51 @@ export default function Draws() {
   }
 
   const runSmartAuto = async () => {
-    const { pairs, unpaired, summary } = generatePairings(eligible, rules)
-    if (summary.boxers === 0) {
+    const groups = autoPreview.groups.filter((g) => g.result.summary.boxers > 0)
+    const { summary } = autoPreview
+    if (groups.length === 0 || summary.boxers === 0) {
       toast('No eligible boxers to draw in this category', 'error')
       return
     }
-    const scope = [weight || 'all weights', age || 'all ages'].join(' · ')
+    const perCategory = groups.length > 1
+    const scope = perCategory
+      ? `${groups.length} weight categories`
+      : [weight || 'all weights', age || 'all ages'].join(' · ')
     if (hasDraw && !window.confirm(`This rebuilds the current draw for ${scope}. Continue?`)) return
 
     const defaultRounds = manualPairs[0]?.rounds || 3
     const defaultMinutes = manualPairs[0]?.minutes || 3
-    const bouts = [
-      ...pairs.map((p) => ({ boxerAId: p.a.id, boxerBId: p.b.id, numberOfRounds: defaultRounds, minutesPerRound: defaultMinutes })),
-      ...unpaired.map((p) => ({ boxerAId: p.id, boxerBId: null, numberOfRounds: defaultRounds, minutesPerRound: defaultMinutes })),
-    ]
 
     setAutoBusy(true)
     try {
-      await api(`/draws/manual?eventId=${id}`, {
-        method: 'POST',
-        body: { weight: weight || '', age: age || '', gender: '', bouts },
-      })
+      for (const group of groups) {
+        const bouts = [
+          ...group.result.pairs.map((p) => ({
+            boxerAId: p.a.id,
+            boxerBId: p.b.id,
+            numberOfRounds: defaultRounds,
+            minutesPerRound: defaultMinutes,
+          })),
+          ...group.result.unpaired.map((p) => ({
+            boxerAId: p.id,
+            boxerBId: null,
+            numberOfRounds: defaultRounds,
+            minutesPerRound: defaultMinutes,
+          })),
+        ]
+        if (bouts.length === 0) continue
+        await api(`/draws/manual?eventId=${id}`, {
+          method: 'POST',
+          body: { weight: group.weight || '', age: age || '', gender: '', bouts },
+        })
+      }
       saveRules(id, rules)
       setRulesOpen(false)
       await loadDraw(id, weight, age)
       toast(
-        unpaired.length > 0
-          ? `Auto draw created — ${summary.bouts} bouts, ${unpaired.length} bye${unpaired.length === 1 ? '' : 's'}`
-          : `Auto draw created — ${summary.bouts} bouts, no byes`
+        summary.byes > 0
+          ? `Auto draw created${perCategory ? ` across ${groups.length} weight categories` : ''} — ${summary.bouts} bouts, ${summary.byes} bye${summary.byes === 1 ? '' : 's'}`
+          : `Auto draw created${perCategory ? ` across ${groups.length} weight categories` : ''} — ${summary.bouts} bouts, no byes`
       )
     } catch (err) {
       toast(err.message, 'error')
@@ -1880,6 +1944,7 @@ export default function Draws() {
         setRules={setRules}
         preview={autoPreview}
         scopeLabel={scopeLabel}
+        categoryGroups={autoGroups.length}
         onGenerate={runSmartAuto}
         busy={autoBusy}
       />
