@@ -161,6 +161,10 @@ export default function EventDetail() {
 
   const [search, setSearch] = useState('')
   const [clubFilter, setClubFilter] = useState('all')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [weightFilter, setWeightFilter] = useState('all')
+  const [ageFilter, setAgeFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const load = () => {
     api(`/events?id=${id}`).then((d) => setEvent(d.event)).catch(() => {})
@@ -262,17 +266,26 @@ export default function EventDetail() {
 
   const filteredRegs = useMemo(() => {
     const q = search.trim().toLowerCase()
+    const gender = genderFilter === 'all' ? '' : genderFilter
+    const weight = weightFilter === 'all' ? '' : weightFilter
+    const age = ageFilter === 'all' ? '' : ageFilter
+    const status = statusFilter === 'all' ? '' : statusFilter
     return regs.filter((r) => {
       const clubKey = r.boxerId?.clubId ? String(r.boxerId.clubId) : `name:${(r.boxerId?.clubName || r.clubName || '').toLowerCase()}`
       if (clubFilter !== 'all' && clubKey !== clubFilter) return false
+      if (gender && r.boxerId?.gender !== gender) return false
+      if (weight && (r.category?.weight || '').toLowerCase() !== weight.toLowerCase()) return false
+      if (age && (r.category?.age || '').toLowerCase() !== age.toLowerCase()) return false
+      if (status && r.status !== status) return false
       if (!q) return true
       return (
         (r.boxerId?.fullName || '').toLowerCase().includes(q) ||
         (r.boxerId?.clubName || r.clubName || '').toLowerCase().includes(q) ||
-        (r.category?.weight || '').toLowerCase().includes(q)
+        (r.category?.weight || '').toLowerCase().includes(q) ||
+        (r.category?.age || '').toLowerCase().includes(q)
       )
     })
-  }, [regs, search, clubFilter])
+  }, [regs, search, clubFilter, genderFilter, weightFilter, ageFilter, statusFilter])
 
   const runAction = async () => {
     setBusy(true)
@@ -449,6 +462,86 @@ export default function EventDetail() {
     } finally {
       setClubBusy(null)
     }
+  }
+
+  const downloadReport = async () => {
+    // Filter registrations based on current filters
+    const reportData = filteredRegs.map((r) => ({
+      Boxer: r.boxerId?.fullName || 'Boxer',
+      Club: r.boxerId?.clubName || r.clubName || 'Unattached',
+      Category: [
+        r.category?.weight || '',
+        r.category?.age || '',
+        r.category?.gender?.replace('Mixed', 'Mixed')
+          .replace('M', 'Male')
+          .replace('F', 'Female')
+          .filter(Boolean).join(' / ') || '—',
+      ].filter(Boolean).join(' / '),
+      Bouts: r.numberOfBouts || 1,
+      'Weigh-in': r.weighIn?.officialWeightKg ? `${r.weighIn.officialWeightKg} kg` : (r.weighIn?.status === 'successful' ? 'Cleared' : 'Pending'),
+      Status: r.status,
+    }))
+
+    // Generate PDF using jspdf-autotable
+    if (reportData.length === 0) {
+      toast('No boxers to include in report', 'warning')
+      return
+    }
+
+    const { jsPDF } = await import('jspdf')
+    const { autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF()
+
+    // Title
+    doc.setFontSize(18)
+    doc.setTextColor(20, 20, 20)
+    doc.text(`Boxer Report — ${event?.name || 'Event'}`, 14, 20)
+
+    // Summary stats
+    const total = reportData.length
+    const maleCount = regs.filter((r) => r.boxerId?.gender === 'M').length
+    const femaleCount = regs.filter((r) => r.boxerId?.gender === 'F').length
+    const weighedCountLocal = regs.filter((r) => r.weighIn?.status === 'successful').length
+
+    doc.setFontSize(11)
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Total boxers: ${total}  |  Male: ${maleCount}  |  Female: ${femaleCount}  |  Weighed in: ${weighedCountLocal}`, 14, 30)
+
+    // Table headers and data
+    const headers = ['Boxer', 'Club', 'Category', 'Bouts', 'Weigh-in', 'Status']
+    const rows = reportData.map((r) => [
+      r.Boxer,
+      r.Club,
+      r.Category,
+      String(r.Bouts),
+      r['Weigh-in'],
+      r.Status,
+    ])
+
+    autoTable(doc, {
+      startY: 40,
+      head: [headers],
+      body: rows,
+      theme: 'grid',
+      headStyles: {
+        fill: [['4f46e5', '7c3aed', 'ec4899', 'f472b6', 'fb923c', 'fbbf24']],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 100 },
+        2: { cellWidth: 130 },
+        3: { cellWidth: 60 },
+        4: { cellWidth: 80 },
+        5: { cellWidth: 100 },
+      },
+    })
+
+    // Download
+    doc.save(`boxer-report-${event?.name?.replace(/\s+/g, '-') || 'event'}-${new Date().toISOString().slice(0, 10)}.pdf`)
+    toast(`${total} boxers exported to PDF`, 'success')
   }
 
   const createClub = async (e) => {
@@ -1149,19 +1242,52 @@ export default function EventDetail() {
                 className="min-w-0 flex-1 border-0 bg-transparent p-0 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
-            <select
-              value={clubFilter}
-              onChange={(e) => setClubFilter(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-            >
-              <option value="all">All clubs</option>
-              {clubGroups.map((g) => (
-                <option key={g.key} value={g.key}>{g.name}</option>
-              ))}
-            </select>
-            <Button size="sm" onClick={openBoxerModal} disabled={!assignedClubs.length}>
-              <Icon name="usersPlus" className="mr-1.5 h-3.5 w-3.5" />
-              Assign boxer
+            <div className="flex items-center gap-2">
+              <select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              >
+                <option value="all">All genders</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+              <select
+                value={weightFilter}
+                onChange={(e) => setWeightFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              >
+                <option value="all">All weights</option>
+                {eventWeightClasses.length
+                  ? eventWeightClasses.map((c, i) => <option key={eventWeightLabels[i]} value={c}>{eventWeightLabels[i]}</option>)
+                  : <option value="none">Not configured</option>}
+              </select>
+              <select
+                value={ageFilter}
+                onChange={(e) => setAgeFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              >
+                <option value="all">All ages</option>
+                {event.ageCategories?.length
+                  ? event.ageCategories.map((c) => <option key={c} value={c}>{c}</option>)
+                  : <option value="none">Not configured</option>}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              >
+                <option value="all">All statuses</option>
+                <option value="registered">Registered</option>
+                <option value="approved">Approved</option>
+                <option value="weighed">Weighed</option>
+                <option value="eligible">Eligible</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <Button size="sm" onClick={downloadReport} className="ml-2 h-9 px-4 justify-center">
+              <Icon name="download" className="mr-1.5 h-3.5 w-3.5" />
+              Download Report
             </Button>
           </div>
 
