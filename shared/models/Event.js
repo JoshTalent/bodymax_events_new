@@ -15,6 +15,19 @@ const EventSchema = new mongoose.Schema(
     weighInDate: { type: Date, default: null },
     competitionDates: [{ type: Date }],
 
+    // Structured weight classes: { name, minKg, maxKg }. `maxKg: null` means
+    // an open-ended class ("Over 92 kg"). `weightCategories` below stays in
+    // sync as the derived display labels used by registrations and draws.
+    weightClasses: [
+      {
+        _id: false,
+        name: { type: String, trim: true, default: '' },
+        minKg: { type: Number, default: null },
+        maxKg: { type: Number, default: null },
+        // Legacy display override, preserved so old category strings never change.
+        label: { type: String, trim: true, default: '' },
+      },
+    ],
     weightCategories: [{ type: String }],
     ageCategories: [{ type: String }],
     genderCategories: [{ type: String, enum: ['M', 'F', 'Mixed'] }],

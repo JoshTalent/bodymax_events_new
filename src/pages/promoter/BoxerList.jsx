@@ -9,6 +9,9 @@ import { Input, Select, Textarea } from '../../components/Field.jsx'
 import { PageHeader } from '../../components/PageHeader.jsx'
 import { Icon } from '../../components/Icons.jsx'
 import { cn } from '../../utils/cn.js'
+import { STANDARD_WEIGHT_CLASSES, weightClassLabel } from '../../utils/weightClasses.js'
+
+const STANDARD_WEIGHT_LABELS = STANDARD_WEIGHT_CLASSES.map(weightClassLabel)
 
 const emptyForm = {
   clubId: '',
@@ -334,11 +337,22 @@ export default function BoxerList() {
             <Input label="Nationality" value={form.nationality} onChange={set('nationality')} />
             <Input label="Identification No." value={form.identificationNumber} onChange={set('identificationNumber')} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input label="Registered Weight (kg)" type="number" value={form.registeredWeightKg} onChange={set('registeredWeightKg')} />
-            <Input label="Weight Category" value={form.weightCategory} onChange={set('weightCategory')} placeholder="e.g. 60kg" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select label="Weight Category" value={form.weightCategory} onChange={set('weightCategory')}>
+              <option value="">Select a weight class</option>
+              {form.weightCategory && !STANDARD_WEIGHT_LABELS.includes(form.weightCategory) && (
+                <option value={form.weightCategory}>{form.weightCategory}</option>
+              )}
+              {STANDARD_WEIGHT_LABELS.map((label) => (
+                <option key={label} value={label}>{label}</option>
+              ))}
+            </Select>
             <Input label="Age Category" value={form.ageCategory} onChange={set('ageCategory')} placeholder="e.g. Junior" />
           </div>
+          <Input label="Weight (kg, optional)" type="number" step="0.1" value={form.registeredWeightKg} onChange={set('registeredWeightKg')} />
+          <p className="-mt-2 text-[11px] text-slate-500">
+            Weight categories are used for entries and draws. Official weight is recorded at weigh-in.
+          </p>
           <Input label="Experience" value={form.experience} onChange={set('experience')} placeholder="e.g. Amateur, 3 years" />
           <div className="grid gap-4 sm:grid-cols-3">
             <Input label="Wins" type="number" value={form.boxingRecord.wins} onChange={(e) => setForm({ ...form, boxingRecord: { ...form.boxingRecord, wins: e.target.value } })} />

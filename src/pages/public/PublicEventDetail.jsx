@@ -4,6 +4,7 @@ import { api } from '../../utils/api.js'
 import { Loading } from '../../components/Loading.jsx'
 import { PublicNavbar, PublicFooter } from '../../components/PublicSite.jsx'
 import { EventBadge } from '../../components/PublicEventCard.jsx'
+import { weightClassesOfEvent, weightClassLabel, weightClassLimit } from '../../utils/weightClasses.js'
 
 function InfoRow({ label, value }) {
   if (!value) return null
@@ -73,6 +74,8 @@ export default function PublicEventDetail() {
   const regOpen = event.registrationOpen && !['completed', 'archived', 'closed'].includes(event.status)
   const hasRegisterLink = regOpen && Boolean(event.registrationToken)
   const registerUrl = `/register/${event.registrationToken}`
+  const weightClassList = weightClassesOfEvent(event)
+  const weightClassLabels = weightClassList.map(weightClassLabel)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -159,10 +162,10 @@ export default function PublicEventDetail() {
               </section>
             )}
 
-            {(event.weightCategories?.length > 0 || event.ageCategories?.length > 0 || event.genderCategories?.length > 0) && (
+            {(weightClassLabels.length > 0 || event.ageCategories?.length > 0 || event.genderCategories?.length > 0) && (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="grid gap-8 sm:grid-cols-2">
-                  {event.weightCategories?.length > 0 && (
+                  {weightClassLabels.length > 0 && (
                     <div>
                       <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500">
                         <svg className="h-4 w-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -170,8 +173,23 @@ export default function PublicEventDetail() {
                         </svg>
                         Weight Categories
                       </h2>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {event.weightCategories.map((c) => <Chip key={c}>{c}</Chip>)}
+                      <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <tr>
+                              <th className="px-3 py-2">Weight category</th>
+                              <th className="px-3 py-2 text-right">Weight limit</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {weightClassList.map((c, i) => (
+                              <tr key={weightClassLabels[i]}>
+                                <td className="px-3 py-2 font-semibold text-slate-800">{c.name || weightClassLabels[i]}</td>
+                                <td className="px-3 py-2 text-right text-slate-500">{weightClassLimit(c) || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
@@ -289,10 +307,10 @@ export default function PublicEventDetail() {
                 <InfoRow label="Location" value={event.location} />
                 <InfoRow label="Weight In" value={weighInStr} />
               </div>
-              {event.weightCategories?.length > 0 && (
+              {weightClassLabels.length > 0 && (
                 <div className="mt-5 border-t border-slate-100 pt-4">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Divisions</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800">{event.weightCategories.length} weight classes</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">{weightClassLabels.length} weight classes</p>
                 </div>
               )}
             </section>

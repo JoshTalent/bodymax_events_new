@@ -47,6 +47,7 @@ export default async (event) => {
         eventDate: evt.eventDate,
         status: evt.status,
         description: evt.description,
+        weightClasses: evt.weightClasses || [],
         weightCategories: evt.weightCategories || [],
         ageCategories: evt.ageCategories || [],
       },

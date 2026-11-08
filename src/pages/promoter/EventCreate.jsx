@@ -8,8 +8,10 @@ import { Input, Textarea } from '../../components/Field.jsx'
 import { Card, CardHeader, CardBody } from '../../components/Card.jsx'
 import { Spinner } from '../../components/Loading.jsx'
 import TagInput from '../../components/TagInput.jsx'
+import WeightClassEditor from '../../components/WeightClassEditor.jsx'
 import { PageHeader } from '../../components/PageHeader.jsx'
 import { Icon } from '../../components/Icons.jsx'
+import { normalizeWeightClasses, validateWeightClasses, weightCategoryLabels } from '../../utils/weightClasses.js'
 
 export default function EventCreate() {
   const { user } = useAuth()
@@ -18,7 +20,7 @@ export default function EventCreate() {
 
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [weightCategories, setWeightCategories] = useState([])
+  const [weightClasses, setWeightClasses] = useState([])
   const [ageCategories, setAgeCategories] = useState([])
   const [form, setForm] = useState({
     name: '',
@@ -40,8 +42,14 @@ export default function EventCreate() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    const weightError = validateWeightClasses(weightClasses)
+    if (weightError) {
+      setError(weightError)
+      return
+    }
     setSaving(true)
     try {
+      const normalizedWeightClasses = normalizeWeightClasses(weightClasses)
       const payload = {
         name: form.name,
         description: form.description,
@@ -53,7 +61,8 @@ export default function EventCreate() {
         weighInDate: form.weighInDate ? new Date(form.weighInDate) : null,
         rules: form.rules,
         registrationRequirements: form.registrationRequirements,
-        weightCategories,
+        weightClasses: normalizedWeightClasses,
+        weightCategories: weightCategoryLabels(normalizedWeightClasses),
         ageCategories,
         requireWeighIn: form.requireWeighIn,
         public: form.public,
@@ -108,7 +117,7 @@ export default function EventCreate() {
         <Card>
           <CardHeader title="Categories" />
           <CardBody className="space-y-4">
-            <TagInput label="Weight Categories" placeholder="e.g. 60kg" values={weightCategories} setValues={setWeightCategories} />
+            <WeightClassEditor value={weightClasses} onChange={setWeightClasses} />
             <TagInput label="Age Categories" placeholder="e.g. Junior" values={ageCategories} setValues={setAgeCategories} />
           </CardBody>
         </Card>

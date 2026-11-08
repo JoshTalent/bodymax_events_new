@@ -2,6 +2,7 @@
 import Event from './_shared/models/Event.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
+import { normalizeWeightClasses, validateWeightClasses, weightCategoryLabels } from './_shared/weightClasses.js'
 
 export default async (event) => {
   event = await normalizeRequest(event)
@@ -31,6 +32,15 @@ export default async (event) => {
 
     if (body.registrationToken !== undefined && body.registrationToken === null) {
       delete body.registrationToken
+    }
+
+    // Keep `weightCategories` derived from the structured classes so the
+    // exact labels used by registrations and draws stay in sync.
+    if (Object.prototype.hasOwnProperty.call(body, 'weightClasses')) {
+      const invalid = validateWeightClasses(body.weightClasses)
+      if (invalid) return errorResponse({ message: invalid, status: 400 })
+      body.weightClasses = normalizeWeightClasses(body.weightClasses)
+      body.weightCategories = weightCategoryLabels(body.weightClasses)
     }
 
     let ev

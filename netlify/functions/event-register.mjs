@@ -30,6 +30,7 @@ export default async (event) => {
       registrationDeadline: evt.registrationDeadline,
       registrationOpen: evt.registrationOpen,
       status: evt.status,
+      weightClasses: evt.weightClasses || [],
       weightCategories: evt.weightCategories || [],
       ageCategories: evt.ageCategories || [],
       requirements: evt.registrationRequirements || '',

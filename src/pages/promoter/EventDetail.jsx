@@ -10,10 +10,18 @@ import { StatusBadge, Badge } from '../../components/Badge.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { Input, Select, Textarea } from '../../components/Field.jsx'
 import TagInput from '../../components/TagInput.jsx'
+import WeightClassEditor from '../../components/WeightClassEditor.jsx'
 import { StatCard } from '../../components/StatCard.jsx'
 import { Icon } from '../../components/Icons.jsx'
 import { DonutChart, BarList, RadialProgress } from '../../components/Charts.jsx'
 import { cn } from '../../utils/cn.js'
+import {
+  normalizeWeightClasses,
+  validateWeightClasses,
+  weightCategoryLabels,
+  weightClassLabel,
+  weightClassesOfEvent,
+} from '../../utils/weightClasses.js'
 
 const PORTAL_ROLES = [
   { role: 'commentator', title: 'Commentator', desc: 'Fight card and boxer profiles for live commentary.' },
@@ -122,7 +130,7 @@ export default function EventDetail() {
     requireWeighIn: true,
     public: false,
   })
-  const [editWeightCategories, setEditWeightCategories] = useState([])
+  const [editWeightClasses, setEditWeightClasses] = useState([])
   const [editAgeCategories, setEditAgeCategories] = useState([])
 
   const [portals, setPortals] = useState(null)
@@ -147,7 +155,6 @@ export default function EventDetail() {
     fullName: '',
     gender: 'M',
     dateOfBirth: '',
-    registeredWeightKg: '',
     experience: '',
   })
   const [boxerSaving, setBoxerSaving] = useState(false)
@@ -184,6 +191,8 @@ export default function EventDetail() {
 
   const regs = registrations || []
   const assignedClubIds = useMemo(() => new Set(assignedClubs.map((c) => String(c._id))), [assignedClubs])
+  const eventWeightClasses = useMemo(() => weightClassesOfEvent(event), [event])
+  const eventWeightLabels = useMemo(() => eventWeightClasses.map(weightClassLabel), [eventWeightClasses])
 
   const pendingCount = regs.filter((r) => ['pending_approval', 'needs_correction'].includes(r.status)).length
   const eligibleCount = regs.filter((r) => ['eligible', 'completed'].includes(r.status)).length
@@ -354,14 +363,20 @@ export default function EventDetail() {
       requireWeighIn: event.requireWeighIn ?? true,
       public: event.public || false,
     })
-    setEditWeightCategories([...(event.weightCategories || [])])
+    setEditWeightClasses(weightClassesOfEvent(event))
     setEditAgeCategories([...(event.ageCategories || [])])
     setEditOpen(true)
   }
 
   const saveEdit = async () => {
+    const weightError = validateWeightClasses(editWeightClasses)
+    if (weightError) {
+      toast(weightError, 'error')
+      return
+    }
     setBusy(true)
     try {
+      const normalizedWeightClasses = normalizeWeightClasses(editWeightClasses)
       await api(`/events/update?id=${id}`, {
         method: 'PATCH',
         body: {
@@ -375,7 +390,8 @@ export default function EventDetail() {
           weighInDate: editForm.weighInDate ? new Date(editForm.weighInDate) : null,
           rules: editForm.rules,
           registrationRequirements: editForm.registrationRequirements,
-          weightCategories: editWeightCategories,
+          weightClasses: normalizedWeightClasses,
+          weightCategories: weightCategoryLabels(normalizedWeightClasses),
           ageCategories: editAgeCategories,
           requireWeighIn: editForm.requireWeighIn,
           public: editForm.public,
@@ -465,7 +481,7 @@ export default function EventDetail() {
     setBoxerClubId(assignedClubs[0]?._id || '')
     setBoxerPickId('')
     setBoxerCat({ weight: '', age: '', gender: '' })
-    setNewBoxer({ fullName: '', gender: 'M', dateOfBirth: '', registeredWeightKg: '', experience: '' })
+    setNewBoxer({ fullName: '', gender: 'M', dateOfBirth: '', experience: '' })
     setBoxerModal(true)
   }
 
@@ -490,7 +506,6 @@ export default function EventDetail() {
             clubId: boxerClubId,
             gender: boxerCat.gender || newBoxer.gender || 'M',
             dateOfBirth: newBoxer.dateOfBirth ? new Date(newBoxer.dateOfBirth) : null,
-            registeredWeightKg: newBoxer.registeredWeightKg ? Number(newBoxer.registeredWeightKg) : null,
             weightCategory: boxerCat.weight || '',
             ageCategory: boxerCat.age || '',
             experience: newBoxer.experience || '',
@@ -840,8 +855,8 @@ export default function EventDetail() {
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Weight categories</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {event.weightCategories?.length
-                        ? event.weightCategories.map((c) => <Badge key={c} tone="outline" className="px-2.5 py-1 text-[11px]">{c}</Badge>)
+                      {eventWeightClasses.length
+                        ? eventWeightClasses.map((c, i) => <Badge key={eventWeightLabels[i]} tone="outline" className="px-2.5 py-1 text-[11px]">{eventWeightLabels[i]}</Badge>)
                         : <span className="text-xs text-slate-400">Not configured</span>}
                     </div>
                   </div>
@@ -1614,7 +1629,21 @@ export default function EventDetail() {
 
           {boxerMode === 'existing' ? (
             <div>
-              <Select label="Boxer" value={boxerPickId} onChange={(e) => setBoxerPickId(e.target.value)} disabled={clubBoxersLoading}>
+              <Select
+                label="Boxer"
+                value={boxerPickId}
+                onChange={(e) => {
+                  const picked = clubBoxers.find((b) => b._id === e.target.value)
+                  setBoxerPickId(e.target.value)
+                  setBoxerCat((prev) => ({
+                    ...prev,
+                    weight: picked && eventWeightLabels.includes(picked.weightCategory) ? picked.weightCategory : prev.weight,
+                    age: picked && event.ageCategories?.includes(picked.ageCategory) ? picked.ageCategory : prev.age,
+                    gender: picked?.gender || prev.gender,
+                  }))
+                }}
+                disabled={clubBoxersLoading}
+              >
                 <option value="">{clubBoxersLoading ? 'Loading club roster…' : 'Select a boxer from this club'}</option>
                 {availableBoxers.map((b) => (
                   <option key={b._id} value={b._id}>
@@ -1636,17 +1665,17 @@ export default function EventDetail() {
                 </Select>
                 <Input label="Date of birth" type="date" value={newBoxer.dateOfBirth} onChange={(e) => setNewBoxer({ ...newBoxer, dateOfBirth: e.target.value })} />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input label="Registered weight (kg)" type="number" step="0.1" value={newBoxer.registeredWeightKg} onChange={(e) => setNewBoxer({ ...newBoxer, registeredWeightKg: e.target.value })} />
-                <Input label="Experience" value={newBoxer.experience} onChange={(e) => setNewBoxer({ ...newBoxer, experience: e.target.value })} placeholder="e.g. Amateur, 3 years" />
-              </div>
+              <Input label="Experience" value={newBoxer.experience} onChange={(e) => setNewBoxer({ ...newBoxer, experience: e.target.value })} placeholder="e.g. Amateur, 3 years" />
+              <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+                Pick the boxer's weight class below. Official weight is recorded at weigh-in.
+              </p>
             </div>
           )}
 
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Event category</p>
             <div className="grid gap-4 sm:grid-cols-3">
-              <CategoryField label="Weight" value={boxerCat.weight} onChange={(e) => setBoxerCat({ ...boxerCat, weight: e.target.value })} options={event.weightCategories} placeholder="e.g. 60kg" />
+              <CategoryField label="Weight" value={boxerCat.weight} onChange={(e) => setBoxerCat({ ...boxerCat, weight: e.target.value })} options={eventWeightLabels} placeholder="e.g. Flyweight · 48–51 kg" />
               <CategoryField label="Age" value={boxerCat.age} onChange={(e) => setBoxerCat({ ...boxerCat, age: e.target.value })} options={event.ageCategories} placeholder="e.g. Junior" />
               <Select label="Gender category" value={boxerCat.gender} onChange={(e) => setBoxerCat({ ...boxerCat, gender: e.target.value })}>
                 <option value="">Use boxer's gender</option>
@@ -1730,8 +1759,8 @@ export default function EventDetail() {
             <Input label="Registration deadline" type="date" value={editForm.registrationDeadline} onChange={(e) => setEditForm({ ...editForm, registrationDeadline: e.target.value })} />
             <Input label="Weigh-in date" type="date" value={editForm.weighInDate} onChange={(e) => setEditForm({ ...editForm, weighInDate: e.target.value })} />
           </div>
+          <WeightClassEditor value={editWeightClasses} onChange={setEditWeightClasses} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <TagInput label="Weight categories" placeholder="e.g. 60kg" values={editWeightCategories} setValues={setEditWeightCategories} />
             <TagInput label="Age categories" placeholder="e.g. Junior" values={editAgeCategories} setValues={setEditAgeCategories} />
           </div>
           <Textarea label="Competition rules" value={editForm.rules} onChange={(e) => setEditForm({ ...editForm, rules: e.target.value })} rows={2} />

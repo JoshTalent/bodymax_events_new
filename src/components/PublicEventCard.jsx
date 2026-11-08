@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn.js'
+import { weightClassesOfEvent, weightClassLabel } from '../utils/weightClasses.js'
 
 export function EventBadge({ status, registrationOpen }) {
   let cls = 'bg-blue-50 text-blue-700 ring-blue-600/20'
@@ -27,7 +28,7 @@ export default function PublicEventCard({ ev }) {
   const month = d ? d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase() : 'TBD'
   const day = d ? d.getDate() : '?'
   const year = d ? d.getFullYear() : ''
-  const weights = ev.weightCategories?.slice(0, 3) || []
+  const weights = weightClassesOfEvent(ev).map(weightClassLabel).slice(0, 3)
 
   return (
     <Link

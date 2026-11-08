@@ -7,6 +7,7 @@ import { Loading, Empty, Spinner } from '../../components/Loading.jsx'
 import { StatusBadge, Badge } from '../../components/Badge.jsx'
 import { Modal } from '../../components/Modal.jsx'
 import { cn } from '../../utils/cn.js'
+import { weightClassesOfEvent, weightClassLabel } from '../../utils/weightClasses.js'
 
 function PayInfo({ event }) {
   const acc = event.paymentAccount || {}
@@ -152,7 +153,7 @@ export default function ClubRegister() {
   const perBoxerTotal = feePerBoxer * selectedBoxers.length
   const totalFee = feeType === 'per_club' ? (selectedBoxers.length > 0 ? feeAmount : 0) : perBoxerTotal
 
-  const eventWeightCats = activeEvent?.weightCategories || []
+  const eventWeightCats = activeEvent ? weightClassesOfEvent(activeEvent).map(weightClassLabel) : []
   const eventAgeCats = activeEvent?.ageCategories || []
   const needsWeightCat = eventWeightCats.length > 0
   const needsAgeCat = eventAgeCats.length > 0
@@ -391,13 +392,13 @@ export default function ClubRegister() {
                         <div className="mt-3 ml-[52px] grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
                           {needsWeightCat && (
                             <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weight Category *</label>
+                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weight Class *</label>
                               <select
                                 value={boxerCats[b._id]?.weight || ''}
                                 onChange={setCat(b._id, 'weight')}
                                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
                               >
-                                <option value="">Select weight category</option>
+                                <option value="">Select weight class</option>
                                 {eventWeightCats.map((c) => (
                                   <option key={c} value={c}>{c}</option>
                                 ))}

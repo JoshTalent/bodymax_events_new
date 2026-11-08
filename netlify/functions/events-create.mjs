@@ -2,6 +2,7 @@
 import Event from './_shared/models/Event.js'
 import { requireRole, success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
+import { normalizeWeightClasses, validateWeightClasses, weightCategoryLabels } from './_shared/weightClasses.js'
 
 function slugify(str) {
   return str
@@ -29,6 +30,13 @@ export default async (event) => {
       return errorResponse({ message: 'Event name is required', status: 400 })
     }
 
+    let weightClasses
+    if (Object.prototype.hasOwnProperty.call(body, 'weightClasses')) {
+      const invalid = validateWeightClasses(body.weightClasses)
+      if (invalid) return errorResponse({ message: invalid, status: 400 })
+      weightClasses = normalizeWeightClasses(body.weightClasses)
+    }
+
     await connectDB()
     const slug = slugify(body.name) + '-' + Date.now().toString(36)
 
@@ -39,6 +47,13 @@ export default async (event) => {
       status: body.status || 'open',
       registrationOpen: body.registrationOpen !== undefined ? body.registrationOpen : true,
       public: body.public !== undefined ? body.public : true,
+    }
+
+    // Always keep the legacy label list in sync with the structured classes,
+    // because registrations, draws and validation match on those strings.
+    if (weightClasses) {
+      eventData.weightClasses = weightClasses
+      eventData.weightCategories = weightCategoryLabels(weightClasses)
     }
 
     const ev = await Event.create(eventData)
