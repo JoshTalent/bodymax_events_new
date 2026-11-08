@@ -466,21 +466,28 @@ export default function EventDetail() {
 
   const downloadReport = async () => {
     // Filter registrations based on current filters
-    const reportData = filteredRegs.map((r) => ({
-      Boxer: r.boxerId?.fullName || 'Boxer',
-      Club: r.boxerId?.clubName || r.clubName || 'Unattached',
-      Category: [
-        r.category?.weight || '',
-        r.category?.age || '',
-        r.category?.gender?.replace('Mixed', 'Mixed')
-          .replace('M', 'Male')
-          .replace('F', 'Female')
-          .filter(Boolean).join(' / ') || '—',
-      ].filter(Boolean).join(' / '),
-      Bouts: r.numberOfBouts || 1,
-      'Weigh-in': r.weighIn?.officialWeightKg ? `${r.weighIn.officialWeightKg} kg` : (r.weighIn?.status === 'successful' ? 'Cleared' : 'Pending'),
-      Status: r.status,
-    }))
+    const reportData = filteredRegs.map((r) => {
+      let gender = r.category?.gender || ''
+      // Only normalize if gender is M, F, or Mixed (raw values)
+      if (gender === 'M' || gender === 'F' || gender === 'Mixed') {
+        gender = { M: 'Male', F: 'Female', Mixed: 'Mixed' }[gender]
+      } else {
+        // Already processed (Male, Female) or other - keep as-is
+        gender = String(gender)
+      }
+      return {
+        Boxer: r.boxerId?.fullName || 'Boxer',
+        Club: r.boxerId?.clubName || r.clubName || 'Unattached',
+        Category: [
+          r.category?.weight || '',
+          r.category?.age || '',
+          gender,
+        ].filter(Boolean).join(' / ') || '—',
+        Bouts: r.numberOfBouts || 1,
+        'Weigh-in': r.weighIn?.officialWeightKg ? `${r.weighIn.officialWeightKg} kg` : (r.weighIn?.status === 'successful' ? 'Cleared' : 'Pending'),
+        Status: r.status,
+      }
+    })
 
     // Generate PDF using jspdf-autotable
     if (reportData.length === 0) {
