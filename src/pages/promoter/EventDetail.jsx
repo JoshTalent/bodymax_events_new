@@ -1266,7 +1266,7 @@ export default function EventDetail() {
               >
                 <option value="all">All weights</option>
                 {eventWeightClasses.length
-                  ? eventWeightClasses.map((c, i) => <option key={eventWeightLabels[i]} value={c}>{eventWeightLabels[i]}</option>)
+                  ? eventWeightClasses.map((c, i) => <option key={c.name} value={eventWeightLabels[i]}>{eventWeightLabels[i]}</option>)
                   : <option value="none">Not configured</option>}
               </select>
               <select
