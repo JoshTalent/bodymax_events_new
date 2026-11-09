@@ -20,6 +20,7 @@ import {
   validateWeightClasses,
   weightCategoryLabels,
   weightClassLabel,
+  weightClassLimit,
   weightClassesOfEvent,
 } from '../../utils/weightClasses.js'
 
@@ -34,6 +35,19 @@ const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+// Category strings are user-facing labels, so compare them loosely: ignore
+// case, surrounding whitespace, repeated spaces and dash variants.
+const normalizeCategory = (value) =>
+  String(value ?? '')
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+
+// Older registrations may carry the weight on the boxer profile instead of the
+// per-event category, so both places are checked.
+const regWeight = (r) => String(r?.category?.weight || r?.boxerId?.weightCategory || '').trim()
 
 const fmtShort = (iso) => {
   if (!iso) return '—'
@@ -198,6 +212,53 @@ export default function EventDetail() {
   const eventWeightClasses = useMemo(() => weightClassesOfEvent(event), [event])
   const eventWeightLabels = useMemo(() => eventWeightClasses.map(weightClassLabel), [eventWeightClasses])
 
+  // Weight filter options and alias resolution. A weight class can be stored
+  // as its full label ("Flyweight · 48–51 kg"), its name ("Flyweight") or just
+  // its limit ("48–51 kg") depending on when the registration was created.
+  // All of those forms resolve to the same canonical option so filtering works
+  // no matter which format the registration used.
+  const weightMeta = useMemo(() => {
+    const options = []
+    const seen = new Set()
+    const aliases = new Map()
+
+    const canonical = (value) => {
+      const key = normalizeCategory(value)
+      return aliases.get(key) || key
+    }
+
+    eventWeightClasses.forEach((cls) => {
+      const label = weightClassLabel(cls)
+      if (!label) return
+      const key = normalizeCategory(label)
+      const forms = [
+        key,
+        normalizeCategory(cls?.name),
+        normalizeCategory(weightClassLimit(cls)),
+        normalizeCategory(cls?.label),
+        // Legacy events store only the label string, so also map its parts
+        // ("Flyweight", "48–51 kg") back to the full label.
+        ...String(label).split('·').map((part) => normalizeCategory(part)),
+      ].filter(Boolean)
+      forms.forEach((form) => aliases.set(form, key))
+      if (seen.has(key)) return
+      seen.add(key)
+      options.push(label)
+    })
+
+    regs.forEach((r) => {
+      const raw = regWeight(r)
+      if (!raw) return
+      const key = normalizeCategory(raw)
+      if (seen.has(key) || aliases.has(key)) return
+      seen.add(key)
+      options.push(raw)
+    })
+
+    options.sort((a, b) => a.localeCompare(b))
+    return { options, canonical }
+  }, [eventWeightClasses, regs])
+
   const pendingCount = regs.filter((r) => ['pending_approval', 'needs_correction'].includes(r.status)).length
   const eligibleCount = regs.filter((r) => ['eligible', 'completed'].includes(r.status)).length
   const weighedCount = regs.filter((r) => r.weighIn?.status === 'successful').length
@@ -274,18 +335,18 @@ export default function EventDetail() {
       const clubKey = r.boxerId?.clubId ? String(r.boxerId.clubId) : `name:${(r.boxerId?.clubName || r.clubName || '').toLowerCase()}`
       if (clubFilter !== 'all' && clubKey !== clubFilter) return false
       if (gender && r.boxerId?.gender !== gender) return false
-      if (weight && (r.category?.weight || '').toLowerCase() !== weight.toLowerCase()) return false
-      if (age && (r.category?.age || '').toLowerCase() !== age.toLowerCase()) return false
+      if (weight && weightMeta.canonical(regWeight(r)) !== weightMeta.canonical(weight)) return false
+      if (age && normalizeCategory(r.category?.age) !== normalizeCategory(age)) return false
       if (status && r.status !== status) return false
       if (!q) return true
       return (
         (r.boxerId?.fullName || '').toLowerCase().includes(q) ||
         (r.boxerId?.clubName || r.clubName || '').toLowerCase().includes(q) ||
-        (r.category?.weight || '').toLowerCase().includes(q) ||
+        (r.category?.weight || r.boxerId?.weightCategory || '').toLowerCase().includes(q) ||
         (r.category?.age || '').toLowerCase().includes(q)
       )
     })
-  }, [regs, search, clubFilter, genderFilter, weightFilter, ageFilter, statusFilter])
+  }, [regs, search, clubFilter, genderFilter, weightFilter, ageFilter, statusFilter, weightMeta])
 
   const runAction = async () => {
     setBusy(true)
@@ -465,90 +526,188 @@ export default function EventDetail() {
   }
 
   const downloadReport = async () => {
-    // Filter registrations based on current filters
+    // Rows reflect the active filters, in the same order as the table.
+    const normalizeGender = (value) => {
+      const raw = String(value ?? '').trim().toLowerCase()
+      if (raw === 'm' || raw === 'male') return 'Male'
+      if (raw === 'f' || raw === 'female') return 'Female'
+      if (raw === 'mixed') return 'Mixed'
+      return ''
+    }
+
+    const humanStatus = (status) => {
+      if (!status) return '—'
+      return String(status)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+    }
+
     const reportData = filteredRegs.map((r) => {
-      let gender = r.category?.gender || ''
-      // Only normalize if gender is M, F, or Mixed (raw values)
-      if (gender === 'M' || gender === 'F' || gender === 'Mixed') {
-        gender = { M: 'Male', F: 'Female', Mixed: 'Mixed' }[gender]
-      } else {
-        // Already processed (Male, Female) or other - keep as-is
-        gender = String(gender)
-      }
+      const official = Number(r.weighIn?.officialWeightKg)
+      const weighIn = Number.isFinite(official) && official > 0
+        ? `${official} kg`
+        : r.weighIn?.status === 'successful'
+          ? 'Cleared'
+          : 'Pending'
       return {
-        Boxer: r.boxerId?.fullName || 'Boxer',
-        Club: r.boxerId?.clubName || r.clubName || 'Unattached',
-        Category: [
-          r.category?.weight || '',
-          r.category?.age || '',
-          gender,
-        ].filter(Boolean).join(' / ') || '—',
-        Bouts: r.numberOfBouts || 1,
-        'Weigh-in': r.weighIn?.officialWeightKg ? `${r.weighIn.officialWeightKg} kg` : (r.weighIn?.status === 'successful' ? 'Cleared' : 'Pending'),
-        Status: r.status,
+        boxer: r.boxerId?.fullName || 'Boxer',
+        club: r.boxerId?.clubName || r.clubName || 'Unattached',
+        weightCategory: regWeight(r) || 'Unassigned',
+        ageCategory: String(r.category?.age || '').trim() || '—',
+        gender: normalizeGender(r.boxerId?.gender) || normalizeGender(r.category?.gender) || '—',
+        bouts: r.numberOfBouts || 1,
+        weighIn,
+        status: humanStatus(r.status),
       }
     })
 
-    // Generate PDF using jspdf-autotable
     if (reportData.length === 0) {
-      toast('No boxers to include in report', 'warning')
+      toast('No boxers match the current filters', 'warning')
       return
     }
 
     const { jsPDF } = await import('jspdf')
     const { autoTable } = await import('jspdf-autotable')
 
-    const doc = new jsPDF()
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
 
-    // Title
+    // Palette
+    const NAVY = [15, 23, 42]
+    const BLUE = [37, 99, 235]
+    const GOLD = [202, 138, 4]
+    const LIGHT = [241, 245, 249]
+    const MUTED = [100, 116, 139]
+    const GREEN = [21, 128, 61]
+    const AMBER = [180, 83, 9]
+
+    // Header band
+    doc.setFillColor(...NAVY)
+    doc.rect(0, 0, pageW, 30, 'F')
+    doc.setFillColor(...GOLD)
+    doc.rect(0, 30, pageW, 1.4, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
     doc.setFontSize(18)
-    doc.setTextColor(20, 20, 20)
-    doc.text(`Boxer Report — ${event?.name || 'Event'}`, 14, 20)
+    doc.text('Boxer Report', 14, 13)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(203, 213, 225)
+    doc.text(event?.name || 'Event', 14, 20)
+    doc.text(
+      [fmtDate(event?.eventDate), event?.venue, event?.location].filter(Boolean).join('  ·  '),
+      14,
+      25
+    )
+    doc.setFontSize(8)
+    doc.text(`Generated ${fmtDate(new Date().toISOString())}`, pageW - 14, 25, { align: 'right' })
 
-    // Summary stats
+    // Summary chips
     const total = reportData.length
-    const maleCount = regs.filter((r) => r.boxerId?.gender === 'M').length
-    const femaleCount = regs.filter((r) => r.boxerId?.gender === 'F').length
-    const weighedCountLocal = regs.filter((r) => r.weighIn?.status === 'successful').length
+    const maleCount = reportData.filter((r) => r.gender === 'Male').length
+    const femaleCount = reportData.filter((r) => r.gender === 'Female').length
+    const weighedCountLocal = reportData.filter((r) => r.weighIn.endsWith('kg') || r.weighIn === 'Cleared').length
+    const categoryCount = new Set(reportData.map((r) => r.weightCategory)).size
 
-    doc.setFontSize(11)
-    doc.setTextColor(80, 80, 80)
-    doc.text(`Total boxers: ${total}  |  Male: ${maleCount}  |  Female: ${femaleCount}  |  Weighed in: ${weighedCountLocal}`, 14, 30)
+    const chips = [
+      ['Total boxers', String(total)],
+      ['Male', String(maleCount)],
+      ['Female', String(femaleCount)],
+      ['Weighed in', String(weighedCountLocal)],
+      ['Weight categories', String(categoryCount)],
+    ]
+    const chipW = (pageW - 28 - 4 * 4) / 5
+    chips.forEach(([label, value], i) => {
+      const x = 14 + i * (chipW + 4)
+      doc.setFillColor(...LIGHT)
+      doc.roundedRect(x, 36, chipW, 13, 2, 2, 'F')
+      doc.setTextColor(...MUTED)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(6.5)
+      doc.text(label.toUpperCase(), x + 3, 41)
+      doc.setTextColor(...NAVY)
+      doc.setFontSize(13)
+      doc.text(value, x + 3, 47)
+    })
 
-    // Table headers and data
-    const headers = ['Boxer', 'Club', 'Category', 'Bouts', 'Weigh-in', 'Status']
+    // Table
+    const headers = ['Boxer', 'Club', 'Weight Category', 'Age Category', 'Gender', 'Bouts', 'Weigh-in', 'Status']
     const rows = reportData.map((r) => [
-      r.Boxer,
-      r.Club,
-      r.Category,
-      String(r.Bouts),
-      r['Weigh-in'],
-      r.Status,
+      r.boxer,
+      r.club,
+      r.weightCategory,
+      r.ageCategory,
+      r.gender,
+      String(r.bouts),
+      r.weighIn,
+      r.status,
     ])
 
     autoTable(doc, {
-      startY: 40,
+      startY: 54,
       head: [headers],
       body: rows,
       theme: 'grid',
+      margin: { left: 14, right: 14, bottom: 16 },
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: { top: 2.4, bottom: 2.4, left: 2.5, right: 2.5 },
+        lineColor: [226, 232, 240],
+        lineWidth: 0.15,
+        textColor: NAVY,
+        valign: 'middle',
+      },
       headStyles: {
-        fill: [['4f46e5', '7c3aed', 'ec4899', 'f472b6', 'fb923c', 'fbbf24']],
+        fillColor: BLUE,
         textColor: 255,
         fontStyle: 'bold',
+        fontSize: 8,
       },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      // Widths must add up to the usable width (297 - 14 - 14 = 269 mm) so the
+      // table never spills off the right edge on landscape A4.
       columnStyles: {
-        0: { cellWidth: 120 },
-        1: { cellWidth: 100 },
-        2: { cellWidth: 130 },
-        3: { cellWidth: 60 },
-        4: { cellWidth: 80 },
-        5: { cellWidth: 100 },
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 44 },
+        2: { cellWidth: 56 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 14, halign: 'center' },
+        6: { cellWidth: 26, halign: 'right' },
+        7: { cellWidth: 33 },
+      },
+      didParseCell: (data) => {
+        if (data.section !== 'body' || data.column.index !== 7) return
+        const value = String(data.cell.raw || '')
+        if (/completed|eligible|approved|cleared/i.test(value)) {
+          data.cell.styles.textColor = GREEN
+          data.cell.styles.fontStyle = 'bold'
+        } else if (/pending|registered|awaiting/i.test(value)) {
+          data.cell.styles.textColor = AMBER
+          data.cell.styles.fontStyle = 'bold'
+        }
+      },
+      didDrawPage: () => {
+        doc.setFillColor(...NAVY)
+        doc.rect(0, pageH - 10, pageW, 10, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        doc.text('BodyMax Boxing Events', 14, pageH - 3.8)
+        doc.text(
+          `Page ${doc.internal.getNumberOfPages()}`,
+          pageW - 14,
+          pageH - 3.8,
+          { align: 'right' }
+        )
       },
     })
 
-    // Download
-    doc.save(`boxer-report-${event?.name?.replace(/\s+/g, '-') || 'event'}-${new Date().toISOString().slice(0, 10)}.pdf`)
-    toast(`${total} boxers exported to PDF`, 'success')
+    doc.save(`boxer-report-${event?.name?.replace(/[^\w-]+/g, '-') || 'event'}-${new Date().toISOString().slice(0, 10)}.pdf`)
+    toast(`${total} boxer${total === 1 ? '' : 's'} exported to PDF`, 'success')
   }
 
   const createClub = async (e) => {
@@ -1265,9 +1424,9 @@ export default function EventDetail() {
                 className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
               >
                 <option value="all">All weights</option>
-                {eventWeightClasses.length
-                  ? eventWeightClasses.map((c, i) => <option key={c.name} value={eventWeightLabels[i]}>{eventWeightLabels[i]}</option>)
-                  : null}
+                {weightMeta.options.map((w) => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
               </select>
               <select
                 value={ageFilter}
@@ -1286,7 +1445,10 @@ export default function EventDetail() {
               >
                 <option value="all">All statuses</option>
                 <option value="registered">Registered</option>
+                <option value="pending_approval">Pending approval</option>
+                <option value="needs_correction">Needs correction</option>
                 <option value="approved">Approved</option>
+                <option value="awaiting_weighin">Awaiting weigh-in</option>
                 <option value="weighed">Weighed</option>
                 <option value="eligible">Eligible</option>
                 <option value="completed">Completed</option>
@@ -1356,9 +1518,9 @@ export default function EventDetail() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex flex-wrap gap-1">
-                            {r.category?.weight && <Badge tone="blue" className="text-[10px]">{r.category.weight}</Badge>}
+                            {regWeight(r) && <Badge tone="blue" className="text-[10px]">{regWeight(r)}</Badge>}
                             {r.category?.age && <Badge tone="slate" className="text-[10px]">{r.category.age}</Badge>}
-                            {!r.category?.weight && !r.category?.age && <span className="text-xs text-slate-400">—</span>}
+                            {!regWeight(r) && !r.category?.age && <span className="text-xs text-slate-400">—</span>}
                           </div>
                         </td>
                         <td className="px-5 py-3">
