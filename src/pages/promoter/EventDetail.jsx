@@ -543,20 +543,11 @@ export default function EventDetail() {
     }
 
     const reportData = filteredRegs.map((r) => {
-      const official = Number(r.weighIn?.officialWeightKg)
-      const weighIn = Number.isFinite(official) && official > 0
-        ? `${official} kg`
-        : r.weighIn?.status === 'successful'
-          ? 'Cleared'
-          : 'Pending'
       return {
         boxer: r.boxerId?.fullName || 'Boxer',
         club: r.boxerId?.clubName || r.clubName || 'Unattached',
         weightCategory: regWeight(r) || 'Unassigned',
-        ageCategory: String(r.category?.age || '').trim() || '—',
         gender: normalizeGender(r.boxerId?.gender) || normalizeGender(r.category?.gender) || '—',
-        bouts: r.numberOfBouts || 1,
-        weighIn,
         status: humanStatus(r.status),
       }
     })
@@ -608,17 +599,15 @@ export default function EventDetail() {
     const total = reportData.length
     const maleCount = reportData.filter((r) => r.gender === 'Male').length
     const femaleCount = reportData.filter((r) => r.gender === 'Female').length
-    const weighedCountLocal = reportData.filter((r) => r.weighIn.endsWith('kg') || r.weighIn === 'Cleared').length
     const categoryCount = new Set(reportData.map((r) => r.weightCategory)).size
 
     const chips = [
       ['Total boxers', String(total)],
       ['Male', String(maleCount)],
       ['Female', String(femaleCount)],
-      ['Weighed in', String(weighedCountLocal)],
       ['Weight categories', String(categoryCount)],
     ]
-    const chipW = (pageW - 28 - 4 * 4) / 5
+    const chipW = (pageW - 28 - 3 * 4) / 4
     chips.forEach(([label, value], i) => {
       const x = 14 + i * (chipW + 4)
       doc.setFillColor(...LIGHT)
@@ -633,15 +622,12 @@ export default function EventDetail() {
     })
 
     // Table
-    const headers = ['Boxer', 'Club', 'Weight Category', 'Age Category', 'Gender', 'Bouts', 'Weigh-in', 'Status']
+    const headers = ['Boxer', 'Club', 'Weight Category', 'Gender', 'Status']
     const rows = reportData.map((r) => [
       r.boxer,
       r.club,
       r.weightCategory,
-      r.ageCategory,
       r.gender,
-      String(r.bouts),
-      r.weighIn,
       r.status,
     ])
 
@@ -670,17 +656,14 @@ export default function EventDetail() {
       // Widths must add up to the usable width (297 - 14 - 14 = 269 mm) so the
       // table never spills off the right edge on landscape A4.
       columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold' },
-        1: { cellWidth: 44 },
-        2: { cellWidth: 56 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 14, halign: 'center' },
-        6: { cellWidth: 26, halign: 'right' },
-        7: { cellWidth: 33 },
+        0: { cellWidth: 92, fontStyle: 'bold' },
+        1: { cellWidth: 68 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 29 },
       },
       didParseCell: (data) => {
-        if (data.section !== 'body' || data.column.index !== 7) return
+        if (data.section !== 'body' || data.column.index !== 4) return
         const value = String(data.cell.raw || '')
         if (/completed|eligible|approved|cleared/i.test(value)) {
           data.cell.styles.textColor = GREEN
