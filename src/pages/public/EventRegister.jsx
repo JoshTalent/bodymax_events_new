@@ -229,7 +229,8 @@ export default function EventRegister() {
     )
   }
 
-  const closed = !event.registrationOpen || ['closed', 'completed', 'archived'].includes(event.status)
+  const deadlinePassed = event.registrationDeadline && new Date(event.registrationDeadline) < new Date()
+  const closed = !event.registrationOpen || deadlinePassed || ['closed', 'completed', 'archived'].includes(event.status)
   const noApprovedClubs = !closed && !(event.clubs || []).length
 
   const submitText = saving ? t.submitting : t.submit(boxers.length)
