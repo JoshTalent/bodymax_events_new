@@ -30,6 +30,8 @@ function flagOf(code = '') {
 export default function ProBoxersAdmin() {
   const { toast } = useToast()
   const [boxers, setBoxers] = useState(null)
+  const [events, setEvents] = useState(null)
+  const [eventId, setEventId] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ ...emptyProBoxerForm })
@@ -41,8 +43,12 @@ export default function ProBoxersAdmin() {
 
   const load = async () => {
     try {
-      const d = await api('/boxers?boxerType=professional')
-      setBoxers(d.boxers || [])
+      const [b, e] = await Promise.all([
+        api('/boxers?boxerType=professional'),
+        api('/events?eventType=professional'),
+      ])
+      setBoxers(b.boxers || [])
+      setEvents(e.events || [])
     } catch (err) {
       toast(err.message, 'error')
     }
@@ -55,6 +61,7 @@ export default function ProBoxersAdmin() {
   const openCreate = () => {
     setEditing(null)
     setForm({ ...emptyProBoxerForm })
+    setEventId('')
     setModalOpen(true)
   }
 
@@ -76,6 +83,10 @@ export default function ProBoxersAdmin() {
       if (editing) {
         await api(`/boxers?id=${editing._id}`, { method: 'PUT', body: payload })
         toast('Professional boxer updated')
+      } else if (eventId) {
+        // Register the new professional boxer straight into a fight-night card.
+        await api('/pro-roster', { method: 'POST', body: { eventId, boxer: payload } })
+        toast('Professional boxer added to the fight night')
       } else {
         await api('/boxers', { method: 'POST', body: payload })
         toast('Professional boxer added')
@@ -348,6 +359,24 @@ export default function ProBoxersAdmin() {
         }
       >
         <form onSubmit={handleSave}>
+          {!editing && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Register to a fight night</p>
+              <Select
+                label="Professional event"
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+              >
+                <option value="">— Global professional roster only, not assigned to a fight night —</option>
+                {(events || []).map((ev) => (
+                  <option key={ev._id} value={ev._id}>{ev.name}</option>
+                ))}
+              </Select>
+              <p className="mt-2 text-[11px] text-slate-500">
+                When you pick an event the boxer is registered straight into that professional fight card. Without an event they stay in the global professional roster only.
+              </p>
+            </div>
+          )}
           <ProBoxerFields form={form} setForm={setForm} />
         </form>
       </Modal>
