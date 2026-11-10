@@ -2,6 +2,8 @@ import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
+// Imported so the Club model is registered for populating event.clubIds.
+import Club from './_shared/models/Club.js'
 import { success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 import { getTransport, getFrom, getReplyTo } from './_shared/mailer.js'
