@@ -1216,7 +1216,7 @@ export default function EventDetail() {
                 </div>
               </div>
               <p className="mt-2 text-[11px] text-slate-400">
-                Anyone with this link can submit boxers. You review and approve every entry from the Approvals tab.
+                Only clubs added in the <span className="font-semibold text-slate-500">Clubs</span> tab can register boxers through this link. Unassigned clubs are blocked. You review and approve every entry from the Approvals tab.
               </p>
             </Panel>
             )}
