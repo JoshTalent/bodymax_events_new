@@ -12,9 +12,17 @@ export default async (event) => {
     const { id } = params
 
     if (id) {
-      const ev = await Event.findOne({ _id: id, public: true }).lean()
+      const ev = await Event.findOne({ _id: id, public: true })
       if (!ev) return errorResponse({ message: 'Event not found', status: 404 })
-      return success({ event: ev })
+      // Legacy professional events may still be stored as amateur. Promote them
+      // once so the public page uses the fight-night layout.
+      const hasProData = ev.pro && (ev.pro.promotionName || ev.pro.seriesName || ev.pro.sanctioningBody)
+      if (ev.eventType !== 'professional' && hasProData) {
+        ev.eventType = 'professional'
+        ev.registrationOpen = false
+        await ev.save()
+      }
+      return success({ event: ev.toObject() })
     }
 
     const events = await Event.find({ public: true })
