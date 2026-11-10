@@ -733,7 +733,7 @@ export default function Draws() {
   const [rulesOpen, setRulesOpen] = useState(false)
   const [rules, setRules] = useState(() => loadRules(id))
   const [autoBusy, setAutoBusy] = useState(false)
-  const [proTitleFight, setProTitleFight] = useState(true)
+  const [proTitleFight, setProTitleFight] = useState(false)
   const [proTitleName, setProTitleName] = useState('')
   const [proSanctioningBody, setProSanctioningBody] = useState('')
 
@@ -1023,9 +1023,9 @@ export default function Draws() {
         minutesPerRound: p.minutes === '' || p.minutes === undefined || p.minutes === null ? null : Number(p.minutes),
         boutType: isPro ? (idx === 0 ? 'main_event' : idx === 1 ? 'co_main' : 'undercard') : (p.boutType || ''),
         billingOrder: isPro ? idx + 1 : Number(p.billingOrder) || 0,
-        titleFight: isPro ? Boolean(p.titleFight) : Boolean(p.titleFight),
-        titleName: isPro ? (p.titleName || 'Undisputed Championship') : (p.titleName || ''),
-        sanctioningBody: isPro ? (p.sanctioningBody || '') : (p.sanctioningBody || ''),
+        titleFight: isPro ? Boolean(proTitleFight && idx === 0) : Boolean(p.titleFight),
+        titleName: isPro ? (proTitleFight && idx === 0 ? (proTitleName || 'Undisputed Championship') : '') : (p.titleName || ''),
+        sanctioningBody: isPro ? (proTitleFight && idx === 0 ? (proSanctioningBody || '') : '') : (p.sanctioningBody || ''),
         division: isPro ? (p.division || p.category?.weight || '') : (p.division || ''),
         contractWeightKg: isPro ? (p.contractWeightKg ?? null) : (p.contractWeightKg ?? null),
         commissionApproved: isPro ? Boolean(p.commissionApproved) : Boolean(p.commissionApproved),

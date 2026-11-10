@@ -29,7 +29,7 @@ const RegistrationSchema = new mongoose.Schema(
 
     entryType: { type: String, enum: ['amateur', 'professional'], default: 'amateur' },
     proEntry: {
-      corner: { type: String, enum: ['red', 'blue'], default: 'red' },
+      corner: { type: String, enum: ['red', 'blue', 'neutral'], default: 'red' },
       contractedWeightKg: { type: Number, default: null },
       division: { type: String, default: '' },
       scheduledRounds: { type: Number, default: null },

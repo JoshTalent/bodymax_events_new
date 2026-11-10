@@ -40,9 +40,11 @@ export default async (event) => {
             _id: b.boxerAId.boxerId?._id || b.boxerAId._id,
             fullName: b.boxerAId.boxerId?.fullName || b.boxerAId.fullName,
             ringName: b.boxerAId.boxerId?.professional?.ringName,
-            country: b.boxerAId.boxerId?.professional?.country,
-            record: b.boxerAId.boxerId?.record,
-            photoUrl: b.boxerAId.boxerId?.professional?.photos?.headshotUrl,
+            country: b.boxerAId.boxerId?.professional?.country || b.boxerAId.boxerId?.nationality,
+            record: b.boxerAId.boxerId?.professional?.record || b.boxerAId.boxerId?.record,
+            photoUrl: b.boxerAId.boxerId?.professional?.photos?.headshotUrl || b.boxerAId.boxerId?.photoUrl,
+            countryFlagUrl: b.boxerAId.boxerId?.professional?.photos?.countryFlagUrl,
+            countryCode: b.boxerAId.boxerId?.professional?.countryCode,
           }
         : null,
       boxerB: b.boxerBId
@@ -50,9 +52,11 @@ export default async (event) => {
             _id: b.boxerBId.boxerId?._id || b.boxerBId._id,
             fullName: b.boxerBId.boxerId?.fullName || b.boxerBId.fullName,
             ringName: b.boxerBId.boxerId?.professional?.ringName,
-            country: b.boxerBId.boxerId?.professional?.country,
-            record: b.boxerBId.boxerId?.record,
-            photoUrl: b.boxerBId.boxerId?.professional?.photos?.headshotUrl,
+            country: b.boxerBId.boxerId?.professional?.country || b.boxerBId.boxerId?.nationality,
+            record: b.boxerBId.boxerId?.professional?.record || b.boxerBId.boxerId?.record,
+            photoUrl: b.boxerBId.boxerId?.professional?.photos?.headshotUrl || b.boxerBId.boxerId?.photoUrl,
+            countryFlagUrl: b.boxerBId.boxerId?.professional?.photos?.countryFlagUrl,
+            countryCode: b.boxerBId.boxerId?.professional?.countryCode,
           }
         : null,
       winner: b.winnerId

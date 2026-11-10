@@ -15,6 +15,7 @@ import { StatCard } from '../../components/StatCard.jsx'
 import { Icon } from '../../components/Icons.jsx'
 import { DonutChart, BarList, RadialProgress } from '../../components/Charts.jsx'
 import { cn } from '../../utils/cn.js'
+import ProEventCockpit from './ProEventCockpit.jsx'
 import {
   normalizeWeightClasses,
   validateWeightClasses,
@@ -265,7 +266,6 @@ export default function EventDetail() {
   const eligibleCount = regs.filter((r) => ['eligible', 'completed'].includes(r.status)).length
   const weighedCount = regs.filter((r) => r.weighIn?.status === 'successful').length
   const boutCount = bouts ? bouts.length : 0
-const titleBouts = (bouts || []).filter((b) => b.titleFight).length
   const countdown = event ? daysUntil(event.eventDate) : null
 
   const clubGroups = useMemo(() => {
@@ -885,13 +885,19 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
   if (!event) return <Loading />
   if (!registrations) return <Loading />
 
+  // Professional fight nights get a completely separate, promoter-managed
+  // cockpit: roster built by the manager, manual fight card, no registrations.
+  if (isPro) {
+    return <ProEventCockpit event={event} canManage={canManage} />
+  }
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'grid' },
     ...(canManage && !isPro ? [{ id: 'clubs', label: 'Clubs', icon: 'clubs', count: clubGroups.length }] : []),
     ...(canManage ? [{ id: 'boxers', label: isPro ? 'Pro Roster' : 'Boxers', icon: 'boxers', count: regs.length }] : []),
     ...(canManage && isPro ? [{ id: 'fightcard', label: 'Fight Card', icon: 'trophy' }] : []),
     ...(isPro ? [] : [{ id: 'registrations', label: 'Approvals', icon: 'checkCircle', count: pendingCount || undefined, attention: pendingCount > 0 }]),
-    ...(isPro ? [] : [{ id: 'weighins', label: 'Weigh-In', icon: 'scale', count: `${weighedCount}/${regs.length}` }]),
+    { id: 'weighins', label: 'Weigh-In', icon: 'scale', count: `${weighedCount}/${regs.length}` },
     ...(canManage ? [{ id: 'portals', label: 'Portals', icon: 'shield' }] : []),
   ]
 
@@ -1011,43 +1017,18 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
 
           {/* Inline health strip */}
           <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {isPro ? (
-              <>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Pro fighters</p>
-                  <p className="mt-1 text-xl font-black leading-none text-white">{regs.length}</p>
-                  <p className="mt-1 truncate text-[10px] font-medium text-slate-400">Managed roster</p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Bouts on card</p>
-                  <p className="mt-1 text-xl font-black leading-none text-white">{boutCount}</p>
-                  <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{boutCount} scheduled</p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Titles on the line</p>
-                  <p className="mt-1 text-xl font-black leading-none text-white">{titleBouts}</p>
-                  <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{event.pro?.sanctioningBody || 'Sanctioning body TBD'}</p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Broadcast</p>
-                  <p className="mt-1 text-xl font-black leading-none text-white">{event.pro?.broadcast?.network || '—'}</p>
-                  <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{event.pro?.broadcast?.payPerView ? 'Pay-per-view' : 'Streaming'}</p>
-                </div>
-              </>
-            ) : (
-              [
-                { label: 'Entries', value: regs.length, hint: `${pendingCount} awaiting review` },
-                { label: 'Clubs', value: clubGroups.length, hint: `${assignedClubs.length} officially assigned` },
-                { label: 'Weigh-in', value: `${weighPct}%`, hint: `${weighedCount} of ${regs.length} complete` },
-                { label: 'Bouts drawn', value: boutCount, hint: 'Current fight card' },
-              ].map((s) => (
-                <div key={s.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{s.label}</p>
-                  <p className="mt-1 text-xl font-black leading-none text-white">{s.value}</p>
-                  <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{s.hint}</p>
-                </div>
-              ))
-            )}
+            {[
+              { label: 'Entries', value: regs.length, hint: `${pendingCount} awaiting review` },
+              { label: 'Clubs', value: clubGroups.length, hint: `${assignedClubs.length} officially assigned` },
+              { label: 'Weigh-in', value: `${weighPct}%`, hint: `${weighedCount} of ${regs.length} complete` },
+              { label: 'Bouts drawn', value: boutCount, hint: 'Current fight card' },
+            ].map((s) => (
+              <div key={s.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 backdrop-blur-sm">
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{s.label}</p>
+                <p className="mt-1 text-xl font-black leading-none text-white">{s.value}</p>
+                <p className="mt-1 truncate text-[10px] font-medium text-slate-400">{s.hint}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1089,131 +1070,71 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
         <div className="grid gap-4 xl:grid-cols-3">
           <div className="space-y-4 xl:col-span-2">
             <div className="grid gap-4 md:grid-cols-3">
-              {isPro ? (
-                <>
-                  <StatCard
-                    label="Professional roster"
-                    value={regs.length}
-                    sub="Promoter-managed fighters"
-                    icon={<Icon name="users" className="h-5 w-5" />}
-                    tone="brand"
-                  />
-                  <StatCard
-                    label="Bouts scheduled"
-                    value={boutCount}
-                    sub="On the fight card"
-                    icon={<Icon name="trophy" className="h-5 w-5" />}
-                    tone="violet"
-                  />
-                  <StatCard
-                    label="Titles on the line"
-                    value={titleBouts}
-                    sub={event.pro?.sanctioningBody || 'Sanctioning body TBD'}
-                    icon={<Icon name="medal" className="h-5 w-5" />}
-                    tone="amber"
-                  />
-                </>
-              ) : (
-                <>
-                  <StatCard
-                    label="Total entries"
-                    value={regs.length}
-                    sub={pendingCount ? `${pendingCount} pending approval` : 'All reviewed'}
-                    icon={<Icon name="registrations" className="h-5 w-5" />}
-                    tone="brand"
-                  />
-                  <StatCard
-                    label="Cleared to compete"
-                    value={eligibleCount}
-                    sub={`${approvalPct}% of entries processed`}
-                    icon={<Icon name="checkCircle" className="h-5 w-5" />}
-                    tone="emerald"
-                  />
-                  <StatCard
-                    label="Weigh-in complete"
-                    value={`${weighedCount}/${regs.length}`}
-                    sub={`${weighPct}% of the roster`}
-                    icon={<Icon name="scale" className="h-5 w-5" />}
-                    tone="violet"
-                  />
-                </>
-              )}
+              <StatCard
+                label="Total entries"
+                value={regs.length}
+                sub={pendingCount ? `${pendingCount} pending approval` : 'All reviewed'}
+                icon={<Icon name="registrations" className="h-5 w-5" />}
+                tone="brand"
+              />
+              <StatCard
+                label="Cleared to compete"
+                value={eligibleCount}
+                sub={`${approvalPct}% of entries processed`}
+                icon={<Icon name="checkCircle" className="h-5 w-5" />}
+                tone="emerald"
+              />
+              <StatCard
+                label="Weigh-in complete"
+                value={`${weighedCount}/${regs.length}`}
+                sub={`${weighPct}% of the roster`}
+                icon={<Icon name="scale" className="h-5 w-5" />}
+                tone="violet"
+              />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-5">
-              {isPro ? (
-                <>
-                  <Panel className="lg:col-span-3" title="Fight card placement" subtitle="Main event, co-main and undercard positioning" bodyClassName="px-5 py-5">
-                    <div className="space-y-3">
-                      {(bouts || []).length === 0 && <p className="text-xs text-slate-400">No bouts on the card yet — open the Fight Card tab to build the pairings.</p>}
-                      {[...(bouts || [])]
-                        .sort((a, b) => (a.billingOrder || 0) - (b.billingOrder || 0) || a.boutNumber - b.boutNumber)
-                        .map((b) => (
-                          <div key={b._id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                            <p className="text-xs font-black text-slate-900">Bout #{b.boutNumber}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                              {b.boutType === 'main_event' ? 'Main event' : b.boutType === 'co_main' ? 'Co-main' : b.boutType === 'undercard' ? 'Undercard' : 'Bout'}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  </Panel>
-                  <Panel className="lg:col-span-2" title="Fight night logistics" subtitle="Promotion, broadcast and capacity" bodyClassName="px-5 py-5">
-                    <div className="space-y-3 text-sm">
-                      <DetailRow label="Promotion" value={event.pro?.promotionName || '—'} icon="shield" />
-                      <DetailRow label="Series" value={event.pro?.seriesName || '—'} icon="calendar" />
-                      <DetailRow label="Event #" value={event.pro?.eventNumber ?? ''} icon="trophy" />
-                      <DetailRow label="Doors open" value={event.pro?.doorsOpen || '—'} icon="clock" />
-                      <DetailRow label="First bell" value={event.pro?.firstBell || '—'} icon="activity" />
-                      <DetailRow label="Capacity" value={event.pro?.capacity ?? ''} icon="users" />
-                    </div>
-                  </Panel>
-                </>
-              ) : (
-                <>
-                  <Panel className="lg:col-span-3" title="Entry pipeline" subtitle="Where every boxer currently sits" bodyClassName="px-5 py-5">
-                    <div className="flex flex-wrap items-center gap-6">
-                      <DonutChart data={statusBuckets} centerLabel="Entries" centerValue={regs.length} size={164} thickness={15} />
-                      <div className="min-w-[180px] flex-1 space-y-2.5">
-                        {statusBuckets.length === 0 && <p className="text-xs text-slate-400">No entries yet.</p>}
-                        {statusBuckets.map((b) => (
-                          <div key={b.label} className="flex items-center gap-2.5">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: b.color }} />
-                            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">{b.label}</span>
-                            <span className="text-xs font-black text-slate-900">{b.value}</span>
-                          </div>
-                        ))}
-                        <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
-                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                            <span>Approval progress</span>
-                            <span>{approvalPct}%</span>
-                          </div>
-                          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                            <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-indigo-500 transition-all duration-700" style={{ width: `${approvalPct}%` }} />
-                          </div>
-                        </div>
+              <Panel className="lg:col-span-3" title="Entry pipeline" subtitle="Where every boxer currently sits" bodyClassName="px-5 py-5">
+                <div className="flex flex-wrap items-center gap-6">
+                  <DonutChart data={statusBuckets} centerLabel="Entries" centerValue={regs.length} size={164} thickness={15} />
+                  <div className="min-w-[180px] flex-1 space-y-2.5">
+                    {statusBuckets.length === 0 && <p className="text-xs text-slate-400">No entries yet.</p>}
+                    {statusBuckets.map((b) => (
+                      <div key={b.label} className="flex items-center gap-2.5">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: b.color }} />
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">{b.label}</span>
+                        <span className="text-xs font-black text-slate-900">{b.value}</span>
+                      </div>
+                    ))}
+                    <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
+                        <span>Approval progress</span>
+                        <span>{approvalPct}%</span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-indigo-500 transition-all duration-700" style={{ width: `${approvalPct}%` }} />
                       </div>
                     </div>
-                  </Panel>
+                  </div>
+                </div>
+              </Panel>
 
-                  <Panel className="lg:col-span-2" title="Operations readiness" subtitle="Live event checklist">
-                    <div className="flex items-center justify-around gap-2">
-                      <RadialProgress value={weighPct} label="weighed" size={116} stroke={10} color="#7c3aed" />
-                      <RadialProgress value={approvalPct} label="cleared" size={116} stroke={10} color="#059669" />
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
-                        <p className="text-lg font-black text-slate-900">{genderSplit.male}</p>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Male</p>
-                      </div>
-                      <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
-                        <p className="text-lg font-black text-slate-900">{genderSplit.female}</p>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Female</p>
-                      </div>
-                    </div>
-                  </Panel>
-                </>
-              )}
+              <Panel className="lg:col-span-2" title="Operations readiness" subtitle="Live event checklist">
+                <div className="flex items-center justify-around gap-2">
+                  <RadialProgress value={weighPct} label="weighed" size={116} stroke={10} color="#7c3aed" />
+                  <RadialProgress value={approvalPct} label="cleared" size={116} stroke={10} color="#059669" />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
+                    <p className="text-lg font-black text-slate-900">{genderSplit.male}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Male</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
+                    <p className="text-lg font-black text-slate-900">{genderSplit.female}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Female</p>
+                  </div>
+                </div>
+              </Panel>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -1222,14 +1143,8 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
                   <DetailRow label="Event date" value={fmtDate(event.eventDate)} icon="calendar" />
                   <DetailRow label="Venue" value={event.venue} icon="flag" />
                   <DetailRow label="Location" value={event.location} icon="globe" />
-                  {isPro && <DetailRow label="Promotion" value={event.pro?.promotionName || '—'} icon="shield" />}
-                  {isPro && <DetailRow label="Series" value={event.pro?.seriesName || '—'} icon="calendar" />}
-                  {isPro && <DetailRow label="Event #" value={event.pro?.eventNumber ?? ''} icon="trophy" />}
-                  {isPro && <DetailRow label="Doors open" value={event.pro?.doorsOpen || '—'} icon="clock" />}
-                  {isPro && <DetailRow label="First bell" value={event.pro?.firstBell || '—'} icon="activity" />}
-                  {isPro && <DetailRow label="Capacity" value={event.pro?.capacity ?? ''} icon="users" />}
-                  {!isPro && <DetailRow label="Weigh-in" value={fmtDate(event.weighInDate)} icon="scale" />}
-                  {!isPro && <DetailRow label="Registration deadline" value={fmtDate(event.registrationDeadline)} icon="clock" />}
+                  <DetailRow label="Weigh-in" value={fmtDate(event.weighInDate)} icon="scale" />
+                  <DetailRow label="Registration deadline" value={fmtDate(event.registrationDeadline)} icon="clock" />
                 </dl>
               </Panel>
 
@@ -1252,37 +1167,18 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
                     </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {isPro ? (
-                      <>
-                        <div className={cn('rounded-xl border px-3 py-2', event.pro?.broadcast?.payPerView ? 'border-rose-100 bg-rose-50/60' : 'border-slate-200 bg-slate-50')}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Broadcast</p>
-                          <p className={cn('mt-0.5 text-sm font-bold', event.pro?.broadcast?.payPerView ? 'text-rose-700' : 'text-slate-600')}>
-                            {event.pro?.broadcast?.network || '—'} · {event.pro?.broadcast?.payPerView ? 'Pay-per-view' : 'Streaming'}
-                          </p>
-                        </div>
-                        <div className={cn('rounded-xl border px-3 py-2', event.pro?.ticketing?.url ? 'border-amber-100 bg-amber-50/60' : 'border-slate-200 bg-slate-50')}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tickets</p>
-                          <p className={cn('mt-0.5 text-sm font-bold', event.pro?.ticketing?.url ? 'text-amber-700' : 'text-slate-600')}>
-                            {event.pro?.ticketing?.url ? 'Ticketing link configured' : 'Not configured'}
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className={cn('rounded-xl border px-3 py-2', event.requireWeighIn ? 'border-blue-100 bg-blue-50/60' : 'border-slate-200 bg-slate-50')}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Weigh-in</p>
-                          <p className={cn('mt-0.5 text-sm font-bold', event.requireWeighIn ? 'text-blue-700' : 'text-slate-600')}>
-                            {event.requireWeighIn ? 'Required' : 'Not required'}
-                          </p>
-                        </div>
-                        <div className={cn('rounded-xl border px-3 py-2', event.public ? 'border-emerald-100 bg-emerald-50/60' : 'border-slate-200 bg-slate-50')}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Public listing</p>
-                          <p className={cn('mt-0.5 text-sm font-bold', event.public ? 'text-emerald-700' : 'text-slate-600')}>
-                            {event.public ? 'Visible' : 'Hidden'}
-                          </p>
-                        </div>
-                      </>
-                    )}
+                    <div className={cn('rounded-xl border px-3 py-2', event.requireWeighIn ? 'border-blue-100 bg-blue-50/60' : 'border-slate-200 bg-slate-50')}>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Weigh-in</p>
+                      <p className={cn('mt-0.5 text-sm font-bold', event.requireWeighIn ? 'text-blue-700' : 'text-slate-600')}>
+                        {event.requireWeighIn ? 'Required' : 'Not required'}
+                      </p>
+                    </div>
+                    <div className={cn('rounded-xl border px-3 py-2', event.public ? 'border-emerald-100 bg-emerald-50/60' : 'border-slate-200 bg-slate-50')}>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Public listing</p>
+                      <p className={cn('mt-0.5 text-sm font-bold', event.public ? 'text-emerald-700' : 'text-slate-600')}>
+                        {event.public ? 'Visible' : 'Hidden'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </Panel>
@@ -1322,7 +1218,7 @@ const titleBouts = (bouts || []).filter((b) => b.titleFight).length
             )}
 
             {event.rules && (
-              <Panel title="Rules & requirements" subtitle={isPro ? 'Official fight night rules' : 'Shared with registered clubs'}>
+              <Panel title="Rules & requirements" subtitle="Shared with registered clubs">
                 <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{event.rules}</p>
                 {event.registrationRequirements && (
                   <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">

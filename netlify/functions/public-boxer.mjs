@@ -19,8 +19,18 @@ export default async (event) => {
       return errorResponse({ message: 'Professional boxer not found', status: 404 })
     }
 
-    // Public-safe only: drop medicals, licence docs, insurance, purse, emergency contact, notes.
-    const { medicals, insurance, emergencyContact, notes, ...publicBoxer } = boxer
+    // Public-safe only: drop medicals, licence docs, insurance, emergency contact, notes.
+    // These live inside the professional subdocument, so strip them there too.
+    const professional = boxer.professional ? { ...boxer.professional } : boxer.professional
+    if (professional) {
+      delete professional.medicals
+      delete professional.insurance
+      delete professional.license
+      delete professional.emergencyContact
+      delete professional.notes
+    }
+    const { notes, ...publicBoxer } = boxer
+    publicBoxer.professional = professional
 
     const regs = await Registration.find({ boxerId: id }).lean()
     const eventIds = [...new Set(regs.map((r) => String(r.eventId)))]

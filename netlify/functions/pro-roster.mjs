@@ -21,7 +21,7 @@ export default async (event) => {
       const { eventId } = params
       if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
       const entries = await Registration.find({ eventId, entryType: 'professional' })
-        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts photos.rankings titles promoters manager trainer license insurance socials emergencyContact medicals amateurBackground')
+        .populate('boxerId')
         .sort({ createdAt: -1 })
         .lean()
       return success({ entries })
@@ -52,6 +52,10 @@ export default async (event) => {
           weightCategory: boxer.weightCategory || category.weight || '',
           ageCategory: boxer.ageCategory || '',
           experience: boxer.experience || '',
+          nationality: boxer.nationality || boxer.professional?.nationality || '',
+          photoUrl: boxer.photoUrl || boxer.professional?.photos?.headshotUrl || '',
+          slug: boxer.slug || boxer.professional?.slug || '',
+          notes: boxer.notes || '',
           professional: {
             ringName: boxer.professional?.ringName || boxer.ringName || '',
             nickname: boxer.professional?.nickname || boxer.nickname || '',
@@ -142,9 +146,44 @@ export default async (event) => {
       })
 
       const populated = await Registration.findById(registration._id)
-        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts photos.rankings titles promoters manager trainer license insurance socials emergencyContact medicals amateurBackground')
+        .populate('boxerId')
         .lean()
       return success({ registration: populated }, 201)
+    }
+
+    if (method === 'PUT' || method === 'PATCH') {
+      if (user.role !== 'promoter') {
+        return errorResponse({ message: 'Only promoters can manage professional entries', status: 403 })
+      }
+      const { id } = params
+      if (!id) return errorResponse({ message: 'Registration id is required', status: 400 })
+
+      const body = JSON.parse(event.body || '{}')
+      const reg = await Registration.findById(id)
+      if (!reg) return errorResponse({ message: 'Registration not found', status: 404 })
+
+      const update = {}
+      if (body.proEntry && typeof body.proEntry === 'object') {
+        const fields = [
+          'corner', 'billing', 'billingOrder', 'contractedWeightKg', 'division', 'scheduledRounds',
+          'promoterForEvent', 'managerForEvent', 'contractSigned', 'licenseVerified', 'medicalsVerified',
+          'arrivalDate', 'walkoutMusic', 'colors', 'teamPasses', 'titleOnLine', 'titleName',
+          'sanctioningBody', 'status',
+        ]
+        for (const k of fields) {
+          if (body.proEntry[k] !== undefined) update[`proEntry.${k}`] = body.proEntry[k]
+        }
+      }
+      if (body.category && typeof body.category === 'object') {
+        for (const k of ['weight', 'age', 'gender']) {
+          if (body.category[k] !== undefined) update[`category.${k}`] = body.category[k]
+        }
+      }
+
+      const updated = await Registration.findByIdAndUpdate(id, { $set: update }, { new: true })
+        .populate('boxerId')
+        .lean()
+      return success({ registration: updated })
     }
 
     if (method === 'DELETE') {
