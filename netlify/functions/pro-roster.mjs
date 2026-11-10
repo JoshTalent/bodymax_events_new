@@ -36,8 +36,13 @@ export default async (event) => {
       if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
       const evt = await Event.findOne({ _id: eventId }).lean()
       if (!evt) return errorResponse({ message: 'Event not found', status: 404 })
-      if (evt.eventType && evt.eventType !== 'professional') {
+      const hasProData = evt.pro && (evt.pro.promotionName || evt.pro.seriesName || evt.pro.sanctioningBody)
+      if (evt.eventType !== 'professional' && !hasProData) {
         return errorResponse({ message: 'This event is not a professional fight night', status: 400 })
+      }
+      // Upgrade legacy pro events the first time a roster entry is added.
+      if (evt.eventType !== 'professional') {
+        await Event.updateOne({ _id: eventId }, { $set: { eventType: 'professional', registrationOpen: false } })
       }
 
       let resolvedBoxerId = boxerId

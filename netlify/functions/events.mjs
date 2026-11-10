@@ -30,6 +30,15 @@ export default async (event) => {
       if (!ev) {
         return errorResponse({ message: 'Event not found', status: 404 })
       }
+      // Legacy events created before event types existed can carry a populated
+      // professional block while still being stored as amateur. Promote them
+      // once so the professional cockpit and roster work on those events.
+      const hasProData = ev.pro && (ev.pro.promotionName || ev.pro.seriesName || ev.pro.sanctioningBody)
+      if (ev.eventType !== 'professional' && hasProData) {
+        ev.eventType = 'professional'
+        ev.registrationOpen = false
+        await ev.save()
+      }
       if (!ev.registrationToken) {
         ev.registrationToken = undefined
         await ev.save()

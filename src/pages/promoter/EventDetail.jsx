@@ -134,6 +134,7 @@ export default function EventDetail() {
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
+    eventType: 'amateur',
     venue: '',
     location: '',
     eventDate: '',
@@ -429,6 +430,7 @@ export default function EventDetail() {
     setEditForm({
       name: event.name || '',
       description: event.description || '',
+      eventType: event.eventType || 'amateur',
       venue: event.venue || '',
       location: event.location || '',
       eventDate: event.eventDate ? String(event.eventDate).slice(0, 10) : '',
@@ -459,6 +461,8 @@ export default function EventDetail() {
         body: {
           name: editForm.name,
           description: editForm.description,
+          eventType: editForm.eventType,
+          ...(editForm.eventType === 'professional' ? { registrationOpen: false } : {}),
           venue: editForm.venue,
           location: editForm.location,
           eventDate: editForm.eventDate ? new Date(editForm.eventDate) : null,
@@ -2119,6 +2123,21 @@ export default function EventDetail() {
         <div className="space-y-4">
           <Input label="Event name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
           <Textarea label="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={2} />
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <Select
+              label="Event type"
+              value={editForm.eventType}
+              onChange={(e) => setEditForm({ ...editForm, eventType: e.target.value })}
+            >
+              <option value="amateur">Amateur / club event</option>
+              <option value="professional">Professional fight night</option>
+            </Select>
+            <p className="mt-2 text-[11px] text-slate-500">
+              {editForm.eventType === 'professional'
+                ? 'Professional events use the promoter-managed fight-night cockpit: you add every boxer yourself, build the fight card manually, and there is no public registration link.'
+                : 'Amateur events use club registration, approvals, weigh-ins and auto/manual draws.'}
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Venue" value={editForm.venue} onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })} />
             <Input label="Location" value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
