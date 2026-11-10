@@ -76,6 +76,18 @@ const emptyForm = {
   olympics: '',
   notes: '',
   titlesText: '',
+  slug: '',
+  medLastExamDate: '',
+  medExpiryDate: '',
+  medBloodworkDate: '',
+  medMriDate: '',
+  medEyeTestDate: '',
+  medHepatitisB: false,
+  medHepatitisC: false,
+  medHiv: false,
+  medSuspension: '',
+  medNotes: '',
+  medStatus: 'cleared',
 }
 
 const emptyTitles = []
@@ -187,6 +199,18 @@ export default function ProBoxersAdmin() {
       olympics: pro.amateurBackground?.olympics || '',
       notes: b.notes || '',
       titlesText: (b.professional?.titles || []).map((t) => [t.organisation, t.title].filter(Boolean).join(' ').trim()).join(', '),
+      slug: pro.slug || '',
+      medLastExamDate: pro.medicals?.lastExamDate ? pro.medicals.lastExamDate.slice(0, 10) : '',
+      medExpiryDate: pro.medicals?.expiryDate ? pro.medicals.expiryDate.slice(0, 10) : '',
+      medBloodworkDate: pro.medicals?.bloodworkDate ? pro.medicals.bloodworkDate.slice(0, 10) : '',
+      medMriDate: pro.medicals?.mriDate ? pro.medicals.mriDate.slice(0, 10) : '',
+      medEyeTestDate: pro.medicals?.eyeTestDate ? pro.medicals.eyeTestDate.slice(0, 10) : '',
+      medHepatitisB: Boolean(pro.medicals?.hepatitisB),
+      medHepatitisC: Boolean(pro.medicals?.hepatitisC),
+      medHiv: Boolean(pro.medicals?.hiv),
+      medSuspension: pro.medicals?.suspension || '',
+      medNotes: pro.medicals?.notes || '',
+      medStatus: pro.medicals?.suspension && pro.medicals.suspension !== 'Cleared' ? 'suspended' : 'cleared',
     })
     setModalOpen(true)
   }
@@ -246,7 +270,19 @@ export default function ProBoxersAdmin() {
             commission: form.licenseCommission,
             expiryDate: form.licenseExpiry ? new Date(form.licenseExpiry) : null,
           },
-          medicals: { suspension: form.medicalSuspension, notes: form.medicalNotes },
+          medicals: {
+            lastExamDate: form.medLastExamDate ? new Date(form.medLastExamDate) : null,
+            expiryDate: form.medExpiryDate ? new Date(form.medExpiryDate) : null,
+            bloodworkDate: form.medBloodworkDate ? new Date(form.medBloodworkDate) : null,
+            mriDate: form.medMriDate ? new Date(form.medMriDate) : null,
+            eyeTestDate: form.medEyeTestDate ? new Date(form.medEyeTestDate) : null,
+            hepatitisB: Boolean(form.medHepatitisB),
+            hepatitisC: Boolean(form.medHepatitisC),
+            hiv: Boolean(form.medHiv),
+            suspension: form.medSuspension,
+            status: form.medStatus,
+            notes: form.medNotes,
+          },
           insurance: {
             provider: form.insuranceProvider,
             policyNumber: form.insurancePolicy,
@@ -258,6 +294,7 @@ export default function ProBoxersAdmin() {
           amateurBackground: { record: form.amateurRecord, achievements: form.amateurAchievements, olympics: form.olympics },
           notes: form.notes,
         },
+        slug: form.slug,
         notes: form.notes,
       }
 
@@ -575,6 +612,7 @@ export default function ProBoxersAdmin() {
               {STANCES.map((s) => <option key={s} value={s}>{s}</option>)}
             </Select>
             <Input label="Division" value={form.division} onChange={set('division')} placeholder="e.g. Welterweight" />
+            <Input label="Public Slug" value={form.slug} onChange={set('slug')} placeholder="e.g. big-mike" />
             <Input label="Career High Weight (kg)" type="number" value={form.careerHighWeightKg} onChange={set('careerHighWeightKg')} placeholder="e.g. 74.5" />
             <Input label="Weight Category" value={form.weightCategory} onChange={set('weightCategory')} placeholder="e.g. 73–75 kg" />
             <Input label="Age Category" value={form.ageCategory} onChange={set('ageCategory')} placeholder="e.g. 25+" />
@@ -645,9 +683,34 @@ export default function ProBoxersAdmin() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Medicals</p>
-              <div className="grid gap-3">
-                <Input label="Suspension / Status" value={form.medicalSuspension} onChange={set('medicalSuspension')} placeholder="e.g. Cleared" />
-                <Textarea label="Medical Notes" value={form.medicalNotes} onChange={set('medicalNotes')} rows={2} />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Select label="Status" value={form.medStatus} onChange={set('medStatus')}>
+                  <option value="cleared">Cleared</option>
+                  <option value="suspended">Suspended</option>
+                </Select>
+                <Input label="Last Exam Date" type="date" value={form.medLastExamDate} onChange={set('medLastExamDate')} />
+                <Input label="Medical Expiry" type="date" value={form.medExpiryDate} onChange={set('medExpiryDate')} />
+                <Input label="Bloodwork Date" type="date" value={form.medBloodworkDate} onChange={set('medBloodworkDate')} />
+                <Input label="MRI Date" type="date" value={form.medMriDate} onChange={set('medMriDate')} />
+                <Input label="Eye Test Date" type="date" value={form.medEyeTestDate} onChange={set('medEyeTestDate')} />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHepatitisB} onChange={(e) => setForm({ ...form, medHepatitisB: e.target.checked })} className="h-4 w-4 rounded" />
+                  Hepatitis B
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHepatitisC} onChange={(e) => setForm({ ...form, medHepatitisC: e.target.checked })} className="h-4 w-4 rounded" />
+                  Hepatitis C
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHiv} onChange={(e) => setForm({ ...form, medHiv: e.target.checked })} className="h-4 w-4 rounded" />
+                  HIV
+                </label>
+              </div>
+              <div className="mt-3 grid gap-3">
+                <Input label="Suspension / Status" value={form.medSuspension} onChange={set('medSuspension')} placeholder="e.g. Cleared" />
+                <Textarea label="Medical Notes" value={form.medNotes} onChange={set('medNotes')} rows={2} />
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
