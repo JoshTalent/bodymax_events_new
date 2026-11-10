@@ -51,6 +51,13 @@ export default async (event) => {
         return errorResponse({ message: 'eventId and boxerId are required', status: 400 })
       }
 
+      if (user.role === 'club' && body.kitConfirmed !== true) {
+        return errorResponse({
+          message: 'Confirm that your club will bring red and blue clothing (kit) for its boxers',
+          status: 400,
+        })
+      }
+
       const ev = await Event.findById(evId)
       if (!ev) return errorResponse({ message: 'Event not found', status: 404 })
 

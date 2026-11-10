@@ -21,11 +21,6 @@ const text = {
     clubSub: 'The boxing club or team these boxers belong to',
     clubLabel: 'Club / Team Name',
     clubPlaceholder: 'e.g. Midlands Boxing Club',
-    clubSelectPlaceholder: 'Select your club…',
-    clubApprovedHint: 'Only clubs that the event manager has added to this event can register boxers.',
-    noClubsTitle: 'Club registration not open yet',
-    noClubsBody: 'The event manager has not approved any clubs for this event yet. Contact the promoter to have your club added, then come back to register your boxers.',
-    selectClubError: 'Select your club before submitting',
     email: 'Club Email',
     emailPlaceholder: 'e.g. club@example.com',
     emailHint: 'The promoter will email the club to confirm the registrations',
@@ -48,6 +43,9 @@ const text = {
     female: 'Female',
     numberOfBouts: 'Number of Bouts Played',
     addAnother: 'Add another boxer',
+    kitTitle: 'Boxing kit requirement',
+    kitConfirm: 'I confirm my club will bring red and blue clothing (kit) for all its boxers.',
+    kitRequired: 'Please confirm that your club will bring red and blue clothing for its boxers',
     submit: (n) => (n === 1 ? 'Submit 1 boxer' : `Submit ${n} boxers`),
     submitting: 'Submitting…',
     closedTitle: 'Registration is closed',
@@ -70,11 +68,6 @@ const text = {
     clubSub: 'club cyangwa itsinda abakinnyi ',
     clubLabel: 'Izina ry’a club / itsinda',
     clubPlaceholder: 'urugero: Midlands Boxing Club',
-    clubSelectPlaceholder: 'Hitamo club yawe…',
-    clubApprovedHint: 'Ni club zemejwe n’umuyobozi w’umukino muri iki birori gusa zishobora kwiyandikisha abakinnyi.',
-    noClubsTitle: 'Kwiyandikisha kw’amakipi ntirafunguka',
-    noClubsBody: 'Umuyobozi w’umukino ntarashyiraho amakipi yemewe muri iki birori. Vugana n’umuyobozi w’umukino kugira ngo wongerwe, hanyuma ugaruke kwiyandikisha abakinnyi bawe.',
-    selectClubError: 'Hitamo club yawe mbere yo kohereza',
     email: 'Imeyili y’ikipe',
     emailPlaceholder: 'urugero: club@example.com',
     emailHint: 'Umuyobozi w’umukino azoherereza ikipe imeyili yo kwemeza kwiyandikisha',
@@ -97,6 +90,9 @@ const text = {
     female: 'Gore',
     numberOfBouts: 'Umubare w’imikino yakinnye',
     addAnother: 'Ongera undi mukinnyi',
+    kitTitle: 'Imyambaro yo mu mukino',
+    kitConfirm: 'Nemeye ko club yanjye izazana imyambaro itukura n’ubururu (red na blue) ku bakinnyi bayo bose.',
+    kitRequired: 'Emeza ko club yawe izazana imyambaro itukura n’ubururu ku bakinnyi bayo',
     submit: (n) => (n === 1 ? 'Ohereza umukinnyi 1' : `Ohereza abakinnyi ${n}`),
     submitting: 'Birimo koherezwa…',
     closedTitle: 'Iyandikisha ryafunze',
@@ -119,6 +115,7 @@ export default function EventRegister() {
   const [clubName, setClubName] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
+  const [kitConfirmed, setKitConfirmed] = useState(false)
   const [boxers, setBoxers] = useState([{ ...EMPTY_BOXER }])
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -134,11 +131,7 @@ export default function EventRegister() {
 
   useEffect(() => {
     api(`/event-register?token=${token}`)
-      .then((d) => {
-        setEvent(d.event)
-        const approved = d.event?.clubs || []
-        if (approved.length === 1) setClubName(approved[0].name)
-      })
+      .then((d) => setEvent(d.event))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [token])
@@ -156,8 +149,8 @@ export default function EventRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!clubName.trim()) {
-      setError(t.selectClubError)
+    if (!kitConfirmed) {
+      setError(t.kitRequired)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
@@ -170,7 +163,7 @@ export default function EventRegister() {
       }))
       const res = await api(`/event-register?token=${token}`, {
         method: 'POST',
-        body: { clubName: clubName.trim(), whatsapp: whatsapp.trim(), email: email.trim(), boxers: filtered },
+        body: { clubName: clubName.trim(), whatsapp: whatsapp.trim(), email: email.trim(), kitConfirmed: true, boxers: filtered },
       })
       setDone(true)
     } catch (err) {
@@ -187,6 +180,7 @@ export default function EventRegister() {
     setClubName('')
     setWhatsapp('')
     setEmail('')
+    setKitConfirmed(false)
   }
 
   const LangToggle = () => (
@@ -231,7 +225,6 @@ export default function EventRegister() {
 
   const deadlinePassed = event.registrationDeadline && new Date(event.registrationDeadline) < new Date()
   const closed = !event.registrationOpen || deadlinePassed || ['closed', 'completed', 'archived'].includes(event.status)
-  const noApprovedClubs = !closed && !(event.clubs || []).length
 
   const submitText = saving ? t.submitting : t.submit(boxers.length)
 
@@ -303,16 +296,6 @@ export default function EventRegister() {
             <h2 className="mt-4 text-lg font-semibold text-slate-900">{t.closedTitle}</h2>
             <p className="mt-1 text-sm text-slate-500">{t.closedBody}</p>
           </div>
-        ) : noApprovedClubs ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-              </svg>
-            </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">{t.noClubsTitle}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t.noClubsBody}</p>
-          </div>
         ) : (
           <form id="event-register-form" onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -329,20 +312,13 @@ export default function EventRegister() {
                   </div>
                 </div>
                 <div className="mt-4 space-y-4">
-                  <div>
-                    <Select
-                      label={t.clubLabel}
-                      value={clubName}
-                      onChange={(e) => setClubName(e.target.value)}
-                      required
-                    >
-                      <option value="">{t.clubSelectPlaceholder}</option>
-                      {(event.clubs || []).map((c) => (
-                        <option key={c._id} value={c.name}>{c.name}</option>
-                      ))}
-                    </Select>
-                    <p className="mt-1 text-xs text-slate-400">{t.clubApprovedHint}</p>
-                  </div>
+                  <Input
+                    label={t.clubLabel}
+                    value={clubName}
+                    onChange={(e) => setClubName(e.target.value)}
+                    placeholder={t.clubPlaceholder}
+                    required
+                  />
                   <div>
                     <Input
                       label={t.whatsapp}
@@ -448,6 +424,27 @@ export default function EventRegister() {
                 {t.addAnother}
               </button>
 
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                  </span>
+                  <h2 className="text-lg font-semibold text-amber-900">{t.kitTitle}</h2>
+                </div>
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-white/70 p-4 ring-1 ring-amber-200">
+                  <input
+                    type="checkbox"
+                    checked={kitConfirmed}
+                    onChange={(e) => setKitConfirmed(e.target.checked)}
+                    required
+                    className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-sm font-medium leading-relaxed text-amber-900">{t.kitConfirm}</span>
+                </label>
+              </section>
+
               {error && (
                 <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   <svg className="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -481,7 +478,7 @@ export default function EventRegister() {
         </div>
       </main>
 
-      {!closed && !noApprovedClubs && (
+      {!closed && (
         <div
           className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3 shadow-[0_-2px_16px_rgba(0,0,0,0.06)] backdrop-blur-md sm:hidden"
         >

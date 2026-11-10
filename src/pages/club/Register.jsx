@@ -129,6 +129,7 @@ export default function ClubRegister() {
   const [selectedBoxers, setSelectedBoxers] = useState([])
   const [boxerCats, setBoxerCats] = useState({})
   const [payModal, setPayModal] = useState(null)
+  const [kitConfirmed, setKitConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lastSummary, setLastSummary] = useState(null)
 
@@ -180,6 +181,10 @@ export default function ClubRegister() {
   const selectedBoxerList = boxers.filter((b) => selectedBoxers.includes(b._id))
 
   const submitRegistration = async () => {
+    if (!kitConfirmed) {
+      toast('Confirm that your club will bring red and blue clothing for its boxers', 'error')
+      return
+    }
     for (const bid of selectedBoxers) {
       const cat = boxerCats[bid] || {}
       if (needsWeightCat && !cat.weight) {
@@ -200,6 +205,7 @@ export default function ClubRegister() {
           body: {
             eventId: selEvent,
             boxerId: bid,
+            kitConfirmed: true,
             category: { weight: cat.weight || '', age: cat.age || '', gender: cat.gender || 'M' },
           },
         })
@@ -213,6 +219,7 @@ export default function ClubRegister() {
       })
       setSelectedBoxers([])
       setBoxerCats({})
+      setKitConfirmed(false)
       setStep(3)
       load()
     } catch (err) {
@@ -491,8 +498,23 @@ export default function ClubRegister() {
             </Card>
           )}
 
+          <Card className="mt-4 border-amber-200 bg-amber-50 p-4 sm:p-5">
+            <p className="text-sm font-bold text-amber-900">Boxing kit requirement</p>
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl bg-white/70 p-3 ring-1 ring-amber-200">
+              <input
+                type="checkbox"
+                checked={kitConfirmed}
+                onChange={(e) => setKitConfirmed(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+              />
+              <span className="text-sm font-medium leading-relaxed text-amber-900">
+                I confirm my club will bring red and blue clothing (kit) for all its boxers.
+              </span>
+            </label>
+          </Card>
+
           <ActionBar onBack={() => setStep(1)}>
-            <Button size="lg" className="h-12 flex-1" onClick={submitRegistration} disabled={busy}>
+            <Button size="lg" className="h-12 flex-1" onClick={submitRegistration} disabled={busy || !kitConfirmed}>
               {busy ? <Spinner className="h-5 w-5 border-white" /> : `Confirm Registration${requiresPayment ? ` · ${totalFee} ${activeEvent.feeStructure?.currency}` : ''}`}
             </Button>
           </ActionBar>

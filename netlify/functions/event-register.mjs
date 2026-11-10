@@ -2,7 +2,6 @@ import { connectDB } from './_shared/db.js'
 import Event from './_shared/models/Event.js'
 import Boxer from './_shared/models/Boxer.js'
 import Registration from './_shared/models/Registration.js'
-// Imported so the Club model is registered for populating event.clubIds.
 import Club from './_shared/models/Club.js'
 import { success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
@@ -18,19 +17,8 @@ export default async (event) => {
 
     await connectDB()
 
-    const evt = await Event.findOne({ registrationToken: token }).populate('clubIds', 'name').lean()
+    const evt = await Event.findOne({ registrationToken: token }).lean()
     if (!evt) return errorResponse({ message: 'This registration link is invalid or has been removed', status: 404 })
-
-    // Only clubs the event manager has added to this event may register boxers.
-    const approvedClubs = []
-    const seenClubIds = new Set()
-    for (const c of evt.clubIds || []) {
-      if (!c || !c.name) continue
-      const key = String(c._id)
-      if (seenClubIds.has(key)) continue
-      seenClubIds.add(key)
-      approvedClubs.push(c)
-    }
 
     const eventInfo = {
       _id: evt._id,
@@ -47,7 +35,6 @@ export default async (event) => {
       ageCategories: evt.ageCategories || [],
       requirements: evt.registrationRequirements || '',
       rules: evt.rules || '',
-      clubs: approvedClubs.map((c) => ({ _id: String(c._id), name: c.name })),
     }
 
     if (event.httpMethod === 'GET') {
@@ -62,39 +49,23 @@ export default async (event) => {
       return errorResponse({ message: 'Registration is closed for this event', status: 400 })
     }
 
-    if (evt.eventType === 'professional') {
-      return errorResponse({ message: 'This event does not accept public boxer registrations', status: 400 })
-    }
-
     if (evt.registrationDeadline && new Date(evt.registrationDeadline) < new Date()) {
       return errorResponse({ message: 'Registration has closed for this event', status: 400 })
     }
 
     const body = JSON.parse(event.body || '{}')
-    const { boxers = [], clubName = '', whatsapp = '', email = '' } = body
+    const { boxers = [], clubName = '', whatsapp = '', email = '', kitConfirmed = false } = body
+
+    if (kitConfirmed !== true) {
+      return errorResponse({
+        message: 'Confirm that your club will bring red and blue clothing (kit) for its boxers',
+        status: 400,
+      })
+    }
 
     if (!Array.isArray(boxers) || boxers.length === 0) {
       return errorResponse({ message: 'Add at least one boxer to register', status: 400 })
     }
-
-    // A club must be checked/added to this event by the manager before it can
-    // enter boxers through the public link.
-    const requestedClubName = (clubName || '').trim()
-    if (!requestedClubName) {
-      return errorResponse({ message: 'Select your club before registering boxers', status: 400 })
-    }
-    const approvedClub = approvedClubs.find(
-      (c) => String(c.name).trim().toLowerCase() === requestedClubName.toLowerCase()
-    )
-    if (!approvedClub) {
-      return errorResponse({
-        message: approvedClubs.length
-          ? 'This club has not been approved for this event. Only clubs added by the event manager can register boxers.'
-          : 'No club has been approved for this event yet. Ask the event manager to add your club before registering boxers.',
-        status: 403,
-      })
-    }
-    const cleanClubName = String(approvedClub.name).trim()
 
     const cleanWhatsapp = whatsapp.trim()
     if (!cleanWhatsapp) {
@@ -122,6 +93,14 @@ export default async (event) => {
     const weightCategories = evt.weightCategories || []
     const ageCategories = evt.ageCategories || []
 
+    // Link the submission to an existing club profile when the name matches so
+    // the entry appears under that club in the event's participant manager.
+    let linkedClub = null
+    if (clubName.trim()) {
+      const escaped = clubName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      linkedClub = await Club.findOne({ name: new RegExp(`^${escaped}$`, 'i') }).select('_id').lean()
+    }
+
     const created = []
     let registered = 0
 
@@ -139,13 +118,13 @@ export default async (event) => {
 
       let boxer = await Boxer.findOne({
         fullName: new RegExp(`^${fullName}$`, 'i'),
-        clubName: cleanClubName,
+        clubName: clubName || null,
       })
       if (!boxer) {
         boxer = await Boxer.create({
           fullName,
-          clubId: approvedClub._id,
-          clubName: cleanClubName,
+          clubId: linkedClub?._id || null,
+          clubName: clubName || '',
           numberOfBouts: Number(b.numberOfBouts) || 1,
           gender: b.gender || null,
           weightCategory: b.weight || '',
@@ -161,7 +140,7 @@ export default async (event) => {
 
       await Registration.create({
         eventId: evt._id,
-        clubName: cleanClubName,
+        clubName: clubName || '',
         whatsapp: normalizedWhatsapp,
         email: cleanEmail,
         numberOfBouts: Number(b.numberOfBouts) || 1,
@@ -190,7 +169,7 @@ export default async (event) => {
           return parts.join(' — ')
         })
         const text = [
-          `Hello ${cleanClubName},`,
+          `Hello ${clubName || 'the club'},`,
           `Thank you for registering ${registered} boxer${registered === 1 ? '' : 's'} for ${evt.name}${date ? ` on ${date}` : ''}.`,
           'Here are the boxers added:',
           ...boxerLines,

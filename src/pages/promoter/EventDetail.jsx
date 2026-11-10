@@ -1216,13 +1216,8 @@ export default function EventDetail() {
                 </div>
               </div>
               <p className="mt-2 text-[11px] text-slate-400">
-                Only clubs added in the <span className="font-semibold text-slate-500">Clubs</span> tab can register boxers through this link. Unassigned clubs are blocked. You review and approve every entry from the Approvals tab.
+                Anyone with this link can submit boxers. You review and approve every entry from the Approvals tab.
               </p>
-              {assignedClubs.length === 0 && (
-                <p className="mt-2 text-[11px] font-semibold text-amber-600">
-                  No clubs are assigned yet, so this link is currently blocked for everyone. Assign clubs from the Clubs tab first.
-                </p>
-              )}
             </Panel>
             )}
 
@@ -1365,7 +1360,6 @@ export default function EventDetail() {
             <div>
               <p className="text-sm font-bold text-slate-900">{assignedClubs.length} clubs assigned</p>
               <p className="text-[11px] text-slate-500">{regs.length} boxers entered across {clubGroups.length} participating clubs</p>
-              <p className="mt-0.5 text-[11px] text-amber-600">Only assigned clubs are approved to register boxers through the public link.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => setClubFormOpen(true)}>
@@ -1887,7 +1881,6 @@ export default function EventDetail() {
         footer={<Button variant="secondary" onClick={() => setAssignClubOpen(false)}>Done</Button>}
       >
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Assigned clubs are approved to enter boxers in this event, including through the public registration link. Clubs that are not assigned are blocked.</p>
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-brand-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-500/10">
             <Icon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
             <input
