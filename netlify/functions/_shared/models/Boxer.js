@@ -70,7 +70,7 @@ const BoxerSchema = new mongoose.Schema(
         notes: { type: String, default: '' },
       },
       insurance: { provider: { type: String, default: '' }, policyNumber: { type: String, default: '' }, expiryDate: { type: Date, default: null } },
-      photos: { headshotUrl: { type: String, default: '' }, fullBodyUrl: { type: String, default: '' } },
+      photos: { headshotUrl: { type: String, default: '' }, fullBodyUrl: { type: String, default: '' }, countryFlagUrl: { type: String, default: '' } },
       socials: { instagram: { type: String, default: '' }, x: { type: String, default: '' }, facebook: { type: String, default: '' }, youtube: { type: String, default: '' } },
       emergencyContact: { name: { type: String, default: '' }, phone: { type: String, default: '' }, relation: { type: String, default: '' } },
       amateurBackground: { record: { type: String, default: '' }, achievements: { type: String, default: '' }, olympics: { type: String, default: '' } },

@@ -1456,19 +1456,30 @@ export default function Draws() {
                 </span>
                 <h3 className="relative mt-4 text-lg font-black tracking-tight text-slate-900">No bout pairings yet</h3>
                 <p className="relative mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-500">
-                  Build the fight card by hand or let Smart Auto Draw match boxers by gender, age, weight, experience and club.
+                  {isPro
+                    ? 'Professional fight nights are booked fighter-by-fighter — add the boxers you want on the card and build the pairings yourself.'
+                    : 'Build the fight card by hand or let Smart Auto Draw match boxers by gender, age, weight, experience and club.'}
                 </p>
                 <div className="relative mt-5 flex flex-wrap justify-center gap-2">
                   <Button onClick={openManual}>
                     <Icon name="plus" className="mr-1.5 h-4 w-4" />
                     Create draw
                   </Button>
-                  <Button variant="secondary" onClick={() => setRulesOpen(true)}>
-                    <Icon name="sparkles" className="mr-1.5 h-4 w-4" />
-                    Smart auto draw
-                  </Button>
+                  {!isPro && (
+                    <Button variant="secondary" onClick={() => setRulesOpen(true)}>
+                      <Icon name="sparkles" className="mr-1.5 h-4 w-4" />
+                      Smart auto draw
+                    </Button>
+                  )}
                 </div>
               </div>
+              {isPro && (
+                <div className="relative mt-4 border-t border-white/[0.08] bg-white/[0.03] px-6 py-4 text-center">
+                  <p className="text-xs font-medium text-slate-400">
+                    Professional fight nights are booked fighter-by-fighter — add the boxers you want on the card and build the pairings yourself.
+                  </p>
+                </div>
+              )}
               {eligible.length > 0 && (
                 <div className="border-t border-slate-100 bg-slate-50/40 px-5 py-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
@@ -1983,17 +1994,19 @@ export default function Draws() {
         </div>
       </Modal>
 
-      <AutoDrawRulesModal
-        open={rulesOpen}
-        onClose={() => setRulesOpen(false)}
-        rules={rules}
-        setRules={setRules}
-        preview={autoPreview}
-        scopeLabel={scopeLabel}
-        categoryGroups={autoGroups.length}
-        onGenerate={runSmartAuto}
-        busy={autoBusy}
-      />
+      {!isPro && (
+        <AutoDrawRulesModal
+          open={rulesOpen}
+          onClose={() => setRulesOpen(false)}
+          rules={rules}
+          setRules={setRules}
+          preview={autoPreview}
+          scopeLabel={scopeLabel}
+          categoryGroups={autoGroups.length}
+          onGenerate={runSmartAuto}
+          busy={autoBusy}
+        />
+      )}
     </div>
   )
 }

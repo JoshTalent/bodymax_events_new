@@ -64,6 +64,10 @@ export default function PublicBoxer() {
   }
 
   const hasPhoto = Boolean(pro?.photos?.headshotUrl)
+  const hasFlag = Boolean(pro?.photos?.countryFlagUrl)
+  const flagEmoji = pro?.countryCode
+    ? String.fromCodePoint(127397 + pro.countryCode.toUpperCase().charCodeAt(0)) + String.fromCodePoint(127397 + pro.countryCode.toUpperCase().charCodeAt(1))
+    : ''
   const country = pro?.country || pro?.nationality || boxer.nationality || '—'
   const stance = pro?.stance || '—'
   const height = pro?.heightCm ? `${pro.heightCm} cm` : '—'
@@ -110,9 +114,13 @@ export default function PublicBoxer() {
               <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400">
                 {country && (
                   <span className="inline-flex items-center gap-1.5">
-                    <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    {hasFlag ? (
+                      <img src={pro.photos.countryFlagUrl} alt={country} className="h-4 w-6 rounded-sm object-cover" />
+                    ) : (
+                      <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
                     {country}
                   </span>
                 )}
@@ -126,10 +134,15 @@ export default function PublicBoxer() {
                 )}
                 {pro?.countryCode && (
                   <span className="inline-flex items-center gap-1.5">
-                    <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
+                    {hasFlag ? (
+                      <img src={pro.photos.countryFlagUrl} alt={country} className="h-4 w-6 rounded-sm object-cover" />
+                    ) : (
+                      <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16z" />
+                      </svg>
+                    )}
                     {pro.countryCode}
+                    {flagEmoji && <span aria-hidden="true">{flagEmoji}</span>}
                   </span>
                 )}
               </p>

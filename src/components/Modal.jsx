@@ -24,7 +24,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       <div
           className={cn(
             'animate-pop relative z-10 flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
-            size === 'lg' ? 'sm:max-w-2xl' : 'max-w-lg'
+            size === 'lg' ? 'sm:max-w-2xl' : size === 'xl' ? 'sm:max-w-4xl' : 'max-w-lg'
           )}
         >
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">

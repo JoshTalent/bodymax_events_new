@@ -188,6 +188,13 @@ const PATHS = {
       <path d="M3 12h18M12 3c2.4 2.4 3.6 5.4 3.6 9s-1.2 6.6-3.6 9c-2.4-2.4-3.6-5.4-3.6-9S9.6 5.4 12 3z" />
     </>
   ),
+  medal: (
+    <>
+      <circle cx="12" cy="8.5" r="5.5" />
+      <path d="M8.5 13.5L7 21l5-3 5 3-1.5-7.5" />
+    </>
+  ),
+  zap: <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />,
 }
 
 export function Icon({ name, className = 'h-5 w-5', strokeWidth = 1.7, ...props }) {

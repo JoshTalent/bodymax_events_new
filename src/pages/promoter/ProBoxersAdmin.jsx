@@ -14,44 +14,81 @@ const DIVISIONS = [
   'Heavyweight', 'Cruiserweight', 'Light Heavyweight', 'Super Middleweight', 'Middleweight',
   'Super Welterweight', 'Welterweight', 'Super Lightweight', 'Lightweight', 'Super Featherweight',
   'Featherweight', 'Super Bantamweight', 'Bantamweight', 'Super Flyweight', 'Flyweight',
-  'Super Bantamweight', 'Bantamweight', 'Super Flyweight', 'Flyweight', 'Light Flyweight',
-  'Strawweight', 'Minimumweight',
+  'Light Flyweight', 'Strawweight', 'Minimumweight',
 ]
 const STANCES = ['Orthodox', 'Southpaw', 'Switch']
 const COUNTRIES = []
-
-function initials(name = '') {
-  return name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
-}
 
 const emptyForm = {
   fullName: '',
   ringName: '',
   nickname: '',
+  gender: 'M',
   country: '',
   countryCode: '',
   nationality: '',
   residence: '',
-  gender: 'M',
   dateOfBirth: '',
   heightCm: '',
   reachCm: '',
   stance: '',
   division: '',
-  recordWins: '',
-  recordLosses: '',
-  recordDraws: '',
-  recordKOs: '',
-  recordNoContests: '',
+  careerHighWeightKg: '',
+  weightCategory: '',
+  ageCategory: '',
+  headshotUrl: '',
+  fullBodyUrl: '',
+  countryFlagUrl: '',
+  wins: '',
+  losses: '',
+  draws: '',
+  noContests: '',
+  koWins: '',
+  roundsBoxed: '',
   debutDate: '',
-  stanceSelected: '',
-  promotionName: '',
+  wbc: '',
+  wba: '',
+  ibf: '',
+  wbo: '',
+  other: '',
+  promoterCompany: '',
   managerName: '',
   trainerName: '',
+  cutmanName: '',
+  agentName: '',
   licenseNumber: '',
   licenseCommission: '',
   licenseExpiry: '',
+  medicalSuspension: '',
+  medicalNotes: '',
+  insuranceProvider: '',
+  insurancePolicy: '',
+  insuranceExpiry: '',
+  instagram: '',
+  x: '',
+  facebook: '',
+  youtube: '',
+  emergencyName: '',
+  emergencyPhone: '',
+  emergencyRelation: '',
+  amateurRecord: '',
+  amateurAchievements: '',
+  olympics: '',
   notes: '',
+  titlesText: '',
+}
+
+const emptyTitles = []
+
+function initials(name = '') {
+  return name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+}
+
+function fmtDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
 }
 
 export default function ProBoxersAdmin() {
@@ -78,7 +115,10 @@ export default function ProBoxersAdmin() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openCreate = () => {
     setEditing(null)
@@ -94,29 +134,59 @@ export default function ProBoxersAdmin() {
       fullName: b.fullName || '',
       ringName: pro.ringName || '',
       nickname: pro.nickname || '',
+      gender: b.gender || 'M',
       country: pro.country || '',
       countryCode: pro.countryCode || '',
-      nationality: b.nationality || '',
+      nationality: pro.nationality || b.nationality || '',
       residence: pro.residence || '',
-      gender: b.gender || 'M',
       dateOfBirth: b.dateOfBirth ? b.dateOfBirth.slice(0, 10) : '',
       heightCm: pro.heightCm ?? '',
       reachCm: pro.reachCm ?? '',
       stance: pro.stance || '',
       division: pro.division || '',
-      recordWins: rec.wins ?? '',
-      recordLosses: rec.losses ?? '',
-      recordDraws: rec.draws ?? '',
-      recordKOs: rec.koWins ?? '',
-      recordNoContests: rec.noContests ?? '',
+      careerHighWeightKg: pro.careerHighWeightKg ?? '',
+      weightCategory: b.weightCategory || '',
+      ageCategory: b.ageCategory || '',
+      headshotUrl: pro.photos?.headshotUrl || b.photoUrl || '',
+      fullBodyUrl: pro.photos?.fullBodyUrl || '',
+      countryFlagUrl: pro.photos?.countryFlagUrl || '',
+      wins: rec.wins ?? '',
+      losses: rec.losses ?? '',
+      draws: rec.draws ?? '',
+      noContests: rec.noContests ?? '',
+      koWins: rec.koWins ?? '',
+      roundsBoxed: rec.roundsBoxed ?? '',
       debutDate: rec.debutDate ? rec.debutDate.slice(0, 10) : '',
-      promotionName: pro.promoters?.[0]?.company || '',
+      wbc: pro.rankings?.wbc || '',
+      wba: pro.rankings?.wba || '',
+      ibf: pro.rankings?.ibf || '',
+      wbo: pro.rankings?.wbo || '',
+      other: pro.rankings?.other || '',
+      promoterCompany: pro.promoters?.[0]?.company || '',
       managerName: pro.manager?.name || '',
       trainerName: pro.trainer?.name || '',
+      cutmanName: pro.cutman?.name || '',
+      agentName: pro.agent?.name || '',
       licenseNumber: pro.license?.number || '',
       licenseCommission: pro.license?.commission || '',
       licenseExpiry: pro.license?.expiryDate ? pro.license.expiryDate.slice(0, 10) : '',
+      medicalSuspension: pro.medicals?.suspension || '',
+      medicalNotes: pro.medicals?.notes || '',
+      insuranceProvider: pro.insurance?.provider || '',
+      insurancePolicy: pro.insurance?.policyNumber || '',
+      insuranceExpiry: pro.insurance?.expiryDate ? pro.insurance.expiryDate.slice(0, 10) : '',
+      instagram: pro.socials?.instagram || '',
+      x: pro.socials?.x || '',
+      facebook: pro.socials?.facebook || '',
+      youtube: pro.socials?.youtube || '',
+      emergencyName: pro.emergencyContact?.name || '',
+      emergencyPhone: pro.emergencyContact?.phone || '',
+      emergencyRelation: pro.emergencyContact?.relation || '',
+      amateurRecord: pro.amateurBackground?.record || '',
+      amateurAchievements: pro.amateurBackground?.achievements || '',
+      olympics: pro.amateurBackground?.olympics || '',
       notes: b.notes || '',
+      titlesText: (b.professional?.titles || []).map((t) => [t.organisation, t.title].filter(Boolean).join(' ').trim()).join(', '),
     })
     setModalOpen(true)
   }
@@ -136,38 +206,61 @@ export default function ProBoxersAdmin() {
         boxerType: 'professional',
         gender: form.gender || null,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
-        nationality: form.nationality,
+        nationality: form.nationality || '',
         professional: {
           ringName: form.ringName,
           nickname: form.nickname,
           country: form.country,
           countryCode: form.countryCode,
+          nationality: form.nationality,
           residence: form.residence,
           heightCm: form.heightCm ? Number(form.heightCm) : null,
           reachCm: form.reachCm ? Number(form.reachCm) : null,
           stance: form.stance,
           division: form.division,
+          careerHighWeightKg: form.careerHighWeightKg ? Number(form.careerHighWeightKg) : null,
           record: {
-            wins: Number(form.recordWins) || 0,
-            losses: Number(form.recordLosses) || 0,
-            draws: Number(form.recordDraws) || 0,
-            koWins: Number(form.recordKOs) || 0,
-            noContests: Number(form.recordNoContests) || 0,
+            wins: Number(form.wins) || 0,
+            losses: Number(form.losses) || 0,
+            draws: Number(form.draws) || 0,
+            noContests: Number(form.noContests) || 0,
+            koWins: Number(form.koWins) || 0,
+            roundsBoxed: Number(form.roundsBoxed) || 0,
             debutDate: form.debutDate ? new Date(form.debutDate) : null,
           },
-          promoters: form.promotionName
-            ? [{ name: form.fullName, company: form.promotionName, role: 'Lead Promoter', contact: '' }]
+          rankings: { wbc: form.wbc, wba: form.wba, ibf: form.ibf, wbo: form.wbo, other: form.other },
+          titles: editing?.professional?.titles || (String(form.titlesText || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((title) => ({ organisation: '', title, division: '', current: true, wonDate: null, lostDate: null }))),
+          promoters: form.promoterCompany
+            ? [{ name: form.fullName, company: form.promoterCompany, role: 'Lead Promoter', contact: '' }]
             : [],
           manager: form.managerName ? { name: form.managerName, contact: '' } : {},
           trainer: form.trainerName ? { name: form.trainerName, contact: '' } : {},
+          cutman: form.cutmanName ? { name: form.cutmanName, contact: '' } : {},
+          agent: form.agentName ? { name: form.agentName, contact: '' } : {},
           license: {
             number: form.licenseNumber,
             commission: form.licenseCommission,
             expiryDate: form.licenseExpiry ? new Date(form.licenseExpiry) : null,
           },
+          medicals: { suspension: form.medicalSuspension, notes: form.medicalNotes },
+          insurance: {
+            provider: form.insuranceProvider,
+            policyNumber: form.insurancePolicy,
+            expiryDate: form.insuranceExpiry ? new Date(form.insuranceExpiry) : null,
+          },
+          photos: { headshotUrl: form.headshotUrl, fullBodyUrl: form.fullBodyUrl, countryFlagUrl: form.countryFlagUrl },
+          socials: { instagram: form.instagram, x: form.x, facebook: form.facebook, youtube: form.youtube },
+          emergencyContact: { name: form.emergencyName, phone: form.emergencyPhone, relation: form.emergencyRelation },
+          amateurBackground: { record: form.amateurRecord, achievements: form.amateurAchievements, olympics: form.olympics },
+          notes: form.notes,
         },
         notes: form.notes,
       }
+
       if (editing) {
         await api(`/boxers?id=${editing._id}`, { method: 'PUT', body: payload })
         toast('Professional boxer updated')
@@ -242,12 +335,14 @@ export default function ProBoxersAdmin() {
     }
   }, [boxers])
 
+  const setNum = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Professional Roster"
         title="Pro Boxers"
-        description="All professional boxers in the system, with career records, titles, and team details."
+        description="All professional boxers in the system, with photos, career records, titles, rankings and team details."
         actions={
           <Button onClick={openCreate} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 px-4 text-xs font-bold shadow-lg shadow-rose-600/25 hover:from-rose-700 hover:to-amber-700">
             <Icon name="plus" className="h-4 w-4" />
@@ -256,7 +351,7 @@ export default function ProBoxersAdmin() {
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'Pro Boxers', value: stats.total, icon: 'users', tone: 'bg-rose-50 text-rose-600' },
           { label: 'Career Wins', value: stats.wins, icon: 'trophy', tone: 'bg-emerald-50 text-emerald-600' },
@@ -275,7 +370,7 @@ export default function ProBoxersAdmin() {
         ))}
       </div>
 
-      <div className="animate-rise delay-2 console-card mb-5 flex items-center justify-between gap-3 p-3">
+      <div className="console-card mb-5 flex items-center justify-between gap-3 p-3">
         <p className="pl-2 text-[11px] font-semibold text-slate-500">
           Showing <span className="font-bold text-slate-800">{filtered.length}</span> of {boxers?.length ?? 0} professional boxers
         </p>
@@ -339,7 +434,7 @@ export default function ProBoxersAdmin() {
       ) : (
         <div className="console-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-[10px] uppercase tracking-wider text-slate-400">
                   <th className="px-5 py-3 font-bold">Boxer</th>
@@ -364,17 +459,27 @@ export default function ProBoxersAdmin() {
                   const kos = rec.koWins || 0
                   const height = pro.heightCm ? `${pro.heightCm}cm` : '—'
                   const reach = pro.reachCm ? `${pro.reachCm}cm` : '—'
+                  const flag = pro.countryCode
+                    ? String.fromCodePoint(127397 + pro.countryCode.toUpperCase().charCodeAt(0)) +
+                      String.fromCodePoint(127397 + pro.countryCode.toUpperCase().charCodeAt(1))
+                    : ''
                   return (
                     <tr key={b._id} className="group transition hover:bg-slate-50/70">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-600 to-amber-600 text-[10px] font-bold text-white shadow-sm">
-                            {initials(b.fullName)}
-                          </span>
+                          {pro.photos?.headshotUrl || b.photoUrl ? (
+                            <img src={pro.photos?.headshotUrl || b.photoUrl} alt={b.fullName} className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
+                          ) : (
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-600 to-amber-600 text-[10px] font-bold text-white shadow-sm">
+                              {initials(b.fullName)}
+                            </span>
+                          )}
                           <div className="min-w-0">
                             <p className="truncate font-bold text-slate-900">{b.fullName}</p>
-                            {pro.ringName && <p className="mt-0.5 text-[11px] italic text-rose-600 font-semibold">{`"${pro.nickname ? `${pro.ringName} "${pro.nickname}"` : pro.ringName}`}</p>}
-                            <p className="text-[11px] text-slate-500">{pro.country || b.nationality || '—'}{pro.countryCode ? ` (${pro.countryCode})` : ''}</p>
+                            {pro.ringName && <p className="mt-0.5 text-[11px] italic text-rose-600 font-semibold">{pro.ringName}{pro.nickname ? ` "${pro.nickname}"` : ''}</p>}
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {[pro.country || b.nationality || '—', flag].filter(Boolean).join(' · ')}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -394,6 +499,7 @@ export default function ProBoxersAdmin() {
                           <span className="text-slate-300">/</span>
                           <span className="text-slate-500">{draws}D</span>
                           {kos > 0 && <span className="ml-1 text-[10px] font-bold text-amber-600">{kos}KO</span>}
+                          {(rec.roundsBoxed || 0) > 0 && <span className="ml-1 text-[10px] font-bold text-slate-500">{rec.roundsBoxed} rnd</span>}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
@@ -450,9 +556,9 @@ export default function ProBoxersAdmin() {
       >
         <form onSubmit={handleSave} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Input label="Full Name" value={form.fullName} onChange={set('fullName')} required />
+            <Input label="Full Name *" value={form.fullName} onChange={set('fullName')} required />
             <Input label="Ring Name" value={form.ringName} onChange={set('ringName')} placeholder="e.g. The Silverback" />
-            <Input label="Nickname" value={form.nickname} onChange={set('nickname')} placeholder='"The Showstopper"' />
+            <Input label="Nickname" value={form.nickname} onChange={set('nickname')} placeholder='e.g. "The Showstopper"' />
             <Select label="Gender" value={form.gender} onChange={set('gender')}>
               <option value="M">Male</option>
               <option value="F">Female</option>
@@ -469,32 +575,110 @@ export default function ProBoxersAdmin() {
               {STANCES.map((s) => <option key={s} value={s}>{s}</option>)}
             </Select>
             <Input label="Division" value={form.division} onChange={set('division')} placeholder="e.g. Welterweight" />
+            <Input label="Career High Weight (kg)" type="number" value={form.careerHighWeightKg} onChange={set('careerHighWeightKg')} placeholder="e.g. 74.5" />
+            <Input label="Weight Category" value={form.weightCategory} onChange={set('weightCategory')} placeholder="e.g. 73–75 kg" />
+            <Input label="Age Category" value={form.ageCategory} onChange={set('ageCategory')} placeholder="e.g. 25+" />
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Professional Record</p>
-            <div className="grid gap-3 sm:grid-cols-5">
-              <Input label="Wins" type="number" value={form.recordWins} onChange={(e) => setForm({ ...form, recordWins: e.target.value })} />
-              <Input label="Losses" type="number" value={form.recordLosses} onChange={(e) => setForm({ ...form, recordLosses: e.target.value })} />
-              <Input label="Draws" type="number" value={form.recordDraws} onChange={(e) => setForm({ ...form, recordDraws: e.target.value })} />
-              <Input label="KOs" type="number" value={form.recordKOs} onChange={(e) => setForm({ ...form, recordKOs: e.target.value })} />
-              <Input label="No Contests" type="number" value={form.recordNoContests} onChange={(e) => setForm({ ...form, recordNoContests: e.target.value })} />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 mt-3">
-              <Input label="Pro Debut" type="date" value={form.debutDate} onChange={set('debutDate')} />
-              <Input label="Titles (comma-separated)" value={form.titles || ''} onChange={set('titles')} placeholder="e.g. WBC Welterweight, ABC Regional" />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Team & Licence</p>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Photos & Country Flag</p>
             <div className="grid gap-3 sm:grid-cols-3">
-              <Input label="Promotion" value={form.promotionName} onChange={set('promotionName')} placeholder="e.g. Bodymax Promotions" />
+              <div>
+                <Input label="Headshot URL" value={form.headshotUrl} onChange={set('headshotUrl')} placeholder="https://…/headshot.jpg" />
+              </div>
+              <div>
+                <Input label="Full Body URL" value={form.fullBodyUrl} onChange={set('fullBodyUrl')} placeholder="https://…/fullbody.jpg" />
+              </div>
+              <div>
+                <Input label="Country Flag URL" value={form.countryFlagUrl} onChange={set('countryFlagUrl')} placeholder="https://…/flag.svg" />
+              </div>
+            </div>
+            <p className="mt-2 text-[10px] text-slate-500">Headshot, full-body and country-flag photos are stored as URLs (S3, CDN or direct link) and appear on the public boxer profile.</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Professional Record</p>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <Input label="Wins" type="number" value={form.wins} onChange={setNum('wins')} />
+              <Input label="Losses" type="number" value={form.losses} onChange={setNum('losses')} />
+              <Input label="Draws" type="number" value={form.draws} onChange={setNum('draws')} />
+              <Input label="KOs" type="number" value={form.koWins} onChange={setNum('koWins')} />
+              <Input label="No Contests" type="number" value={form.noContests} onChange={setNum('noContests')} />
+              <Input label="Rounds Boxed" type="number" value={form.roundsBoxed} onChange={setNum('roundsBoxed')} />
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Input label="Pro Debut" type="date" value={form.debutDate} onChange={set('debutDate')} />
+              <Input label="Titles (comma separated)" value={form.titlesText || ''} onChange={set('titlesText')} placeholder="e.g. WBC Welterweight, ABC Championship" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Rankings</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input label="WBC" value={form.wbc} onChange={set('wbc')} placeholder="e.g. #3" />
+              <Input label="WBA" value={form.wba} onChange={set('wba')} placeholder="e.g. #1" />
+              <Input label="IBF" value={form.ibf} onChange={set('ibf')} placeholder="e.g. #2" />
+              <Input label="WBO" value={form.wbo} onChange={set('wbo')} placeholder="e.g. #4" />
+              <Input label="Other" value={form.other} onChange={set('other')} placeholder="e.g. WBC Asia" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Team & Business</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input label="Promotion / Company" value={form.promoterCompany} onChange={set('promoterCompany')} placeholder="e.g. Bodymax Promotions" />
               <Input label="Manager" value={form.managerName} onChange={set('managerName')} placeholder="Manager name" />
-              <Input label="Trainer" value={form.trainerName} onChange={set('trainerName')} placeholder="Head trainer" />
-              <Input label="Licence Number" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="Licence no." />
-              <Input label="Licence Commission" value={form.licenseCommission} onChange={set('licenseCommission')} placeholder="e.g. Boxing Commission" />
-              <Input label="Licence Expiry" type="date" value={form.licenseExpiry} onChange={set('licenseExpiry')} />
+              <Input label="Head Trainer" value={form.trainerName} onChange={set('trainerName')} placeholder="Head trainer" />
+              <Input label="Cutman" value={form.cutmanName} onChange={set('cutmanName')} placeholder="Cutman name" />
+              <Input label="Agent" value={form.agentName} onChange={set('agentName')} placeholder="Agent name" />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Licence</p>
+              <div className="grid gap-3">
+                <Input label="Licence Number" value={form.licenseNumber} onChange={set('licenseNumber')} />
+                <Input label="Licence Commission" value={form.licenseCommission} onChange={set('licenseCommission')} placeholder="e.g. Boxing Commission" />
+                <Input label="Licence Expiry" type="date" value={form.licenseExpiry} onChange={set('licenseExpiry')} />
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Medicals</p>
+              <div className="grid gap-3">
+                <Input label="Suspension / Status" value={form.medicalSuspension} onChange={set('medicalSuspension')} placeholder="e.g. Cleared" />
+                <Textarea label="Medical Notes" value={form.medicalNotes} onChange={set('medicalNotes')} rows={2} />
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Insurance</p>
+              <div className="grid gap-3">
+                <Input label="Provider" value={form.insuranceProvider} onChange={set('insuranceProvider')} />
+                <Input label="Policy Number" value={form.insurancePolicy} onChange={set('insurancePolicy')} />
+                <Input label="Expiry" type="date" value={form.insuranceExpiry} onChange={set('insuranceExpiry')} />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Socials & Emergency Contact</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Input label="Instagram" value={form.instagram} onChange={set('instagram')} placeholder="@handle" />
+              <Input label="X / Twitter" value={form.x} onChange={set('x')} placeholder="@handle" />
+              <Input label="Facebook" value={form.facebook} onChange={set('facebook')} placeholder="@page" />
+              <Input label="YouTube" value={form.youtube} onChange={set('youtube')} placeholder="@channel" />
+              <Input label="Emergency Contact" value={form.emergencyName} onChange={set('emergencyName')} />
+              <Input label="Emergency Phone" value={form.emergencyPhone} onChange={set('emergencyPhone')} />
+              <Input label="Relation" value={form.emergencyRelation} onChange={set('emergencyRelation')} placeholder="e.g. Spouse" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Amateur Background</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Textarea label="Amateur Record" value={form.amateurRecord} onChange={set('amateurRecord')} rows={2} />
+              <Textarea label="Achievements" value={form.amateurAchievements} onChange={set('amateurAchievements')} rows={2} />
+              <Textarea label="Olympics" value={form.olympics} onChange={set('olympics')} rows={2} />
             </div>
           </div>
 

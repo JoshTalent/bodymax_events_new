@@ -21,7 +21,7 @@ export default async (event) => {
       const { eventId } = params
       if (!eventId) return errorResponse({ message: 'eventId required', status: 400 })
       const entries = await Registration.find({ eventId, entryType: 'professional' })
-        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts')
+        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts photos.rankings titles promoters manager trainer license insurance socials emergencyContact medicals amateurBackground')
         .sort({ createdAt: -1 })
         .lean()
       return success({ entries })
@@ -65,6 +65,40 @@ export default async (event) => {
             stance: boxer.professional?.stance || boxer.stance || '',
             division: boxer.professional?.division || boxer.division || category.weight || '',
             careerHighWeightKg: boxer.professional?.careerHighWeightKg ?? boxer.careerHighWeightKg ?? null,
+            record: {
+              wins: boxer.professional?.record?.wins ?? boxer.record?.wins ?? 0,
+              losses: boxer.professional?.record?.losses ?? boxer.record?.losses ?? 0,
+              draws: boxer.professional?.record?.draws ?? boxer.record?.draws ?? 0,
+              noContests: boxer.professional?.record?.noContests ?? boxer.record?.noContests ?? 0,
+              koWins: boxer.professional?.record?.koWins ?? boxer.record?.koWins ?? 0,
+              roundsBoxed: boxer.professional?.record?.roundsBoxed ?? boxer.record?.roundsBoxed ?? 0,
+              debutDate: boxer.professional?.record?.debutDate ? new Date(boxer.professional.record.debutDate) : (boxer.record?.debutDate ? new Date(boxer.record.debutDate) : null),
+            },
+            rankings: {
+              wbc: boxer.professional?.rankings?.wbc || boxer.rankings?.wbc || '',
+              wba: boxer.professional?.rankings?.wba || boxer.rankings?.wba || '',
+              ibf: boxer.professional?.rankings?.ibf || boxer.rankings?.ibf || '',
+              wbo: boxer.professional?.rankings?.wbo || boxer.rankings?.wbo || '',
+              other: boxer.professional?.rankings?.other || boxer.rankings?.other || '',
+            },
+            titles: Array.isArray(boxer.professional?.titles) ? boxer.professional.titles : [],
+            promoters: Array.isArray(boxer.professional?.promoters) ? boxer.professional.promoters : (boxer.professional?.promoters ? [boxer.professional.promoters] : []),
+            manager: boxer.professional?.manager || {},
+            trainer: boxer.professional?.trainer || {},
+            cutman: boxer.professional?.cutman || {},
+            agent: boxer.professional?.agent || {},
+            license: boxer.professional?.license || {},
+            medicals: boxer.professional?.medicals || {},
+            insurance: boxer.professional?.insurance || {},
+            photos: {
+              headshotUrl: boxer.professional?.photos?.headshotUrl || boxer.photos?.headshotUrl || '',
+              fullBodyUrl: boxer.professional?.photos?.fullBodyUrl || boxer.photos?.fullBodyUrl || '',
+              countryFlagUrl: boxer.professional?.photos?.countryFlagUrl || boxer.photos?.countryFlagUrl || '',
+            },
+            socials: boxer.professional?.socials || {},
+            emergencyContact: boxer.professional?.emergencyContact || {},
+            amateurBackground: boxer.professional?.amateurBackground || {},
+            notes: boxer.professional?.notes || boxer.notes || '',
           },
         })
         resolvedBoxerId = created._id
@@ -108,7 +142,7 @@ export default async (event) => {
       })
 
       const populated = await Registration.findById(registration._id)
-        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts')
+        .populate('boxerId', 'fullName ringName nickname boxerType gender weightCategory division country countryCode nationality heightCm reachCm stance record boxingRecord numberOfBouts photos.rankings titles promoters manager trainer license insurance socials emergencyContact medicals amateurBackground')
         .lean()
       return success({ registration: populated }, 201)
     }

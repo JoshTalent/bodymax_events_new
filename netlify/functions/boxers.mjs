@@ -53,9 +53,27 @@ export default async (event) => {
           return errorResponse({ message: 'Forbidden', status: 403 })
         }
         const body = JSON.parse(event.body || '{}')
-        Object.assign(boxer, body)
-        await boxer.save()
-        return success({ boxer })
+        // Flatten nested objects (e.g. professional.photos.headshotUrl) into
+        // dotted update paths so partial pro-field edits save correctly.
+        const update = {}
+        const flatten = (obj, prefix = '') => {
+          for (const [k, v] of Object.entries(obj || {})) {
+            const path = prefix ? `${prefix}.${k}` : k
+            if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) && v._bsontype === undefined) {
+              flatten(v, path)
+            } else {
+              update[path] = v === undefined ? undefined : v
+            }
+          }
+        }
+        flatten(body)
+        const cleanUpdate = {}
+        for (const [k, v] of Object.entries(update)) {
+          if (v !== undefined) cleanUpdate[k] = v
+        }
+        const updated = await Boxer.findByIdAndUpdate(id, { $set: cleanUpdate }, { new: true }).lean()
+        if (!updated) return errorResponse({ message: 'Boxer not found', status: 404 })
+        return success({ boxer: updated })
       }
       if (method === 'DELETE') {
         if (user.role !== 'club' && user.role !== 'promoter') {
