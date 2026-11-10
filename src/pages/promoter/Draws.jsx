@@ -1678,14 +1678,16 @@ export default function Draws() {
                 <Icon name="sparkles" className="mr-1 h-3 w-3" />
                 Auto-pair
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => setAddBoxerOpen((v) => !v)}>
-                <Icon name="usersPlus" className="mr-1 h-3 w-3" />
-                Boxer
-              </Button>
+              {!isPro && (
+                <Button size="sm" variant="secondary" onClick={() => setAddBoxerOpen((v) => !v)}>
+                  <Icon name="usersPlus" className="mr-1 h-3 w-3" />
+                  Boxer
+                </Button>
+              )}
             </div>
           </div>
 
-          {addBoxerOpen && (
+          {!isPro && addBoxerOpen && (
             <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-4">
               <p className="text-sm font-bold text-slate-900">Add a boxer manually</p>
               <p className="mb-3 text-[11px] text-slate-500">Registered in this event and ready to pair below. Leave the club empty for an individual boxer.</p>
@@ -1936,19 +1938,21 @@ export default function Draws() {
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60">
-            <button
-              type="button"
-              onClick={() => setShowAddAssign((v) => !v)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-bold text-brand-700 transition hover:bg-brand-50/50"
-            >
-              <span className="flex items-center gap-2">
-                <Icon name="plus" className="h-3.5 w-3.5" />
-                Add a new boxer manually
-              </span>
-              <span className="text-lg leading-none text-slate-400">{showAddAssign ? '−' : '+'}</span>
-            </button>
+            {!isPro && (
+              <button
+                type="button"
+                onClick={() => setShowAddAssign((v) => !v)}
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-bold text-brand-700 transition hover:bg-brand-50/50"
+              >
+                <span className="flex items-center gap-2">
+                  <Icon name="plus" className="h-3.5 w-3.5" />
+                  Add a new boxer manually
+                </span>
+                <span className="text-lg leading-none text-slate-400">{showAddAssign ? '−' : '+'}</span>
+              </button>
+            )}
 
-            {showAddAssign && (
+            {!isPro && showAddAssign && (
               <div className="space-y-3 px-3 pb-3">
                 <p className="text-[11px] text-slate-500">
                   Creates a registration in this event, then places the boxer in the empty slot. Leave the club empty for an individual boxer.
