@@ -27,6 +27,29 @@ const RegistrationSchema = new mongoose.Schema(
       gender: { type: String, enum: ['', 'M', 'F'], default: '' },
     },
 
+    entryType: { type: String, enum: ['amateur', 'professional'], default: 'amateur' },
+    proEntry: {
+      corner: { type: String, enum: ['red', 'blue'], default: 'red' },
+      contractedWeightKg: { type: Number, default: null },
+      division: { type: String, default: '' },
+      scheduledRounds: { type: Number, default: null },
+      billing: { type: String, default: 'undercard' },
+      billingOrder: { type: Number, default: 1 },
+      promoterForEvent: { type: String, default: '' },
+      managerForEvent: { type: String, default: '' },
+      contractSigned: { type: Boolean, default: false },
+      licenseVerified: { type: Boolean, default: false },
+      medicalsVerified: { type: Boolean, default: false },
+      arrivalDate: { type: Date, default: null },
+      walkoutMusic: { type: String, default: '' },
+      colors: { type: String, default: '' },
+      teamPasses: { type: Number, default: 0 },
+      titleOnLine: { type: Boolean, default: false },
+      titleName: { type: String, default: '' },
+      sanctioningBody: { type: String, default: '' },
+      status: { type: String, default: 'confirmed' },
+    },
+
     status: {
       type: String,
       enum: [

@@ -29,6 +29,7 @@ const FILTERS = [
   { id: 'open', label: 'Registration open' },
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'completed', label: 'Completed' },
+  { id: 'pro', label: 'Professional fight nights' },
 ]
 
 export default function EventList() {
@@ -55,6 +56,7 @@ export default function EventList() {
     if (filter === 'open') list = list.filter((e) => e.registrationOpen)
     if (filter === 'upcoming') list = list.filter((e) => e.eventDate && new Date(e.eventDate) >= new Date(new Date().toDateString()))
     if (filter === 'completed') list = list.filter((e) => ['completed', 'archived'].includes(e.status))
+    if (filter === 'pro') list = list.filter((e) => e.eventType === 'professional')
     const q = search.trim().toLowerCase()
     if (q) {
       list = list.filter(
@@ -164,6 +166,7 @@ export default function EventList() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((ev, i) => {
             const countdown = daysUntil(ev.eventDate)
+            const isPro = ev.eventType === 'professional'
             return (
               <article
                 key={ev._id}
@@ -188,6 +191,12 @@ export default function EventList() {
                       </span>
                     </Link>
                     <StatusBadge status={ev.registrationOpen ? 'open' : ev.status} />
+                    {isPro && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
+                        <Icon name="trophy" className="h-3 w-3" />
+                        Pro
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">

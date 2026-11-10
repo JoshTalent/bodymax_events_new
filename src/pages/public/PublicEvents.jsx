@@ -9,6 +9,7 @@ const FILTERS = [
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'live', label: 'Live' },
   { key: 'completed', label: 'Completed' },
+  { key: 'pro', label: 'Pro Fight Nights' },
 ]
 
 export default function PublicEvents() {
@@ -30,7 +31,8 @@ export default function PublicEvents() {
     filter === 'upcoming' ? events.filter(isUpcoming)
       : filter === 'live' ? events.filter(isLive)
         : filter === 'completed' ? events.filter((e) => !isUpcoming(e))
-          : events
+          : filter === 'pro' ? events.filter((e) => e.eventType === 'professional')
+            : events
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -59,7 +61,8 @@ export default function PublicEvents() {
               const count = f.key === 'all' ? events.length
                 : f.key === 'upcoming' ? events.filter(isUpcoming).length
                   : f.key === 'live' ? events.filter(isLive).length
-                    : events.filter((e) => !isUpcoming(e)).length
+                    : f.key === 'pro' ? events.filter((e) => e.eventType === 'professional').length
+                      : events.filter((e) => !isUpcoming(e)).length
               return (
                 <button
                   key={f.key}

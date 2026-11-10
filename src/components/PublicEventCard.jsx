@@ -2,10 +2,13 @@ import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn.js'
 import { weightClassesOfEvent, weightClassLabel } from '../utils/weightClasses.js'
 
-export function EventBadge({ status, registrationOpen }) {
+export function EventBadge({ status, registrationOpen, eventType }) {
   let cls = 'bg-blue-50 text-blue-700 ring-blue-600/20'
   let label = 'Upcoming'
-  if (status === 'completed' || status === 'archived') {
+  if (eventType === 'professional') {
+    cls = 'bg-rose-50 text-rose-700 ring-rose-600/20'
+    label = 'Pro Fight'
+  } else if (status === 'completed' || status === 'archived') {
     cls = 'bg-slate-100 text-slate-600 ring-slate-400/20'
     label = 'Completed'
   } else if (status === 'in_progress') {
@@ -41,13 +44,18 @@ export default function PublicEventCard({ ev }) {
           <span className="text-[11px] font-bold uppercase tracking-widest text-brand-300">
             {month} {year}
           </span>
-          <EventBadge status={ev.status} registrationOpen={ev.registrationOpen} />
+          <EventBadge status={ev.status} registrationOpen={ev.registrationOpen} eventType={ev.eventType} />
         </div>
         <p className="relative mt-1 text-3xl font-black text-white">{day}</p>
       </div>
 
       <div className="flex flex-1 flex-col p-5">
         <h3 className="text-lg font-bold text-slate-900 transition group-hover:text-brand-700">{ev.name}</h3>
+        {ev.eventType === 'professional' && (ev.pro?.promotionName || ev.pro?.tagline) && (
+          <p className="mt-0.5 text-[11px] font-bold uppercase tracking-widest text-rose-600">
+            {[ev.pro?.promotionName, ev.pro?.tagline].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <p className="mt-1.5 flex items-start gap-1.5 text-sm text-slate-500">
           <svg className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />

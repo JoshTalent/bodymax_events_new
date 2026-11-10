@@ -20,8 +20,28 @@ export default function EventCreate() {
 
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [eventType, setEventType] = useState('amateur')
   const [weightClasses, setWeightClasses] = useState([])
   const [ageCategories, setAgeCategories] = useState([])
+  const [pro, setPro] = useState({
+    seriesName: '',
+    eventNumber: '',
+    tagline: '',
+    posterUrl: '',
+    promotionName: '',
+    coPromoters: [],
+    sanctioningBody: '',
+    broadcast: { network: '', streamUrl: '', payPerView: false },
+    ticketing: { url: '', currency: 'USD', priceFrom: '' },
+    doorsOpen: '',
+    firstBell: '',
+    weighInVenue: '',
+    rulesMeetingAt: '',
+    medicalOfficer: '',
+    matchmaker: '',
+    ringAnnouncer: '',
+    capacity: '',
+  })
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -50,6 +70,35 @@ export default function EventCreate() {
     setSaving(true)
     try {
       const normalizedWeightClasses = normalizeWeightClasses(weightClasses)
+      const proPayload = eventType === 'professional'
+        ? {
+            seriesName: pro.seriesName,
+            eventNumber: Number(pro.eventNumber) || null,
+            tagline: pro.tagline,
+            posterUrl: pro.posterUrl,
+            promotionName: pro.promotionName,
+            coPromoters: pro.coPromoters || [],
+            sanctioningBody: pro.sanctioningBody,
+            broadcast: {
+              network: pro.broadcast.network,
+              streamUrl: pro.broadcast.streamUrl,
+              payPerView: Boolean(pro.broadcast.payPerView),
+            },
+            ticketing: {
+              url: pro.ticketing.url,
+              currency: pro.ticketing.currency,
+              priceFrom: Number(pro.ticketing.priceFrom) || null,
+            },
+            doorsOpen: pro.doorsOpen,
+            firstBell: pro.firstBell,
+            weighInVenue: pro.weighInVenue,
+            rulesMeetingAt: pro.rulesMeetingAt ? new Date(pro.rulesMeetingAt) : null,
+            medicalOfficer: pro.medicalOfficer,
+            matchmaker: pro.matchmaker,
+            ringAnnouncer: pro.ringAnnouncer,
+            capacity: Number(pro.capacity) || null,
+          }
+        : undefined
       const payload = {
         name: form.name,
         description: form.description,
@@ -63,8 +112,9 @@ export default function EventCreate() {
         registrationRequirements: form.registrationRequirements,
         weightClasses: normalizedWeightClasses,
         weightCategories: weightCategoryLabels(normalizedWeightClasses),
-        ageCategories,
-        requireWeighIn: form.requireWeighIn,
+        ageCategories: eventType === 'professional' ? [] : ageCategories,
+        ...(eventType === 'professional' ? { pro: proPayload } : {}),
+        requireWeighIn: eventType === 'professional' ? true : form.requireWeighIn,
         public: form.public,
         createdBy: user.id,
       }
@@ -92,6 +142,62 @@ export default function EventCreate() {
       />
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <Card>
+          <CardBody className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+              {[
+                { id: 'amateur', label: 'Amateur Tournament' },
+                { id: 'professional', label: 'Professional Fight Night' },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setEventType(t.id)}
+                  className={`rounded-xl px-4 py-2.5 text-center text-xs font-bold transition ${eventType === t.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              {eventType === 'professional'
+                ? 'Professional fight nights are promoter-managed: boxers are added to the card directly and there is no public registration link.'
+                : 'Amateur events run the club registration flow with a public registration link.'}
+            </p>
+          </CardBody>
+        </Card>
+
+        {eventType === 'professional' && (
+          <Card>
+            <CardHeader title="Professional Fight Night" subtitle="Promotion, sanctioning and logistics" />
+            <CardBody className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input label="Series name" value={pro.seriesName} onChange={(e) => setPro({ ...pro, seriesName: e.target.value })} placeholder="e.g. Bodymax Fight Night" />
+              <Input label="Event number" type="number" value={pro.eventNumber} onChange={(e) => setPro({ ...pro, eventNumber: e.target.value })} placeholder="e.g. 12" />
+              <Input label="Tagline" value={pro.tagline} onChange={(e) => setPro({ ...pro, tagline: e.target.value })} placeholder="e.g. The Takeover" />
+              <Input label="Poster URL" value={pro.posterUrl} onChange={(e) => setPro({ ...pro, posterUrl: e.target.value })} placeholder="https://…/poster.jpg" />
+              <Input label="Promotion name" value={pro.promotionName} onChange={(e) => setPro({ ...pro, promotionName: e.target.value })} placeholder="e.g. Bodymax Promotions" />
+              <TagInput label="Co-promoters" placeholder="Add a promoter" values={pro.coPromoters} setValues={(v) => setPro({ ...pro, coPromoters: v })} />
+              <Input label="Sanctioning body / commission" value={pro.sanctioningBody} onChange={(e) => setPro({ ...pro, sanctioningBody: e.target.value })} placeholder="e.g. Rwanda Boxing Commission" />
+              <Input label="Broadcast network" value={pro.broadcast.network} onChange={(e) => setPro({ ...pro, broadcast: { ...pro.broadcast, network: e.target.value } })} placeholder="e.g. TVR" />
+              <Input label="Broadcast stream URL" value={pro.broadcast.streamUrl} onChange={(e) => setPro({ ...pro, broadcast: { ...pro.broadcast, streamUrl: e.target.value } })} placeholder="https://…" />
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={Boolean(pro.broadcast.payPerView)} onChange={(e) => setPro({ ...pro, broadcast: { ...pro.broadcast, payPerView: e.target.checked } })} className="h-4 w-4 rounded" />
+                Pay-per-view event
+              </label>
+              <Input label="Ticketing URL" value={pro.ticketing.url} onChange={(e) => setPro({ ...pro, ticketing: { ...pro.ticketing, url: e.target.value } })} placeholder="https://…" />
+              <Input label="Price from (USD)" type="number" value={pro.ticketing.priceFrom} onChange={(e) => setPro({ ...pro, ticketing: { ...pro.ticketing, priceFrom: e.target.value } })} placeholder="e.g. 25" />
+              <Input label="Doors open" value={pro.doorsOpen} onChange={(e) => setPro({ ...pro, doorsOpen: e.target.value })} placeholder="e.g. 18:00" />
+              <Input label="First bell" value={pro.firstBell} onChange={(e) => setPro({ ...pro, firstBell: e.target.value })} placeholder="e.g. 19:00" />
+              <Input label="Weigh-in venue" value={pro.weighInVenue} onChange={(e) => setPro({ ...pro, weighInVenue: e.target.value })} placeholder="Venue / hotel" />
+              <Input label="Rules meeting at" type="date" value={pro.rulesMeetingAt} onChange={(e) => setPro({ ...pro, rulesMeetingAt: e.target.value })} />
+              <Input label="Medical officer" value={pro.medicalOfficer} onChange={(e) => setPro({ ...pro, medicalOfficer: e.target.value })} placeholder="Name" />
+              <Input label="Matchmaker" value={pro.matchmaker} onChange={(e) => setPro({ ...pro, matchmaker: e.target.value })} placeholder="Name" />
+              <Input label="Ring announcer" value={pro.ringAnnouncer} onChange={(e) => setPro({ ...pro, ringAnnouncer: e.target.value })} placeholder="Name" />
+              <Input label="Venue capacity" type="number" value={pro.capacity} onChange={(e) => setPro({ ...pro, capacity: e.target.value })} placeholder="e.g. 5000" />
+            </CardBody>
+          </Card>
+        )}
+
         <Card>
           <CardHeader title="Basic Information" />
           <CardBody className="space-y-4">

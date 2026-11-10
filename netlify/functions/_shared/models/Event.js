@@ -1,11 +1,48 @@
 import mongoose from 'mongoose'
 import crypto from 'crypto'
 
+const ProEventSchema = new mongoose.Schema(
+  {
+    seriesName: { type: String, trim: true, default: '' },
+    eventNumber: { type: Number, default: null },
+    tagline: { type: String, trim: true, default: '' },
+    posterUrl: { type: String, trim: true, default: '' },
+    promotionName: { type: String, trim: true, default: '' },
+    coPromoters: [{ type: String, trim: true, default: '' }],
+    sanctioningBody: { type: String, trim: true, default: '' },
+    broadcast: {
+      network: { type: String, trim: true, default: '' },
+      streamUrl: { type: String, trim: true, default: '' },
+      payPerView: { type: Boolean, default: false },
+    },
+    ticketing: {
+      url: { type: String, trim: true, default: '' },
+      currency: { type: String, trim: true, default: 'USD' },
+      priceFrom: { type: Number, default: null },
+    },
+    doorsOpen: { type: String, default: '' },
+    firstBell: { type: String, default: '' },
+    weighInVenue: { type: String, trim: true, default: '' },
+    rulesMeetingAt: { type: Date, default: null },
+    medicalOfficer: { type: String, trim: true, default: '' },
+    matchmaker: { type: String, trim: true, default: '' },
+    ringAnnouncer: { type: String, trim: true, default: '' },
+    capacity: { type: Number, default: null },
+  },
+  { _id: false }
+)
+
 const EventSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, unique: true, sparse: true, trim: true },
     description: { type: String, default: '' },
+
+    // 'amateur' (club / tournament flow) or 'professional' (fight night flow).
+    // Professional events skip the public registration link entirely and are
+    // driven by the promoter-managed roster instead.
+    eventType: { type: String, enum: ['amateur', 'professional'], default: 'amateur' },
+    pro: { type: ProEventSchema, default: undefined },
 
     venue: { type: String, trim: true, default: '' },
     location: { type: String, trim: true, default: '' },
@@ -64,8 +101,12 @@ const EventSchema = new mongoose.Schema(
 )
 
 EventSchema.pre('save', async function () {
-  if (!this.registrationToken) {
-    this.registrationToken = crypto.randomBytes(16).toString('hex')
+  // Professional fight nights are promoter-managed and never expose a public
+  // registration link, so no token is generated for them.
+  if (!this.eventType || this.eventType === 'amateur') {
+    if (!this.registrationToken) {
+      this.registrationToken = crypto.randomBytes(16).toString('hex')
+    }
   }
 })
 

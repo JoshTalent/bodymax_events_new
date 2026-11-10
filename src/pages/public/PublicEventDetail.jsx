@@ -27,12 +27,16 @@ function Chip({ children }) {
 export default function PublicEventDetail() {
   const { id } = useParams()
   const [event, setEvent] = useState(null)
+  const [bouts, setBouts] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api(`/public-events?id=${id}`)
       .then((d) => setEvent(d.event))
       .catch(() => {})
+    api(`/public-bouts?eventId=${encodeURIComponent(id || '')}`)
+      .then((d) => setBouts(d.bouts || []))
+      .catch(() => setBouts([]))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -73,6 +77,7 @@ export default function PublicEventDetail() {
 
   const regOpen = event.registrationOpen && !['completed', 'archived', 'closed'].includes(event.status)
   const hasRegisterLink = regOpen && Boolean(event.registrationToken)
+  const isPro = event.eventType === 'professional'
   const registerUrl = `/register/${event.registrationToken}`
   const weightClassList = weightClassesOfEvent(event)
   const weightClassLabels = weightClassList.map(weightClassLabel)
@@ -95,7 +100,7 @@ export default function PublicEventDetail() {
           <div className="mt-5 flex flex-wrap items-start justify-between gap-6">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <EventBadge status={event.status} registrationOpen={event.registrationOpen} />
+                <EventBadge status={event.status} registrationOpen={event.registrationOpen} eventType={event.eventType} />
                 {d && (
                   <span className="text-[11px] font-bold uppercase tracking-widest text-brand-300">{dateStr}</span>
                 )}
@@ -120,10 +125,42 @@ export default function PublicEventDetail() {
                     {event.location}
                   </span>
                 )}
+                {isPro && (event.pro?.promotionName || event.pro?.tagline) && (
+                  <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-rose-400">
+                    {[event.pro?.promotionName, event.pro?.tagline].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                {isPro && event.pro?.posterUrl && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-lg">
+                    <img src={event.pro.posterUrl} alt="Event poster" className="w-full h-auto max-h-48 object-cover" />
+                  </div>
+                )}
               </p>
             </div>
 
-            {hasRegisterLink ? (
+            {isPro ? (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-6 py-4 text-sm font-bold text-rose-200">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.9 6.26 6.6.72-5 4.38 1.5 6.44L12 17.27 5.99 20.8l1.5-6.44-5-4.38 6.6-.72L12 3z" />
+                  </svg>
+                  Professional Fight Night
+                </div>
+                {event.pro?.ticketing?.url && (
+                  <a
+                    href={event.pro.ticketing.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-600 px-7 py-4 text-sm font-bold text-white shadow-2xl shadow-amber-600/40 transition hover:bg-amber-500"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h18M2 12l7 3-7-3M2 12l7 -3-7 3M12 2l3 7-3 7" />
+                    </svg>
+                    Buy Tickets
+                  </a>
+                )}
+              </div>
+            ) : hasRegisterLink ? (
               <Link
                 to={registerUrl}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-600 px-7 py-4 text-sm font-bold text-white shadow-2xl shadow-brand-600/40 transition hover:bg-brand-500"
@@ -162,7 +199,92 @@ export default function PublicEventDetail() {
               </section>
             )}
 
-            {(weightClassLabels.length > 0 || event.ageCategories?.length > 0 || event.genderCategories?.length > 0) && (
+            {(isPro ? (
+              <>
+                {/* Professional fight card */}
+                {(bouts?.length || 0) > 0 && (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500">
+                      <svg className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                      </svg>
+                      Fight Card
+                    </h2>
+                    <div className="mt-4 space-y-3">
+                      {(bouts || []).map((b) => (
+                        <div key={b._id} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-[10px] font-black text-white shadow-sm">
+                              {b.billingOrder || b.boutNumber}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                {b.boutType === 'main_event' ? 'Main Event' : b.boutType === 'co_main' ? 'Co-Main' : 'Undercard'}
+                              </p>
+                              <p className="mt-0.5 text-sm font-semibold text-slate-800 truncate">
+                                <Link to={`/boxer/${b.boxerA?._id}`} className="font-bold text-rose-600 hover:underline">
+                                  {(b.boxerA?.ringName || b.boxerA?.fullName || 'TBA')}
+                                </Link>
+                                vs
+                                <Link to={`/boxer/${b.boxerB?._id}`} className="font-bold text-rose-600 hover:underline">
+                                  {(b.boxerB?.ringName || b.boxerB?.fullName || 'TBA')}
+                                </Link>
+                              </p>
+                              {b.titleFight && (
+                                <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-900/20 px-2 py-0.5 text-[9px] font-bold text-amber-400 ring-1 ring-inset ring-amber-900/30">
+                                  Title — {b.titleName || 'Championship'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                            {b.rounds && `${b.rounds} rounds`}
+                            {b.numberOfRounds !== undefined && !b.rounds && `${b.numberOfRounds} rounds`}
+                            <span className="text-slate-400">·</span>
+                            {b.sanctioningBody || (event.pro?.sanctioningBody || '')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-[11px] text-slate-500 text-center">Boxing record and official results are updated after each bout.</p>
+                  </section>
+                )}
+                {/* Fight night logistics */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                  <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500">
+                    <svg className="h-4 w-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Fight Night Info
+                  </h2>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {(event.pro?.promotionName || event.pro?.tagline || event.pro?.eventNumber || event.pro?.seriesName) && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <InfoRow label="Series" value={event.pro?.seriesName || ''} />
+                        <InfoRow label="Event #" value={event.pro?.eventNumber ?? ''} />
+                        <InfoRow label="Promotion" value={event.pro?.promotionName || ''} />
+                        <InfoRow label="Sanctioning body" value={event.pro?.sanctioningBody || ''} />
+                      </div>
+                    )}
+                    {event.pro?.doorsOpen || event.pro?.firstBell && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <InfoRow label="Doors open" value={event.pro?.doorsOpen || ''} />
+                        <InfoRow label="First bell" value={event.pro?.firstBell || ''} />
+                        <InfoRow label="Weigh-in venue" value={event.pro?.weighInVenue || ''} />
+                        <InfoRow label="Capacity" value={event.pro?.capacity ?? ''} />
+                      </div>
+                    )}
+                    {(event.pro?.broadcast?.network || event.pro?.ticketing?.url) && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <InfoRow label="Broadcast" value={event.pro?.broadcast?.network || ''} />
+                        <InfoRow label="Stream / PPV" value={event.pro?.broadcast?.payPerView ? 'Pay-per-view' : 'Streaming'} />
+                        <InfoRow label="Tickets" value={event.pro?.ticketing?.url || ''} />
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            ) : (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="grid gap-8 sm:grid-cols-2">
                   {weightClassLabels.length > 0 && (
@@ -221,7 +343,7 @@ export default function PublicEventDetail() {
                   )}
                 </div>
               </section>
-            )}
+            ))}
 
             {(event.registrationRequirements || event.rules) && (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -281,7 +403,12 @@ export default function PublicEventDetail() {
                   </div>
                 )}
 
-                {hasRegisterLink ? (
+                {isPro ? (
+                  <div className="mt-1 rounded-xl bg-slate-900 px-4 py-3 text-center">
+                    <p className="text-sm font-bold text-white">Promoter-managed roster</p>
+                    <p className="mt-1 text-xs text-slate-300">Professional fight nights have no public registration — boxers are added directly to the card by the promoter.</p>
+                  </div>
+                ) : hasRegisterLink ? (
                   <Link
                     to={registerUrl}
                     className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-500"

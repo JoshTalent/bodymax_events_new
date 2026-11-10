@@ -10,7 +10,7 @@ export default async (event) => {
     await connectDB()
 
     const params = event.queryStringParameters || {}
-    const { id, isPublic } = params
+    const { id, isPublic, eventType } = params
 
     if (id && event.httpMethod === 'DELETE') {
       await requireRole('promoter')(event)
@@ -41,6 +41,10 @@ export default async (event) => {
 
     if (isPublic === 'true') {
       query = { public: true }
+    }
+
+    if (eventType) {
+      query.eventType = eventType
     }
 
     if (user.role === 'club') {

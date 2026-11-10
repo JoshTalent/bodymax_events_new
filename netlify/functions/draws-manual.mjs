@@ -83,6 +83,7 @@ export default async (event) => {
     // Create a flat list of bouts for the event (single round, no bracket rounds).
     // Numbering continues after any other category's bouts so an all-weights card
     // never shows duplicate bout numbers or positions.
+    const isProEvent = ev.eventType === 'professional'
     const remainingBouts = await Bout.find({ eventId }).select('boutNumber bracketPosition').lean()
     const lastNumber = remainingBouts.reduce((max, b) => Math.max(max, Number(b.boutNumber) || 0), 0)
     const lastPosition = remainingBouts.reduce((max, b) => {
@@ -106,6 +107,16 @@ export default async (event) => {
         boxerAId: a,
         boxerBId: b,
         status: a && b ? 'scheduled' : 'walkover',
+        boutType: isProEvent
+          ? (saved.length === 0 ? 'main_event' : saved.length === 1 ? 'co_main' : 'undercard')
+          : (p.boutType || ''),
+        billingOrder: isProEvent ? saved.length + 1 : Number(p.billingOrder) || 0,
+        titleFight: isProEvent ? Boolean(p.titleFight) : Boolean(p.titleFight),
+        titleName: isProEvent ? (p.titleName || 'Undisputed Championship') : (p.titleName || ''),
+        sanctioningBody: isProEvent ? (p.sanctioningBody || '') : (p.sanctioningBody || ''),
+        division: isProEvent ? (p.division || p.category?.weight || '') : (p.division || ''),
+        contractWeightKg: isProEvent ? (p.contractWeightKg ?? null) : (p.contractWeightKg ?? null),
+        commissionApproved: isProEvent ? Boolean(p.commissionApproved) : Boolean(p.commissionApproved),
       })
       if (!a || !b) {
         bout.winnerId = a || b || null

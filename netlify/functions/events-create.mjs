@@ -30,6 +30,8 @@ export default async (event) => {
       return errorResponse({ message: 'Event name is required', status: 400 })
     }
 
+    const eventType = body.eventType === 'professional' ? 'professional' : 'amateur'
+
     let weightClasses
     if (Object.prototype.hasOwnProperty.call(body, 'weightClasses')) {
       const invalid = validateWeightClasses(body.weightClasses)
@@ -42,10 +44,13 @@ export default async (event) => {
 
     const eventData = {
       ...body,
+      eventType,
+      ...(eventType === 'professional' ? { pro: body.pro || {} } : {}),
       slug,
       createdBy: user._id,
       status: body.status || 'open',
-      registrationOpen: body.registrationOpen !== undefined ? body.registrationOpen : true,
+      // Professional fight nights are promoter-managed: no public registration.
+      registrationOpen: eventType === 'professional' ? false : body.registrationOpen !== undefined ? body.registrationOpen : true,
       public: body.public !== undefined ? body.public : true,
     }
 

@@ -211,6 +211,8 @@ export default function EventDetail() {
   const assignedClubIds = useMemo(() => new Set(assignedClubs.map((c) => String(c._id))), [assignedClubs])
   const eventWeightClasses = useMemo(() => weightClassesOfEvent(event), [event])
   const eventWeightLabels = useMemo(() => eventWeightClasses.map(weightClassLabel), [eventWeightClasses])
+  const eventType = event?.eventType || 'amateur'
+  const isPro = eventType === 'professional'
 
   // Weight filter options and alias resolution. A weight class can be stored
   // as its full label ("Flyweight · 48–51 kg"), its name ("Flyweight") or just
@@ -719,6 +721,15 @@ export default function EventDetail() {
   }
 
   const openBoxerModal = () => {
+    if (isPro) {
+      setBoxerMode('new')
+      setBoxerClubId('')
+      setBoxerPickId('')
+      setBoxerCat({ weight: '', age: '', gender: '' })
+      setNewBoxer({ fullName: '', gender: 'M', dateOfBirth: '', experience: '' })
+      setBoxerModal(true)
+      return
+    }
     setBoxerMode('existing')
     setBoxerClubId(assignedClubs[0]?._id || '')
     setBoxerPickId('')
@@ -728,12 +739,43 @@ export default function EventDetail() {
   }
 
   const assignBoxer = async () => {
-    if (!boxerClubId) {
-      toast('Assign a club to this event first', 'error')
-      return
-    }
     setBoxerSaving(true)
     try {
+      if (isPro) {
+        if (!newBoxer.fullName.trim()) {
+          toast('Enter the boxer name', 'error')
+          setBoxerSaving(false)
+          return
+        }
+        await api('/pro-roster', {
+          method: 'POST',
+          body: {
+            eventId: id,
+            boxer: {
+              fullName: newBoxer.fullName,
+              gender: boxerCat.gender || newBoxer.gender || 'M',
+              dateOfBirth: newBoxer.dateOfBirth ? new Date(newBoxer.dateOfBirth) : null,
+              weightCategory: boxerCat.weight || '',
+              experience: newBoxer.experience || '',
+            },
+            category: {
+              weight: boxerCat.weight,
+              gender: boxerCat.gender,
+            },
+            proEntry: { corner: 'red', billing: 'undercard' },
+          },
+        })
+        toast('Professional boxer added to the fight card')
+        setBoxerModal(false)
+        load()
+        return
+      }
+
+      if (!boxerClubId) {
+        toast('Assign a club to this event first', 'error')
+        setBoxerSaving(false)
+        return
+      }
       let boxerId = boxerPickId
       if (boxerMode === 'new') {
         if (!newBoxer.fullName.trim()) {
@@ -844,9 +886,10 @@ export default function EventDetail() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'grid' },
-    ...(canManage ? [{ id: 'clubs', label: 'Clubs', icon: 'clubs', count: clubGroups.length }] : []),
-    ...(canManage ? [{ id: 'boxers', label: 'Boxers', icon: 'boxers', count: regs.length }] : []),
-    { id: 'registrations', label: 'Approvals', icon: 'checkCircle', count: pendingCount || undefined, attention: pendingCount > 0 },
+    ...(canManage && !isPro ? [{ id: 'clubs', label: 'Clubs', icon: 'clubs', count: clubGroups.length }] : []),
+    ...(canManage ? [{ id: 'boxers', label: isPro ? 'Pro Roster' : 'Boxers', icon: 'boxers', count: regs.length }] : []),
+    ...(canManage && isPro ? [{ id: 'fightcard', label: 'Fight Card', icon: 'trophy' }] : []),
+    ...(isPro ? [] : [{ id: 'registrations', label: 'Approvals', icon: 'checkCircle', count: pendingCount || undefined, attention: pendingCount > 0 }]),
     { id: 'weighins', label: 'Weigh-In', icon: 'scale', count: `${weighedCount}/${regs.length}` },
     ...(canManage ? [{ id: 'portals', label: 'Portals', icon: 'shield' }] : []),
   ]
@@ -891,6 +934,12 @@ export default function EventDetail() {
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-4xl">{event.name}</h1>
                 <StatusBadge status={event.status} />
+                {isPro && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
+                    <Icon name="trophy" className="h-3 w-3" />
+                    Pro fight night
+                  </span>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
                 <span className="inline-flex items-center gap-1.5">
@@ -1128,6 +1177,7 @@ export default function EventDetail() {
               </Panel>
             </div>
 
+            {!isPro && (
             <Panel
               title="Registration link"
               subtitle="Let clubs enter boxers directly into this event"
@@ -1158,6 +1208,7 @@ export default function EventDetail() {
                 Anyone with this link can submit boxers. You review and approve every entry from the Approvals tab.
               </p>
             </Panel>
+            )}
 
             {event.rules && (
               <Panel title="Rules & requirements" subtitle="Shared with registered clubs">
@@ -1204,7 +1255,7 @@ export default function EventDetail() {
                   >
                     <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"><Icon name="usersPlus" className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-bold text-slate-900">Assign boxers</span>
+                      <span className="block text-xs font-bold text-slate-900">{isPro ? 'Add professional boxer' : 'Assign boxers'}</span>
                       <span className="block text-[10px] text-slate-500">{regs.length} entered · {pendingCount} awaiting review</span>
                     </span>
                     <Icon name="arrowRight" className="h-4 w-4 text-slate-300" />
@@ -1268,6 +1319,28 @@ export default function EventDetail() {
             </Panel>
           </div>
         </div>
+      )}
+
+      {tab === 'fightcard' && (
+        <Card>
+          <div className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <Icon name="trophy" className="h-4 w-4 text-amber-500" />
+                Professional fight card
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {isPro
+                  ? `${boutCount} bout${boutCount === 1 ? '' : 's'} currently scheduled on the card. Use the fighter card builder to order main event, co-main and undercard fights.`
+                  : `${boutCount} bouts currently scheduled. Switch this event to a professional fight night to manage a promoter-driven fight card.`}
+              </p>
+            </div>
+            <Button size="sm" onClick={() => navigate(`/app/events/${id}/draws`)}>
+              <Icon name="trophy" className="mr-1.5 h-3.5 w-3.5" />
+              Open fight card builder
+            </Button>
+          </div>
+        </Card>
       )}
 
       {tab === 'clubs' && (
@@ -1362,6 +1435,16 @@ export default function EventDetail() {
 
       {tab === 'boxers' && (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+            <div>
+              <p className="text-sm font-bold text-slate-900">{isPro ? 'Professional roster' : 'Assigned boxers'}</p>
+              <p className="text-[11px] text-slate-500">{isPro ? 'Promoter-managed professional fighters on this card.' : 'Boxers entered into this event, tracked with categories and weigh-in.'}</p>
+            </div>
+            <Button size="sm" onClick={openBoxerModal}>
+              <Icon name="usersPlus" className="mr-1.5 h-3.5 w-3.5" />
+              {isPro ? 'Add professional boxer' : 'Assign boxer'}
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               { label: 'Assigned boxers', value: regs.length, icon: 'boxers', tone: 'bg-brand-50 text-brand-600' },
@@ -1877,6 +1960,7 @@ export default function EventDetail() {
         }
       >
         <div className="space-y-4">
+          {!isPro && (
           <Select
             label="Club"
             value={boxerClubId}
@@ -1887,6 +1971,7 @@ export default function EventDetail() {
               <option key={c._id} value={c._id}>{c.name}</option>
             ))}
           </Select>
+          )}
 
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
             <button
@@ -1954,7 +2039,7 @@ export default function EventDetail() {
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Event category</p>
             <div className="grid gap-4 sm:grid-cols-3">
               <CategoryField label="Weight" value={boxerCat.weight} onChange={(e) => setBoxerCat({ ...boxerCat, weight: e.target.value })} options={eventWeightLabels} placeholder="e.g. Flyweight · 48–51 kg" />
-              <CategoryField label="Age" value={boxerCat.age} onChange={(e) => setBoxerCat({ ...boxerCat, age: e.target.value })} options={event.ageCategories} placeholder="e.g. Junior" />
+              {!isPro && <CategoryField label="Age" value={boxerCat.age} onChange={(e) => setBoxerCat({ ...boxerCat, age: e.target.value })} options={event.ageCategories} placeholder="e.g. Junior" />}
               <Select label="Gender category" value={boxerCat.gender} onChange={(e) => setBoxerCat({ ...boxerCat, gender: e.target.value })}>
                 <option value="">Use boxer's gender</option>
                 <option value="M">Male</option>

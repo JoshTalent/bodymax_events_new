@@ -9,6 +9,7 @@ import PublicEventDetail from './pages/public/PublicEventDetail.jsx'
 import RolePortal from './pages/public/RolePortal.jsx'
 import EventRegister from './pages/public/EventRegister.jsx'
 import PublicDraws from './pages/public/PublicDraws.jsx'
+import PublicBoxer from './pages/public/PublicBoxer.jsx'
 import Login from './pages/Login.jsx'
 
 import DashboardLayout from './pages/DashboardLayout.jsx'
@@ -19,6 +20,7 @@ import EventDetail from './pages/promoter/EventDetail.jsx'
 import Draws from './pages/promoter/Draws.jsx'
 import Results from './pages/promoter/Results.jsx'
 import Registrations from './pages/promoter/Registrations.jsx'
+import ProBoxersAdmin from './pages/promoter/ProBoxersAdmin.jsx'
 import Users from './pages/promoter/Users.jsx'
 
 import Settings from './pages/Settings.jsx'
@@ -44,6 +46,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/events" element={<PublicEvents />} />
       <Route path="/events/:id" element={<PublicEventDetail />} />
+      <Route path="/boxer/:id" element={<PublicBoxer />} />
       <Route path="/draws/:token" element={<PublicDraws />} />
       <Route path="/portal/:token" element={<RolePortal />} />
       <Route path="/register/:token" element={<EventRegister />} />
@@ -66,7 +69,7 @@ export default function App() {
         <Route path="events/:id/results" element={<ProtectedRoute roles={['promoter']}><Results /></ProtectedRoute>} />
 
         <Route path="clubs/*" element={<Navigate to="/app/events" replace />} />
-        <Route path="boxers/*" element={<Navigate to="/app/events" replace />} />
+        <Route path="pro-boxers" element={<ProtectedRoute roles={['promoter']}><ProBoxersAdmin /></ProtectedRoute>} />
 
         <Route path="registrations" element={<ProtectedRoute roles={['promoter','official']}><Registrations /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute roles={['promoter']}><Users /></ProtectedRoute>} />

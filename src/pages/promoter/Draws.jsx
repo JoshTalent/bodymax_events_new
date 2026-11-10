@@ -326,6 +326,16 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
                 {isBye && !isDone && (
                   <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-200">Bye</span>
                 )}
+                {bout.boutType && (
+                  <span className={cn('rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide', bout.boutType === 'main_event' ? 'bg-rose-100 text-rose-800 ring-1 ring-inset ring-rose-300' : bout.boutType === 'co_main' ? 'bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200' : 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200')}>
+                    {bout.boutType === 'main_event' ? 'Main Event' : bout.boutType === 'co_main' ? 'Co-Main' : 'Undercard'}
+                  </span>
+                )}
+                {bout.titleFight && (
+                  <span className={cn('rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ring-1 ring-inset', bout.boutType === 'main_event' ? 'bg-amber-900 text-amber-100 ring-amber-600' : 'bg-amber-50 text-amber-700 ring-amber-200')}>
+                    Title Fight · {bout.titleName || 'Championship'}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -723,6 +733,11 @@ export default function Draws() {
   const [rulesOpen, setRulesOpen] = useState(false)
   const [rules, setRules] = useState(() => loadRules(id))
   const [autoBusy, setAutoBusy] = useState(false)
+  const [proTitleFight, setProTitleFight] = useState(true)
+  const [proTitleName, setProTitleName] = useState('')
+  const [proSanctioningBody, setProSanctioningBody] = useState('')
+
+  const isPro = event?.eventType === 'professional'
 
   useEffect(() => {
     setRules(loadRules(id))
@@ -1001,11 +1016,19 @@ export default function Draws() {
 
   const buildManual = async () => {
     const pairs = manualPairs
-      .map((p) => ({
+      .map((p, idx) => ({
         boxerAId: p.a || null,
         boxerBId: p.b || null,
         numberOfRounds: p.rounds === '' || p.rounds === undefined || p.rounds === null ? null : Number(p.rounds),
         minutesPerRound: p.minutes === '' || p.minutes === undefined || p.minutes === null ? null : Number(p.minutes),
+        boutType: isPro ? (idx === 0 ? 'main_event' : idx === 1 ? 'co_main' : 'undercard') : (p.boutType || ''),
+        billingOrder: isPro ? idx + 1 : Number(p.billingOrder) || 0,
+        titleFight: isPro ? Boolean(p.titleFight) : Boolean(p.titleFight),
+        titleName: isPro ? (p.titleName || 'Undisputed Championship') : (p.titleName || ''),
+        sanctioningBody: isPro ? (p.sanctioningBody || '') : (p.sanctioningBody || ''),
+        division: isPro ? (p.division || p.category?.weight || '') : (p.division || ''),
+        contractWeightKg: isPro ? (p.contractWeightKg ?? null) : (p.contractWeightKg ?? null),
+        commissionApproved: isPro ? Boolean(p.commissionApproved) : Boolean(p.commissionApproved),
       }))
       .filter((p) => p.boxerAId || p.boxerBId)
     if (pairs.length === 0) {
@@ -1326,6 +1349,8 @@ export default function Draws() {
                 size="sm"
                 className="h-9 border-white/15 bg-white/10 text-white hover:bg-white/15"
                 onClick={() => setRulesOpen(true)}
+                disabled={isPro}
+                title={isPro ? 'Professional fight nights use the manual fight card builder' : undefined}
               >
                 <Icon name="sparkles" className="mr-1.5 h-3.5 w-3.5" />
                 Smart auto draw
@@ -1612,6 +1637,27 @@ export default function Draws() {
                 ? 'Each pairing saves as one scheduled bout. Empty slots become walkover byes.'
                 : 'Pair boxers into bouts. Empty slots become walkover byes.'}
             </p>
+            {isPro && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                  <input type="checkbox" checked={proTitleFight} onChange={(e) => setProTitleFight(e.target.checked)} className="h-3.5 w-3.5 rounded" />
+                  Title fight
+                </label>
+                {proTitleFight && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-slate-600">Title name</label>
+                      <Input value={proTitleName} onChange={(e) => setProTitleName(e.target.value)} placeholder="e.g. Undisputed Championship" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold text-slate-600">Sanctioning body / commission</label>
+                      <Input value={proSanctioningBody} onChange={(e) => setProSanctioningBody(e.target.value)} placeholder="e.g. WBC / commission" />
+                    </div>
+                  </div>
+                )}
+                <p className="mt-2 text-[10px] text-slate-500">Billing order: first pairing = main event, second = co-main, remaining = undercard.</p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-1.5">
               <Button size="sm" variant="secondary" onClick={addPair}>
                 <Icon name="plus" className="mr-1 h-3 w-3" />

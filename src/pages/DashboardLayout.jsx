@@ -91,6 +91,7 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [registrationCount, setRegistrationCount] = useState(null)
+  const [proBoxerCount, setProBoxerCount] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -98,11 +99,23 @@ export default function DashboardLayout() {
   const searchRef = useRef(null)
   const userMenuRef = useRef(null)
 
+  const isPromoter = user?.role === 'promoter'
+  const isOfficial = user?.role === 'official'
+  const canManageUsers = user?.canManageUsers !== false
+
   useEffect(() => {
     api('/dashboard')
       .then((d) => setRegistrationCount(d.dashboard?.newRegistrationCount ?? 0))
       .catch(() => {})
   }, [location.pathname])
+
+  useEffect(() => {
+    if (isPromoter) {
+      api('/boxers?boxerType=professional')
+        .then((d) => setProBoxerCount((d.boxers || []).length))
+        .catch(() => {})
+    }
+  }, [isPromoter])
 
   useEffect(() => {
     const onSeen = () => setRegistrationCount(0)
@@ -140,9 +153,6 @@ export default function DashboardLayout() {
     setUserMenu(false)
   }, [location.pathname])
 
-  const isPromoter = user?.role === 'promoter'
-  const isOfficial = user?.role === 'official'
-  const canManageUsers = user?.canManageUsers !== false
   const roleLabel = isPromoter ? 'Manager' : isOfficial ? 'Official' : 'Club'
   const consoleName = isPromoter ? 'Manager console' : isOfficial ? 'Officials console' : 'Club console'
   const meta = getPageMeta(location.pathname)
@@ -165,6 +175,7 @@ export default function DashboardLayout() {
       })
     }
     if (isPromoter && canManageUsers) ops.push({ to: '/app/users', label: 'Users', icon: 'users' })
+    if (isPromoter) ops.push({ to: '/app/pro-boxers', label: 'Pro Boxers', icon: 'trophy', badge: proBoxerCount })
     sections.push({ label: isPromoter ? 'Operations' : 'Tournaments', items: ops })
 
     sections.push({ label: 'Account', items: [{ to: '/app/settings', label: 'Settings', icon: 'settings' }] })

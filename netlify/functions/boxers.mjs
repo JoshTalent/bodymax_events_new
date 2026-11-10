@@ -14,7 +14,7 @@ export default async (event) => {
     const user = await requireAuth(event)
 
     const params = event.queryStringParameters || {}
-    const { id, clubId } = params
+    const { id, clubId, boxerType } = params
     const method = event.httpMethod
 
     if (method === 'OPTIONS') {
@@ -31,6 +31,7 @@ export default async (event) => {
       } else {
         return errorResponse({ message: 'Forbidden', status: 403 })
       }
+      if (boxerType) query.boxerType = boxerType
       const boxers = await Boxer.find(query).sort({ fullName: 1 }).lean()
       return success({ boxers })
     }
