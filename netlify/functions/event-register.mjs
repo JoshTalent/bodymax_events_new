@@ -22,7 +22,15 @@ export default async (event) => {
     if (!evt) return errorResponse({ message: 'This registration link is invalid or has been removed', status: 404 })
 
     // Only clubs the event manager has added to this event may register boxers.
-    const approvedClubs = (evt.clubIds || []).filter((c) => c && c.name)
+    const approvedClubs = []
+    const seenClubIds = new Set()
+    for (const c of evt.clubIds || []) {
+      if (!c || !c.name) continue
+      const key = String(c._id)
+      if (seenClubIds.has(key)) continue
+      seenClubIds.add(key)
+      approvedClubs.push(c)
+    }
 
     const eventInfo = {
       _id: evt._id,
