@@ -46,12 +46,10 @@ const text = {
     kitTitle: 'club must bring red and blue clothing (kit).',
     kitConfirm: 'confirm.',
     kitRequired: 'Please confirm',
-    paymentTitle: 'Registration payment',
     paymentBody: 'attending this event must pay 10,000 RWF',
     paymentCodeLabel: 'Payment code',
     paymentCodeNameLabel: 'Code name',
     paymentCodeName: 'Bodymax Ltd',
-    paymentHint: 'Use this code when you make the payment so the organizer can identify your club.',
     submit: (n) => (n === 1 ? 'Submit 1 boxer' : `Submit ${n} boxers`),
     submitting: 'Submitting…',
     closedTitle: 'Registration is closed',
@@ -99,12 +97,10 @@ const text = {
     kitTitle: 'club igomba kuzana imyambaro ibiri(red na blue)',
     kitConfirm: 'Emeza.',
     kitRequired: 'Emeza',
-    paymentTitle: 'Ubwishyu bwo kwiyandikisha',
     paymentBody: 'Kwitabira umukino ugomba kwishyura 10,000 RWF ',
     paymentCodeLabel: 'Kode ya MOMO',
     paymentCodeNameLabel: 'Izina rya kode',
     paymentCodeName: 'Bodymax Ltd',
-    paymentHint: 'Koresha iyi kode igihe wishyura kugira ngo umuyobozi w’umukino amenye club yawe.',
     submit: (n) => (n === 1 ? 'Ohereza umukinnyi 1' : `Ohereza abakinnyi ${n}`),
     submitting: 'Birimo koherezwa…',
     closedTitle: 'Iyandikisha ryafunze',
@@ -458,14 +454,6 @@ export default function EventRegister() {
               </section>
 
               <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9v10.5A2.25 2.25 0 004.5 21.75h15A2.25 2.25 0 0021.75 19.5V9M2.25 9V6.75A2.25 2.25 0 014.5 4.5h15A2.25 2.25 0 0121.75 6.75V9M6 15h4.5" />
-                    </svg>
-                  </span>
-                  <h2 className="text-lg font-semibold text-emerald-900">{t.paymentTitle}</h2>
-                </div>
                 <p className="mt-3 text-sm font-medium leading-relaxed text-emerald-900">{t.paymentBody}</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl bg-white/70 px-4 py-3 ring-1 ring-emerald-200">
@@ -477,7 +465,6 @@ export default function EventRegister() {
                     <p className="mt-0.5 text-lg font-bold text-emerald-900">{t.paymentCodeName}</p>
                   </div>
                 </div>
-                <p className="mt-3 text-xs font-medium text-emerald-700">{t.paymentHint}</p>
               </section>
 
               {error && (
@@ -504,10 +491,10 @@ export default function EventRegister() {
               0788 824 488
             </a>
             <a
-              href="tel:0788531112"
+              href="tel:0798642923"
               className="inline-flex w-48 items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
             >
-              0788 531 112
+              0798 642 923
             </a>
           </div>
         </div>
