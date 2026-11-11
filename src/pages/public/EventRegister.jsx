@@ -100,7 +100,7 @@ const text = {
     kitConfirm: 'Emeza.',
     kitRequired: 'Emeza',
     paymentTitle: 'Ubwishyu bwo kwiyandikisha',
-    paymentBody: 'Kwitabira umukino agomba kwishyura 10,000 RWF ',
+    paymentBody: 'Kwitabira umukino ugomba kwishyura 10,000 RWF ',
     paymentCodeLabel: 'Kode ya MOMO',
     paymentCodeNameLabel: 'Izina rya kode',
     paymentCodeName: 'Bodymax Ltd',
