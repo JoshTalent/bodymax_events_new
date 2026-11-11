@@ -90,7 +90,7 @@ const text = {
     female: 'Gore',
     numberOfBouts: 'Umubare w’imikino yakinnye',
     addAnother: 'Ongera undi mukinnyi',
-    kitTitle: 'club igomba kuzana imyambaro 2 (red na blue)',
+    kitTitle: 'club igomba kuzana imyambaro ibiri(red na blue)',
     kitConfirm: 'Emeza.',
     kitRequired: 'Emeza',
     submit: (n) => (n === 1 ? 'Ohereza umukinnyi 1' : `Ohereza abakinnyi ${n}`),
