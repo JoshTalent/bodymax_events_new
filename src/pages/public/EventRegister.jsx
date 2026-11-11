@@ -100,7 +100,7 @@ const text = {
     kitConfirm: 'Emeza.',
     kitRequired: 'Emeza',
     paymentTitle: 'Ubwishyu bwo kwiyandikisha',
-    paymentBody: 'Kwitabora umukino agomba kwishyura 10,000 RWF ',
+    paymentBody: 'Kwitabira umukino agomba kwishyura 10,000 RWF ',
     paymentCodeLabel: 'Kode ya MOMO',
     paymentCodeNameLabel: 'Izina rya kode',
     paymentCodeName: 'Bodymax Ltd',
@@ -470,7 +470,7 @@ export default function EventRegister() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl bg-white/70 px-4 py-3 ring-1 ring-emerald-200">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{t.paymentCodeLabel}</p>
-                    <p className="mt-0.5 font-mono text-lg font-bold tracking-wider text-emerald-900">123456</p>
+                    <p className="mt-0.5 font-mono text-lg font-bold tracking-wider text-emerald-900"> 037597</p>
                   </div>
                   <div className="rounded-xl bg-white/70 px-4 py-3 ring-1 ring-emerald-200">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{t.paymentCodeNameLabel}</p>
