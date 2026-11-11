@@ -810,7 +810,112 @@ function fmtLongDate(iso) {
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Amateur events get a plain table PDF: boxer, club and weight against the
+// opponent with the same information. No logo, photos, colours or charts.
+async function buildSimpleFightCardPdf({ event, bouts }) {
+  const { jsPDF } = await import('jspdf')
+  const { autoTable } = await import('jspdf-autotable')
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+  const M = 14
+  const contentW = pageW - M * 2
+
+  const infoOf = (reg, bout) => {
+    const boxer = reg?.boxerId || {}
+    return {
+      name: boxer.fullName || '',
+      club: reg?.clubName || boxer.clubName || reg?.clubId?.name || '',
+      weight:
+        boxer.weightCategory ||
+        (boxer.registeredWeightKg ? `${boxer.registeredWeightKg} kg` : '') ||
+        bout?.category?.weight ||
+        '',
+    }
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16)
+  doc.setTextColor(...INK)
+  doc.text(fitText(doc, event?.name || 'Event', contentW), M, 18)
+
+  const date = fmtLongDate(event?.eventDate)
+  const metaLine = [date, event?.venue, event?.location].filter(Boolean).join(' · ')
+  if (metaLine) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...SLATE_600)
+    doc.text(fitText(doc, metaLine, contentW), M, 25)
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...INK)
+  doc.text('FIGHT CARD', M, 33)
+
+  const rows = bouts.map((b, i) => {
+    const a = infoOf(b.boxerAId, b)
+    const bInfo = infoOf(b.boxerBId, b)
+    return [
+      String(b.boutNumber ?? i + 1),
+      a.name || '-',
+      a.club || '-',
+      a.weight || '-',
+      bInfo.name || 'Bye',
+      bInfo.club || '-',
+      bInfo.weight || '-',
+    ]
+  })
+
+  autoTable(doc, {
+    startY: 36,
+    head: [['#', 'Boxer', 'Club', 'Weight', 'Opponent', 'Club', 'Weight']],
+    body: rows,
+    theme: 'grid',
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2,
+      textColor: INK,
+      fillColor: WHITE,
+      lineColor: [190, 196, 205],
+      lineWidth: 0.1,
+    },
+    headStyles: {
+      fontStyle: 'bold',
+      textColor: INK,
+      fillColor: [243, 244, 246],
+      lineColor: [120, 128, 140],
+      lineWidth: 0.15,
+    },
+    margin: { left: M, right: M, bottom: 18 },
+  })
+
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...GRAY)
+    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M, pageH - 9)
+    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 9, { align: 'right' })
+  }
+
+  const safeName = (event?.name || 'event')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+
+  return { doc, fileName: `fight-card-${safeName}.pdf` }
+}
+
 export async function buildFightCardPdf({ event, bouts }) {
+  // Professional fight nights keep the designed card; amateur events use a
+  // plain information table.
+  if ((event?.eventType || 'amateur') !== 'professional') {
+    return buildSimpleFightCardPdf({ event, bouts })
+  }
+
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()

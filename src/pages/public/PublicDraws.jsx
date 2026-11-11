@@ -59,6 +59,12 @@ const text = {
     cardLocked: 'Card finalised',
     male: 'Male',
     female: 'Female',
+    boxer: 'Boxer',
+    opponent: 'Opponent',
+    club: 'Club',
+    weight: 'Weight',
+    bout: 'Bout',
+    versus: 'vs',
   },
   rw: {
     officialDraw: 'Urutonde rw’imikino',
@@ -109,6 +115,12 @@ const text = {
     cardLocked: 'Urutonde rwarangiye',
     male: 'Gabo',
     female: 'Gore',
+    boxer: 'Umukinnyi',
+    opponent: 'Umukunywanyi',
+    club: 'Club',
+    weight: 'Ibiro',
+    bout: 'Umukino',
+    versus: 'vs',
   },
 }
 
@@ -417,6 +429,116 @@ function BoutCard({ bout, index, total, isMain, isNext, hasLive, t }) {
   )
 }
 
+// Amateur events use a plain, print-friendly table: boxer, club and weight
+// against the opponent with the same information. No photos, charts or cards.
+function AmateurDrawPage({ event, bouts, t, lang, chooseLang, showLang }) {
+  const rows = (bouts || [])
+    .filter((b) => b.boxerAId?.boxerId?.fullName || b.boxerBId?.boxerId?.fullName)
+    .map((b, i) => {
+      const info = (reg) => {
+        const boxer = reg?.boxerId || {}
+        return {
+          name: boxer.fullName || '',
+          club: reg?.clubName || boxer.clubName || reg?.clubId?.name || '',
+          weight:
+            boxer.weightCategory ||
+            (boxer.registeredWeightKg ? `${boxer.registeredWeightKg} kg` : '') ||
+            b.category?.weight ||
+            '',
+        }
+      }
+      const winnerRegId = b.winnerId && typeof b.winnerId === 'object' ? b.winnerId._id : b.winnerId
+      return {
+        key: b._id || i,
+        number: b.boutNumber ?? i + 1,
+        a: info(b.boxerAId),
+        b: info(b.boxerBId),
+        winnerA: !!winnerRegId && String(winnerRegId) === String(b.boxerAId?._id),
+        winnerB: !!winnerRegId && String(winnerRegId) === String(b.boxerBId?._id),
+      }
+    })
+
+  const date = fmtDate(event?.eventDate, lang)
+  const meta = [date, event?.venue, event?.location].filter(Boolean).join(' · ')
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+          <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
+            Bodymax · {t.officialDraw}
+          </span>
+          <div className="flex items-center rounded-full border border-slate-200 p-0.5">
+            {['en', 'rw'].map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => chooseLang(code)}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-[11px] font-semibold transition',
+                  lang === code ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800'
+                )}
+              >
+                {code === 'en' ? 'EN' : 'RW'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <h1 className="text-2xl font-bold text-slate-900">{event?.name}</h1>
+        {meta && <p className="mt-1 text-sm text-slate-500">{meta}</p>}
+
+        <h2 className="mt-7 text-sm font-bold uppercase tracking-wide text-slate-700">{t.fightCard}</h2>
+
+        {rows.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">{t.noBoutsYet}</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-y border-slate-300 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-600">
+                  <th className="px-2 py-2 font-semibold">{t.bout}</th>
+                  <th className="px-2 py-2 font-semibold">{t.boxer}</th>
+                  <th className="px-2 py-2 font-semibold">{t.club}</th>
+                  <th className="px-2 py-2 font-semibold">{t.weight}</th>
+                  <th className="px-2 py-2 text-center font-semibold">{t.versus}</th>
+                  <th className="px-2 py-2 font-semibold">{t.opponent}</th>
+                  <th className="px-2 py-2 font-semibold">{t.club}</th>
+                  <th className="px-2 py-2 font-semibold">{t.weight}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.key} className="border-b border-slate-200 align-top">
+                    <td className="px-2 py-2 font-semibold text-slate-700">{row.number}</td>
+                    <td className={cn('px-2 py-2 text-slate-900', row.winnerA && 'font-bold')}>
+                      {row.a.name || '—'}
+                    </td>
+                    <td className="px-2 py-2 text-slate-600">{row.a.club || t.individual}</td>
+                    <td className="px-2 py-2 text-slate-600">{row.a.weight || '—'}</td>
+                    <td className="px-2 py-2 text-center text-[11px] font-semibold uppercase text-slate-400">
+                      {t.versus}
+                    </td>
+                    <td className={cn('px-2 py-2 text-slate-900', row.winnerB && 'font-bold')}>
+                      {row.b.name || t.bye}
+                    </td>
+                    <td className="px-2 py-2 text-slate-600">{row.b.club || '—'}</td>
+                    <td className="px-2 py-2 text-slate-600">{row.b.weight || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </main>
+
+      <LanguageModal open={showLang} onSelect={chooseLang} />
+    </div>
+  )
+}
+
 export default function PublicDraws() {
   const { token } = useParams()
   const [event, setEvent] = useState(null)
@@ -472,6 +594,19 @@ export default function PublicDraws() {
       <LanguageModal open={showLang} onSelect={chooseLang} />
     </>
   )
+
+  if (!error && event && (event.eventType || 'amateur') !== 'professional') {
+    return (
+      <AmateurDrawPage
+        event={event}
+        bouts={bouts}
+        t={t}
+        lang={lang}
+        chooseLang={chooseLang}
+        showLang={showLang}
+      />
+    )
+  }
 
   const visible = (bouts || []).filter(
     (b) => !!(b.boxerAId?.boxerId?.fullName) || !!(b.boxerBId?.boxerId?.fullName)
