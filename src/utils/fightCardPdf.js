@@ -5,6 +5,7 @@
 const INK = [15, 23, 42]
 const SLATE_800 = [30, 41, 59]
 const SLATE_700 = [51, 65, 85]
+const SLATE_300 = [203, 213, 225]
 const SLATE_600 = [71, 85, 105]
 const GRAY = [100, 116, 139]
 const LIGHT_GRAY = [148, 163, 184]
@@ -834,47 +835,69 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     }
   }
 
-  // ---------- Header block (fully centred) ----------
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...GRAY)
-  doc.setCharSpace(1.8)
-  doc.text('BODYMAX', pageW / 2, 19, { align: 'center' })
-  doc.setCharSpace(0)
-
-  doc.setDrawColor(...LINE)
-  doc.setLineWidth(0.3)
-  doc.line(M, 23.5, pageW - M, 23.5)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.setTextColor(...SLATE_600)
-  doc.setCharSpace(2.4)
-  doc.text('OFFICIAL FIGHT CARD', pageW / 2, 31, { align: 'center' })
-  doc.setCharSpace(0)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(20)
-  doc.setTextColor(...INK)
-  let y = 42
-  const titleLines = doc.splitTextToSize(event?.name || 'Event', contentW).slice(0, 2)
-  titleLines.forEach((line) => {
-    doc.text(line, pageW / 2, y, { align: 'center' })
-    y += 7.6
-  })
-
-  const date = fmtLongDate(event?.eventDate)
-  const metaLine = [date, event?.venue, event?.location].filter(Boolean).join('  ·  ')
-  if (metaLine) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9.5)
-    doc.setTextColor(...SLATE_600)
-    doc.text(fitText(doc, metaLine, contentW), pageW / 2, y - 0.6, { align: 'center' })
-    y += 4.4
+  // jsPDF ignores char spacing when centring, so measure and place manually.
+  const centerSpaced = (value, yPos, space) => {
+    doc.setCharSpace(space)
+    const w = doc.getTextWidth(value) + space * value.length
+    doc.text(value, (pageW - w) / 2, yPos)
+    doc.setCharSpace(0)
+    return w
   }
 
-  // Summary strip: a quiet row of facts under the title.
-  const weightClasses = new Set(bouts.map((b) => b.category?.weight).filter(Boolean)).size
+  const titleLines = (() => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(19)
+    return doc.splitTextToSize(event?.name || 'Event', contentW - 10).slice(0, 2)
+  })()
+  const date = fmtLongDate(event?.eventDate)
+  const metaLine = [date, event?.venue, event?.location].filter(Boolean).join('   ·   ')
+
+  // ---------- Masthead: dark band with a red/blue corner pin-stripe ----------
+  const titleTop = 32.5
+  const titleBottom = titleTop + (titleLines.length - 1) * 7.6
+  const metaY = titleBottom + 6.8
+  const bandH = (metaLine ? metaY : titleBottom) + 9
+
+  doc.setFillColor(...INK)
+  doc.rect(0, 0, pageW, bandH, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9.5)
+  doc.setTextColor(...WHITE)
+  centerSpaced('BODYMAX', 14.5, 3.4)
+
+  doc.setFontSize(7)
+  doc.setTextColor(...LIGHT_GRAY)
+  centerSpaced('OFFICIAL FIGHT CARD', 20.6, 2.5)
+
+  doc.setDrawColor(...SLATE_700)
+  doc.setLineWidth(0.25)
+  doc.line(pageW / 2 - 17, 24.4, pageW / 2 + 17, 24.4)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(19)
+  doc.setTextColor(...WHITE)
+  titleLines.forEach((line, i) => {
+    doc.text(line, pageW / 2, titleTop + i * 7.6, { align: 'center' })
+  })
+
+  if (metaLine) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.6)
+    doc.setTextColor(...SLATE_300)
+    doc.text(fitText(doc, metaLine, contentW - 12), pageW / 2, metaY, { align: 'center' })
+  }
+
+  // Corner pin-stripe along the bottom of the masthead.
+  doc.setFillColor(...RED)
+  doc.rect(0, bandH - 1.3, pageW / 2, 1.3, 'F')
+  doc.setFillColor(...BLUE)
+  doc.rect(pageW / 2, bandH - 1.3, pageW / 2, 1.3, 'F')
+
+  // ---------- Summary line edged with hairlines ----------
+  const weightClasses = new Set(
+    bouts.flatMap((b) => [infoOf(b.boxerAId, b).weight, infoOf(b.boxerBId, b).weight]).filter(Boolean)
+  ).size
   const statLine = [
     `${bouts.length} ${bouts.length === 1 ? 'BOUT' : 'BOUTS'}`,
     weightClasses ? `${weightClasses} ${weightClasses === 1 ? 'WEIGHT CLASS' : 'WEIGHT CLASSES'}` : null,
@@ -883,24 +906,25 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     .filter(Boolean)
     .join('   ·   ')
 
-  doc.setFillColor(...SOFT)
-  doc.setDrawColor(...LINE)
-  doc.setLineWidth(0.2)
-  doc.roundedRect(M, y, contentW, 9, 1.4, 1.4, 'FD')
+  const statsY = bandH + 11
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.4)
+  doc.setFontSize(7.2)
   doc.setTextColor(...SLATE_600)
-  doc.setCharSpace(0.9)
-  doc.text(statLine, pageW / 2, y + 5.8, { align: 'center' })
-  doc.setCharSpace(0)
+  const statsW = centerSpaced(statLine, statsY, 1.3)
 
-  const tableY = y + 13
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.3)
+  const statsX = (pageW - statsW) / 2
+  doc.line(M, statsY - 1.1, statsX - 8, statsY - 1.1)
+  doc.line(statsX + statsW + 8, statsY - 1.1, pageW - M, statsY - 1.1)
+
+  const tableY = statsY + 8.5
 
   // Let rows breathe so short cards still fill the page and long cards stay
   // compact; the cap keeps every row readable.
   const bodySpace = pageH - 24 - tableY - 16
   const rowHeight = bouts.length
-    ? Math.max(9, Math.min(14, Math.round((bodySpace / bouts.length) * 10) / 10))
+    ? Math.max(9, Math.min(15.5, Math.round((bodySpace / bouts.length) * 10) / 10))
     : 9
 
   const rows = bouts.map((b, i) => {
@@ -991,8 +1015,8 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     columnStyles: {
       0: { cellWidth: 9, halign: 'center', fontStyle: 'bold', textColor: SLATE_700 },
       1: { cellWidth: 33 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 23, halign: 'center' },
+      2: { cellWidth: 25, textColor: SLATE_600 },
+      3: { cellWidth: 23, halign: 'center', fontSize: 7.6, textColor: SLATE_700 },
       4: {
         cellWidth: 11,
         halign: 'center',
@@ -1003,8 +1027,8 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
         fillColor: [248, 250, 252],
       },
       5: { cellWidth: 33 },
-      6: { cellWidth: 25 },
-      7: { cellWidth: 23, halign: 'center' },
+      6: { cellWidth: 25, textColor: SLATE_600 },
+      7: { cellWidth: 23, halign: 'center', fontSize: 7.6, textColor: SLATE_700 },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return
@@ -1013,7 +1037,25 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
         data.cell.styles.fillColor = [250, 250, 251]
       }
     },
-    margin: { left: M, right: M, bottom: 22 },
+    rowPageBreak: 'avoid',
+    willDrawPage: (data) => {
+      if (data.pageNumber === 1) return
+      // Slim continuation masthead so later pages still feel designed.
+      doc.setFillColor(...INK)
+      doc.rect(0, 0, pageW, 13, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...WHITE)
+      doc.text(fitText(doc, event?.name || 'Event', contentW - 30), pageW / 2, 6.6, { align: 'center' })
+      doc.setFontSize(6.4)
+      doc.setTextColor(...LIGHT_GRAY)
+      centerSpaced('OFFICIAL FIGHT CARD  ·  CONTINUED', 10.4, 1.8)
+      doc.setFillColor(...RED)
+      doc.rect(0, 11.7, pageW / 2, 1.3, 'F')
+      doc.setFillColor(...BLUE)
+      doc.rect(pageW / 2, 11.7, pageW / 2, 1.3, 'F')
+    },
+    margin: { top: 18, left: M, right: M, bottom: 22 },
   })
 
   // ---------- Footer (centred) ----------
@@ -1027,14 +1069,12 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...GRAY)
-    doc.setCharSpace(1.1)
-    doc.text('BODYMAX  ·  OFFICIAL FIGHT CARD', pageW / 2, pageH - 10.5, { align: 'center' })
-    doc.setCharSpace(0)
+    centerSpaced('BODYMAX  ·  OFFICIAL FIGHT CARD', pageH - 10.5, 1.1)
 
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
+    doc.setFontSize(6.8)
     doc.setTextColor(...LIGHT_GRAY)
-    doc.text(`PAGE ${i} OF ${pageCount}`, pageW / 2, pageH - 7, { align: 'center' })
+    doc.text(`PAGE ${i} OF ${pageCount}`, pageW / 2, pageH - 6.8, { align: 'center' })
   }
 
   const safeName = (event?.name || 'event')
