@@ -856,26 +856,56 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
   const rows = bouts.map((b, i) => {
     const a = infoOf(b.boxerAId, b)
     const bInfo = infoOf(b.boxerBId, b)
+    const winnerRegId = b.winnerId && typeof b.winnerId === 'object' ? b.winnerId._id : b.winnerId
+    const aWon = !!winnerRegId && String(winnerRegId) === String(b.boxerAId?._id)
+    const bWon = !!winnerRegId && String(winnerRegId) === String(b.boxerBId?._id)
     return [
       String(b.boutNumber ?? i + 1),
-      a.name || '-',
+      { content: a.name || '-', styles: { fontStyle: aWon ? 'bold' : 'normal' } },
       a.club || '-',
       a.weight || '-',
-      bInfo.name || 'Bye',
+      'vs',
+      { content: bInfo.name || 'Bye', styles: { fontStyle: bWon ? 'bold' : 'normal' } },
       bInfo.club || '-',
       bInfo.weight || '-',
     ]
   })
 
+  const cornerHead = (corner, fill, text) => ({
+    content: corner,
+    colSpan: 3,
+    styles: { fillColor: fill, textColor: text, halign: 'center', fontSize: 8 },
+  })
+
   autoTable(doc, {
     startY: 36,
-    head: [['#', 'Boxer', 'Club', 'Weight', 'Opponent', 'Club', 'Weight']],
+    head: [
+      [
+        { content: '#', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        cornerHead('RED CORNER', RED_SOFT, RED),
+        {
+          content: 'VS',
+          rowSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fillColor: [30, 41, 59], textColor: WHITE, fontSize: 8 },
+        },
+        cornerHead('BLUE CORNER', BLUE_SOFT, BLUE),
+      ],
+      [
+        { content: 'Boxer', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
+        { content: 'Club', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
+        { content: 'Weight', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
+        { content: 'Boxer', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
+        { content: 'Club', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
+        { content: 'Weight', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
+      ],
+    ],
     body: rows,
     theme: 'grid',
     styles: {
       font: 'helvetica',
       fontSize: 8,
       cellPadding: 2,
+      valign: 'middle',
       textColor: INK,
       fillColor: WHITE,
       lineColor: [190, 196, 205],
@@ -887,6 +917,24 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
       fillColor: [243, 244, 246],
       lineColor: [120, 128, 140],
       lineWidth: 0.15,
+      fontSize: 7.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 9, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 33 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 23 },
+      4: { cellWidth: 11, halign: 'center', fontStyle: 'bold', textColor: GRAY, fillColor: SLATE_SOFT },
+      5: { cellWidth: 33 },
+      6: { cellWidth: 25 },
+      7: { cellWidth: 23 },
+    },
+    didParseCell: (data) => {
+      if (data.section !== 'body') return
+      // Light striping keeps long cards easy to follow across the two corners.
+      if (data.row.index % 2 === 1 && data.column.index !== 4) {
+        data.cell.styles.fillColor = [250, 250, 251]
+      }
     },
     margin: { left: M, right: M, bottom: 18 },
   })
