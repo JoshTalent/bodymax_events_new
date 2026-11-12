@@ -834,24 +834,74 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     }
   }
 
+  // ---------- Header block (fully centred) ----------
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.setCharSpace(1.8)
+  doc.text('BODYMAX', pageW / 2, 19, { align: 'center' })
+  doc.setCharSpace(0)
+
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.3)
+  doc.line(M, 23.5, pageW - M, 23.5)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(...SLATE_600)
+  doc.setCharSpace(2.4)
+  doc.text('OFFICIAL FIGHT CARD', pageW / 2, 31, { align: 'center' })
+  doc.setCharSpace(0)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(20)
   doc.setTextColor(...INK)
-  doc.text(fitText(doc, event?.name || 'Event', contentW), M, 18)
+  let y = 42
+  const titleLines = doc.splitTextToSize(event?.name || 'Event', contentW).slice(0, 2)
+  titleLines.forEach((line) => {
+    doc.text(line, pageW / 2, y, { align: 'center' })
+    y += 7.6
+  })
 
   const date = fmtLongDate(event?.eventDate)
-  const metaLine = [date, event?.venue, event?.location].filter(Boolean).join(' · ')
+  const metaLine = [date, event?.venue, event?.location].filter(Boolean).join('  ·  ')
   if (metaLine) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
+    doc.setFontSize(9.5)
     doc.setTextColor(...SLATE_600)
-    doc.text(fitText(doc, metaLine, contentW), M, 25)
+    doc.text(fitText(doc, metaLine, contentW), pageW / 2, y - 0.6, { align: 'center' })
+    y += 4.4
   }
 
+  // Summary strip: a quiet row of facts under the title.
+  const weightClasses = new Set(bouts.map((b) => b.category?.weight).filter(Boolean)).size
+  const statLine = [
+    `${bouts.length} ${bouts.length === 1 ? 'BOUT' : 'BOUTS'}`,
+    weightClasses ? `${weightClasses} ${weightClasses === 1 ? 'WEIGHT CLASS' : 'WEIGHT CLASSES'}` : null,
+    'RED VS BLUE CORNERS',
+  ]
+    .filter(Boolean)
+    .join('   ·   ')
+
+  doc.setFillColor(...SOFT)
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.2)
+  doc.roundedRect(M, y, contentW, 9, 1.4, 1.4, 'FD')
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...INK)
-  doc.text('FIGHT CARD', M, 33)
+  doc.setFontSize(7.4)
+  doc.setTextColor(...SLATE_600)
+  doc.setCharSpace(0.9)
+  doc.text(statLine, pageW / 2, y + 5.8, { align: 'center' })
+  doc.setCharSpace(0)
+
+  const tableY = y + 13
+
+  // Let rows breathe so short cards still fill the page and long cards stay
+  // compact; the cap keeps every row readable.
+  const bodySpace = pageH - 24 - tableY - 16
+  const rowHeight = bouts.length
+    ? Math.max(9, Math.min(14, Math.round((bodySpace / bouts.length) * 10) / 10))
+    : 9
 
   const rows = bouts.map((b, i) => {
     const a = infoOf(b.boxerAId, b)
@@ -874,14 +924,30 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
   const cornerHead = (corner, fill, text) => ({
     content: corner,
     colSpan: 3,
-    styles: { fillColor: fill, textColor: text, halign: 'center', fontSize: 8 },
+    styles: {
+      fillColor: fill,
+      textColor: text,
+      halign: 'center',
+      valign: 'middle',
+      fontSize: 8,
+      minCellHeight: 8,
+    },
+  })
+
+  const subHead = (label, text) => ({
+    content: label,
+    styles: { fillColor: WHITE, textColor: text, halign: 'center', fontSize: 7.4 },
   })
 
   autoTable(doc, {
-    startY: 36,
+    startY: tableY,
     head: [
       [
-        { content: '#', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        {
+          content: '#',
+          rowSpan: 2,
+          styles: { halign: 'center', valign: 'middle', fillColor: [30, 41, 59], textColor: WHITE, fontSize: 8 },
+        },
         cornerHead('RED CORNER', RED_SOFT, RED),
         {
           content: 'VS',
@@ -891,12 +957,12 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
         cornerHead('BLUE CORNER', BLUE_SOFT, BLUE),
       ],
       [
-        { content: 'Boxer', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
-        { content: 'Club', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
-        { content: 'Weight', styles: { fillColor: RED_SOFT, textColor: [127, 29, 29] } },
-        { content: 'Boxer', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
-        { content: 'Club', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
-        { content: 'Weight', styles: { fillColor: BLUE_SOFT, textColor: [30, 58, 138] } },
+        subHead('Boxer', RED),
+        subHead('Club', RED),
+        subHead('Weight', RED),
+        subHead('Boxer', BLUE),
+        subHead('Club', BLUE),
+        subHead('Weight', BLUE),
       ],
     ],
     body: rows,
@@ -904,30 +970,41 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
     styles: {
       font: 'helvetica',
       fontSize: 8,
-      cellPadding: 2,
+      cellPadding: 2.2,
       valign: 'middle',
       textColor: INK,
       fillColor: WHITE,
-      lineColor: [190, 196, 205],
+      lineColor: [203, 213, 225],
       lineWidth: 0.1,
+      minCellHeight: rowHeight,
     },
     headStyles: {
       fontStyle: 'bold',
       textColor: INK,
       fillColor: [243, 244, 246],
-      lineColor: [120, 128, 140],
-      lineWidth: 0.15,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.1,
       fontSize: 7.5,
+      halign: 'center',
+      cellPadding: 2.2,
     },
     columnStyles: {
-      0: { cellWidth: 9, halign: 'center', fontStyle: 'bold' },
+      0: { cellWidth: 9, halign: 'center', fontStyle: 'bold', textColor: SLATE_700 },
       1: { cellWidth: 33 },
       2: { cellWidth: 25 },
-      3: { cellWidth: 23 },
-      4: { cellWidth: 11, halign: 'center', fontStyle: 'bold', textColor: GRAY, fillColor: SLATE_SOFT },
+      3: { cellWidth: 23, halign: 'center' },
+      4: {
+        cellWidth: 11,
+        halign: 'center',
+        valign: 'middle',
+        fontStyle: 'bold',
+        fontSize: 7,
+        textColor: LIGHT_GRAY,
+        fillColor: [248, 250, 252],
+      },
       5: { cellWidth: 33 },
       6: { cellWidth: 25 },
-      7: { cellWidth: 23 },
+      7: { cellWidth: 23, halign: 'center' },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return
@@ -936,17 +1013,28 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
         data.cell.styles.fillColor = [250, 250, 251]
       }
     },
-    margin: { left: M, right: M, bottom: 18 },
+    margin: { left: M, right: M, bottom: 22 },
   })
 
+  // ---------- Footer (centred) ----------
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
+    doc.setDrawColor(...LINE)
+    doc.setLineWidth(0.3)
+    doc.line(M, pageH - 15, pageW - M, pageH - 15)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
     doc.setTextColor(...GRAY)
-    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M, pageH - 9)
-    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 9, { align: 'right' })
+    doc.setCharSpace(1.1)
+    doc.text('BODYMAX  ·  OFFICIAL FIGHT CARD', pageW / 2, pageH - 10.5, { align: 'center' })
+    doc.setCharSpace(0)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(`PAGE ${i} OF ${pageCount}`, pageW / 2, pageH - 7, { align: 'center' })
   }
 
   const safeName = (event?.name || 'event')
