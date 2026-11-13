@@ -483,7 +483,9 @@ export default function Results() {
                           {' vs '}
                           {b.boxerBId?.boxerId?.professional?.ringName || b.boxerBId?.boxerId?.fullName || 'TBA'}
                         </p>
-                        <p className="text-[11px] text-slate-500">{weight} · {ageGender || '—'}</p>
+                        <p className="text-[11px] text-slate-500">
+                          {weight} · {[age, gender].filter(Boolean).join(' · ') || '—'}
+                        </p>
                         {isTitleFight && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-900/20 px-2 py-0.5 text-[9px] font-bold text-amber-400 ring-1 ring-inset ring-amber-900/30">
                             Title — {b.titleName || 'Championship'}
