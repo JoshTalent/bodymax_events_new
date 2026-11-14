@@ -39,7 +39,7 @@ const BoutSchema = new mongoose.Schema(
     feedSide: { type: String, enum: ['A', 'B'], default: null },
 
     // Professional fight night billing / title information
-    boutType: { type: String, enum: ['main_event', 'co_main', 'undercard', 'prelim'], default: '' },
+    boutType: { type: String, enum: ['', 'main_event', 'co_main', 'undercard', 'prelim'], default: '' },
     billingOrder: { type: Number, default: 0 },
     titleFight: { type: Boolean, default: false },
     titleName: { type: String, default: '' },
