@@ -252,7 +252,7 @@ export default function Results() {
     // Header band
     doc.setFillColor(...ink)
     doc.rect(0, 0, pageW, 30, 'F')
-    doc.setFillColor([202, 138, 4])
+    doc.setFillColor(202, 138, 4)
     doc.rect(0, 30, pageW, 1.4, 'F')
 
     doc.setTextColor(255, 255, 255)
@@ -340,7 +340,7 @@ export default function Results() {
         head,
         body,
         theme: 'grid',
-        margin: { left: M, right: M, bottom: 24 },
+        margin: { top: 20, left: M, right: M, bottom: 24 },
         styles: {
           fontSize: 8,
           cellPadding: 2,
@@ -357,30 +357,52 @@ export default function Results() {
           2: { cellWidth: 52 },
           3: { cellWidth: pageW - 28 - 16 - 52 - 52 },
         },
-        didDrawCell: (data) => {
-          if (data.section === 'body' && data.column.index === 3) {
-            const cellText = String(data.cell.raw || '')
-            if (/wins/i.test(cellText)) {
-              data.cell.styles.textColor = [21, 128, 61]
-              data.cell.styles.fontStyle = 'bold'
-            } else if (/pending/i.test(cellText)) {
-              data.cell.styles.textColor = [180, 83, 9]
-              data.cell.styles.fontStyle = 'bold'
-            }
+        // didParseCell runs before the text is drawn, so the colours stick.
+        didParseCell: (data) => {
+          if (data.section !== 'body' || data.column.index !== 3) return
+          const cellText = String(data.cell.raw || '')
+          if (/wins/i.test(cellText)) {
+            data.cell.styles.textColor = [21, 128, 61]
+            data.cell.styles.fontStyle = 'bold'
+          } else if (/pending/i.test(cellText)) {
+            data.cell.styles.textColor = [180, 83, 9]
+            data.cell.styles.fontStyle = 'bold'
           }
+        },
+        rowPageBreak: 'avoid',
+        // Repeat a slim brand band at the top of continuation pages.
+        didDrawPage: (data) => {
+          if (data.pageNumber === 1) return
+          doc.setFillColor(...ink)
+          doc.rect(0, 0, pageW, 12, 'F')
+          doc.setFillColor(202, 138, 4)
+          doc.rect(0, 12, pageW, 1.2, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(10)
+          doc.text('Official Results', 14, 5.6)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(7.5)
+          doc.setTextColor(203, 213, 225)
+          const sub = [event?.name || 'Event', eventMeta].filter(Boolean).join('  ·  ')
+          doc.text(doc.splitTextToSize(sub, pageW - 28)[0], 14, 9.8)
         },
       })
       y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 10
     }
 
-    // Footer
-    doc.setFillColor(...ink)
-    doc.rect(0, pageH - 10, pageW, 10, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.text('BodyMax Boxing Events', 14, pageH - 3.8)
-    doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageW - 14, pageH - 3.8, { align: 'right' })
+    // Footer on every page
+    const pageCount = doc.internal.getNumberOfPages()
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p)
+      doc.setFillColor(...ink)
+      doc.rect(0, pageH - 10, pageW, 10, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.text('BodyMax Boxing Events', 14, pageH - 3.8)
+      doc.text(`Page ${p} of ${pageCount}`, pageW - 14, pageH - 3.8, { align: 'right' })
+    }
 
     return { doc, fileName: `results-${event?.name?.replace(/[^\w-]+/g, '-') || 'event'}-${new Date().toISOString().slice(0, 10)}.pdf` }
   }
