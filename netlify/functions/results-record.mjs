@@ -40,6 +40,9 @@ export default async (event) => {
     const params = event.queryStringParameters || {}
     const { id } = params
     if (!id) return errorResponse({ message: 'Bout id required', status: 400 })
+    if (!mongoose.isValidObjectId(id)) {
+      return errorResponse({ message: 'Invalid bout id', status: 400 })
+    }
 
     const body = JSON.parse(event.body || '{}')
     const {
@@ -61,14 +64,16 @@ export default async (event) => {
     const bout = await Bout.findById(id)
     if (!bout) return errorResponse({ message: 'Bout not found', status: 404 })
 
-    // Determine winner/loser
+    // Determine winner/loser. A bracket bye or an unfilled slot leaves the
+    // losing side empty, so it must stay null instead of becoming "null".
     const winnerIsA = bout.boxerAId && String(bout.boxerAId) === String(winnerId)
     const winnerIsB = bout.boxerBId && String(bout.boxerBId) === String(winnerId)
     if (!winnerIsA && !winnerIsB) {
       return errorResponse({ message: 'Winner must be one of the two boxers in this bout', status: 400 })
     }
 
-    const loserId = String(winnerIsA ? bout.boxerBId : bout.boxerAId) || null
+    const losingSide = winnerIsA ? bout.boxerBId : bout.boxerAId
+    const loserId = losingSide ? String(losingSide) : null
 
     // Resolve event type to pick the right method validation
     const evt = await (import('./_shared/models/Event.js').then((m) => m.default)).then((M) => M.findById(bout.eventId).lean())
@@ -134,6 +139,7 @@ export default async (event) => {
 
     return success({ bout: fresh, isPro })
   } catch (err) {
+    console.error('[results-record]', err)
     return errorResponse(err)
   }
 }
