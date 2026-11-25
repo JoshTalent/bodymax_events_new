@@ -288,9 +288,11 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Photos & Country Flag</p>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
           <Input label="Headshot URL" value={form.headshotUrl} onChange={set('headshotUrl')} placeholder="https://…/headshot.jpg" />
-          <Input label="Full Body URL" value={form.fullBodyUrl} onChange={set('fullBodyUrl')} placeholder="https://…/fullbody.jpg" />
+          {!compact && (
+            <Input label="Full Body URL" value={form.fullBodyUrl} onChange={set('fullBodyUrl')} placeholder="https://…/fullbody.jpg" />
+          )}
           <Input label="Country Flag URL" value={form.countryFlagUrl} onChange={set('countryFlagUrl')} placeholder="https://…/flag.svg" />
         </div>
         <p className="mt-2 text-[10px] text-slate-500">Headshot, full-body and country-flag photos are stored as URLs (S3, CDN or direct link) and appear on the public boxer profile.</p>
@@ -298,13 +300,17 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Professional Record</p>
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3 lg:grid-cols-6'}`}>
           <Input label="Wins" type="number" value={form.wins} onChange={set('wins')} />
           <Input label="Losses" type="number" value={form.losses} onChange={set('losses')} />
           <Input label="Draws" type="number" value={form.draws} onChange={set('draws')} />
           <Input label="KOs" type="number" value={form.koWins} onChange={set('koWins')} />
-          <Input label="No Contests" type="number" value={form.noContests} onChange={set('noContests')} />
-          <Input label="Rounds Boxed" type="number" value={form.roundsBoxed} onChange={set('roundsBoxed')} />
+          {!compact && (
+            <>
+              <Input label="No Contests" type="number" value={form.noContests} onChange={set('noContests')} />
+              <Input label="Rounds Boxed" type="number" value={form.roundsBoxed} onChange={set('roundsBoxed')} />
+            </>
+          )}
         </div>
         {!compact && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
