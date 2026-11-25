@@ -259,16 +259,22 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
           <option value="F">Female</option>
         </Select>
         <Input label="Country" value={form.country} onChange={set('country')} placeholder="e.g. Rwanda" />
-        <Input label="Country Code" value={form.countryCode} onChange={set('countryCode')} placeholder="RWA" />
+        {!compact && (
+          <Input label="Country Code" value={form.countryCode} onChange={set('countryCode')} placeholder="RWA" />
+        )}
         <Input label="Nationality" value={form.nationality} onChange={set('nationality')} placeholder="e.g. Rwandan" />
-        <Input label="Residence" value={form.residence} onChange={set('residence')} placeholder="City, Country" />
-        <Input label="Date of Birth" type="date" value={form.dateOfBirth} onChange={set('dateOfBirth')} />
-        <Input label="Height (cm)" type="number" value={form.heightCm} onChange={set('heightCm')} placeholder="180" />
-        <Input label="Reach (cm)" type="number" value={form.reachCm} onChange={set('reachCm')} placeholder="190" />
-        <Select label="Stance" value={form.stance} onChange={set('stance')}>
-          <option value="">Select stance</option>
-          {STANCES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
+        {!compact && (
+          <>
+            <Input label="Residence" value={form.residence} onChange={set('residence')} placeholder="City, Country" />
+            <Input label="Date of Birth" type="date" value={form.dateOfBirth} onChange={set('dateOfBirth')} />
+            <Input label="Height (cm)" type="number" value={form.heightCm} onChange={set('heightCm')} placeholder="180" />
+            <Input label="Reach (cm)" type="number" value={form.reachCm} onChange={set('reachCm')} placeholder="190" />
+            <Select label="Stance" value={form.stance} onChange={set('stance')}>
+              <option value="">Select stance</option>
+              {STANCES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </Select>
+          </>
+        )}
         {!compact && (
           <>
             <Input label="Division" value={form.division} onChange={set('division')} placeholder="e.g. Welterweight" />
