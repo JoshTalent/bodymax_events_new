@@ -269,9 +269,13 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
           <option value="">Select stance</option>
           {STANCES.map((s) => <option key={s} value={s}>{s}</option>)}
         </Select>
-        <Input label="Division" value={form.division} onChange={set('division')} placeholder="e.g. Welterweight" />
-        <Input label="Public Slug" value={form.slug} onChange={set('slug')} placeholder="e.g. big-mike" />
-        <Input label="Career High Weight (kg)" type="number" value={form.careerHighWeightKg} onChange={set('careerHighWeightKg')} placeholder="e.g. 74.5" />
+        {!compact && (
+          <>
+            <Input label="Division" value={form.division} onChange={set('division')} placeholder="e.g. Welterweight" />
+            <Input label="Public Slug" value={form.slug} onChange={set('slug')} placeholder="e.g. big-mike" />
+            <Input label="Career High Weight (kg)" type="number" value={form.careerHighWeightKg} onChange={set('careerHighWeightKg')} placeholder="e.g. 74.5" />
+          </>
+        )}
         <Input label="Weight Category" value={form.weightCategory} onChange={set('weightCategory')} placeholder="e.g. 73–75 kg" />
         <Input label="Age Category" value={form.ageCategory} onChange={set('ageCategory')} placeholder="e.g. 25+" />
       </div>
@@ -296,10 +300,12 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
           <Input label="No Contests" type="number" value={form.noContests} onChange={set('noContests')} />
           <Input label="Rounds Boxed" type="number" value={form.roundsBoxed} onChange={set('roundsBoxed')} />
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Input label="Pro Debut" type="date" value={form.debutDate} onChange={set('debutDate')} />
-          <Input label="Titles (comma separated)" value={form.titlesText} onChange={set('titlesText')} placeholder="e.g. WBC Welterweight, ABC Championship" />
-        </div>
+        {!compact && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Input label="Pro Debut" type="date" value={form.debutDate} onChange={set('debutDate')} />
+            <Input label="Titles (comma separated)" value={form.titlesText} onChange={set('titlesText')} placeholder="e.g. WBC Welterweight, ABC Championship" />
+          </div>
+        )}
       </div>
 
       {!compact && (
@@ -321,8 +327,12 @@ export function ProBoxerFields({ form, setForm, compact = false }) {
           <Input label="Promotion / Company" value={form.promoterCompany} onChange={set('promoterCompany')} placeholder="e.g. Bodymax Promotions" />
           <Input label="Manager" value={form.managerName} onChange={set('managerName')} placeholder="Manager name" />
           <Input label="Head Trainer" value={form.trainerName} onChange={set('trainerName')} placeholder="Head trainer" />
-          <Input label="Cutman" value={form.cutmanName} onChange={set('cutmanName')} placeholder="Cutman name" />
-          <Input label="Agent" value={form.agentName} onChange={set('agentName')} placeholder="Agent name" />
+          {!compact && (
+            <>
+              <Input label="Cutman" value={form.cutmanName} onChange={set('cutmanName')} placeholder="Cutman name" />
+              <Input label="Agent" value={form.agentName} onChange={set('agentName')} placeholder="Agent name" />
+            </>
+          )}
         </div>
       </div>
 

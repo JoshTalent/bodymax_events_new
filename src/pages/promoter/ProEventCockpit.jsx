@@ -15,22 +15,6 @@ import {
   ProBoxerFields,
 } from '../../components/ProBoxerForm.jsx'
 
-const CORNERS = [
-  { value: 'red', label: 'Red corner' },
-  { value: 'blue', label: 'Blue corner' },
-  { value: 'neutral', label: 'Neutral' },
-]
-
-const BILLING = [
-  { value: 'main_event', label: 'Main event' },
-  { value: 'co_main', label: 'Co-main event' },
-  { value: 'undercard', label: 'Undercard' },
-  { value: 'prelim', label: 'Preliminary' },
-  { value: 'reserve', label: 'Reserve' },
-]
-
-const ENTRY_STATUS = ['confirmed', 'pending', 'withdrawn', 'replaced']
-
 const emptyEntryForm = {
   corner: 'red',
   billing: 'undercard',
@@ -241,6 +225,9 @@ export default function ProEventCockpit({ event, canManage = false }) {
     setSaving(true)
     try {
       const payload = proBoxerPayload(form, editing?.boxerId?.professional?.titles || [])
+      // Division is hidden on the compact fight-night form; fall back to the
+      // weight category so public cards still show a weight class.
+      if (!payload.professional.division) payload.professional.division = form.weightCategory || ''
       if (editing) {
         await api(`/boxers?id=${editing.boxerId._id}`, { method: 'PUT', body: payload })
         await api(`/pro-roster?id=${editing._id}`, { method: 'PUT', body: { proEntry: entryPayload() } })
@@ -966,42 +953,6 @@ export default function ProEventCockpit({ event, canManage = false }) {
         }
       >
         <form onSubmit={save} className="space-y-5">
-          {/* Event billing */}
-          <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-rose-500">This fight night</p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Select label="Corner" value={entryForm.corner} onChange={(e) => setEntryForm({ ...entryForm, corner: e.target.value })}>
-                {CORNERS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </Select>
-              <Select label="Billing" value={entryForm.billing} onChange={(e) => setEntryForm({ ...entryForm, billing: e.target.value })}>
-                {BILLING.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-              </Select>
-              <Select label="Status" value={entryForm.status} onChange={(e) => setEntryForm({ ...entryForm, status: e.target.value })}>
-                {ENTRY_STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </Select>
-              <Input label="Scheduled rounds" type="number" value={entryForm.scheduledRounds} onChange={(e) => setEntryForm({ ...entryForm, scheduledRounds: e.target.value })} placeholder="e.g. 10" />
-              <Input label="Contracted weight (kg)" type="number" value={entryForm.contractedWeightKg} onChange={(e) => setEntryForm({ ...entryForm, contractedWeightKg: e.target.value })} placeholder="e.g. 72.5" />
-              <Input label="Team passes" type="number" value={entryForm.teamPasses} onChange={(e) => setEntryForm({ ...entryForm, teamPasses: e.target.value })} placeholder="e.g. 6" />
-              <Input label="Walkout music" value={entryForm.walkoutMusic} onChange={(e) => setEntryForm({ ...entryForm, walkoutMusic: e.target.value })} placeholder="Track name" />
-              <Input label="Colors" value={entryForm.colors} onChange={(e) => setEntryForm({ ...entryForm, colors: e.target.value })} placeholder="e.g. Red & gold" />
-            </div>
-            <label className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-800">
-              <input
-                type="checkbox"
-                checked={entryForm.titleOnLine}
-                onChange={(e) => setEntryForm({ ...entryForm, titleOnLine: e.target.checked })}
-                className="h-4 w-4 rounded"
-              />
-              Fighting for a title on this card
-            </label>
-            {entryForm.titleOnLine && (
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <Input label="Title name" value={entryForm.titleName} onChange={(e) => setEntryForm({ ...entryForm, titleName: e.target.value })} placeholder="e.g. National Welterweight Title" />
-                <Input label="Sanctioning body" value={entryForm.sanctioningBody} onChange={(e) => setEntryForm({ ...entryForm, sanctioningBody: e.target.value })} placeholder="e.g. National Commission" />
-              </div>
-            )}
-          </div>
-
           <ProBoxerFields form={form} setForm={setForm} compact />
         </form>
       </Modal>
