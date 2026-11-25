@@ -1085,9 +1085,534 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
   return { doc, fileName: `fight-card-${safeName}.pdf` }
 }
 
+// ---------------------------------------------------------------------------
+// Professional fight card table helpers
+// ---------------------------------------------------------------------------
+
+const PRO = {
+  num: 10,
+  corner: 55,
+  vs: 9,
+  weight: 21,
+  rounds: 10,
+  status: 22,
+  headerH: 9,
+  rowH: 19.5,
+}
+
+const PRO_STATUS = {
+  scheduled: 'SCHEDULED',
+  ready: 'READY',
+  in_progress: 'LIVE',
+  completed: 'FINAL',
+  walkover: 'WALKOVER',
+  postponed: 'POSTPONED',
+  cancelled: 'CANCELLED',
+}
+
+const PRO_BILLING = {
+  main_event: 'MAIN EVENT',
+  co_main: 'CO-MAIN',
+  undercard: 'UNDERCARD',
+  prelim: 'PRELIM',
+  reserve: 'RESERVE',
+}
+
+// Country names / alpha-3 codes mapped to the alpha-2 codes flagcdn uses.
+const COUNTRY_ISO2 = (() => {
+  const pairs = [
+    ['rwanda', 'rw'], ['rwa', 'rw'],
+    ['uganda', 'ug'], ['uga', 'ug'],
+    ['kenya', 'ke'], ['ken', 'ke'],
+    ['tanzania', 'tz'], ['tza', 'tz'],
+    ['burundi', 'bi'], ['bdi', 'bi'],
+    ['dr congo', 'cd'], ['drc', 'cd'], ['democratic republic of the congo', 'cd'], ['cod', 'cd'],
+    ['congo', 'cg'], ['republic of the congo', 'cg'], ['cog', 'cg'],
+    ['ethiopia', 'et'], ['eth', 'et'],
+    ['eritrea', 'er'], ['eri', 'er'],
+    ['somalia', 'so'], ['som', 'so'],
+    ['south sudan', 'ss'], ['ssd', 'ss'],
+    ['sudan', 'sd'], ['sdn', 'sd'],
+    ['egypt', 'eg'], ['egy', 'eg'],
+    ['libya', 'ly'], ['lby', 'ly'],
+    ['tunisia', 'tn'], ['tun', 'tn'],
+    ['algeria', 'dz'], ['alg', 'dz'],
+    ['morocco', 'ma'], ['mar', 'ma'],
+    ['nigeria', 'ng'], ['nga', 'ng'],
+    ['ghana', 'gh'], ['gha', 'gh'],
+    ['cameroon', 'cm'], ['cmr', 'cm'],
+    ['ivory coast', 'ci'], ["cote d'ivoire", 'ci'], ['civ', 'ci'],
+    ['senegal', 'sn'], ['sen', 'sn'],
+    ['mali', 'ml'], ['mli', 'ml'],
+    ['burkina faso', 'bf'], ['bfa', 'bf'],
+    ['guinea', 'gn'], ['gin', 'gn'],
+    ['sierra leone', 'sl'], ['sle', 'sl'],
+    ['liberia', 'lr'], ['lbr', 'lr'],
+    ['gambia', 'gm'], ['gmb', 'gm'],
+    ['benin', 'bj'], ['ben', 'bj'],
+    ['togo', 'tg'], ['tgo', 'tg'],
+    ['niger', 'ne'], ['ner', 'ne'],
+    ['chad', 'td'], ['tcd', 'td'],
+    ['gabon', 'ga'], ['gab', 'ga'],
+    ['angola', 'ao'], ['ago', 'ao'],
+    ['zambia', 'zm'], ['zmb', 'zm'],
+    ['zimbabwe', 'zw'], ['zwe', 'zw'],
+    ['malawi', 'mw'], ['mwi', 'mw'],
+    ['mozambique', 'mz'], ['moz', 'mz'],
+    ['namibia', 'na'], ['nam', 'na'],
+    ['botswana', 'bw'], ['bwa', 'bw'],
+    ['south africa', 'za'], ['zaf', 'za'],
+    ['lesotho', 'ls'], ['lso', 'ls'],
+    ['eswatini', 'sz'], ['swaziland', 'sz'], ['swz', 'sz'],
+    ['madagascar', 'mg'], ['mdg', 'mg'],
+    ['mauritius', 'mu'], ['mus', 'mu'],
+    ['seychelles', 'sc'], ['syc', 'sc'],
+    ['cape verde', 'cv'], ['cpv', 'cv'],
+    ['mauritania', 'mr'], ['mrt', 'mr'],
+    ['united states', 'us'], ['united states of america', 'us'], ['usa', 'us'], ['us', 'us'],
+    ['canada', 'ca'], ['can', 'ca'],
+    ['mexico', 'mx'], ['mex', 'mx'],
+    ['cuba', 'cu'], ['cub', 'cu'],
+    ['jamaica', 'jm'], ['jam', 'jm'],
+    ['haiti', 'ht'], ['hti', 'ht'],
+    ['dominican republic', 'do'], ['dom', 'do'],
+    ['puerto rico', 'pr'], ['pri', 'pr'],
+    ['trinidad and tobago', 'tt'], ['tto', 'tt'],
+    ['bahamas', 'bs'], ['bhs', 'bs'],
+    ['barbados', 'bb'], ['brb', 'bb'],
+    ['guyana', 'gy'], ['guy', 'gy'],
+    ['suriname', 'sr'], ['sur', 'sr'],
+    ['brazil', 'br'], ['bra', 'br'],
+    ['argentina', 'ar'], ['arg', 'ar'],
+    ['colombia', 'co'], ['col', 'co'],
+    ['venezuela', 've'], ['ven', 've'],
+    ['peru', 'pe'], ['per', 'pe'],
+    ['ecuador', 'ec'], ['ecu', 'ec'],
+    ['bolivia', 'bo'], ['bol', 'bo'],
+    ['chile', 'cl'], ['chl', 'cl'],
+    ['paraguay', 'py'], ['pry', 'py'],
+    ['uruguay', 'uy'], ['ury', 'uy'],
+    ['panama', 'pa'], ['pan', 'pa'],
+    ['costa rica', 'cr'], ['cri', 'cr'],
+    ['nicaragua', 'ni'], ['nic', 'ni'],
+    ['honduras', 'hn'], ['hnd', 'hn'],
+    ['guatemala', 'gt'], ['gtm', 'gt'],
+    ['el salvador', 'sv'], ['slv', 'sv'],
+    ['belize', 'bz'], ['blz', 'bz'],
+    ['united kingdom', 'gb'], ['uk', 'gb'], ['england', 'gb'], ['scotland', 'gb'], ['wales', 'gb'], ['gbr', 'gb'],
+    ['ireland', 'ie'], ['irl', 'ie'],
+    ['france', 'fr'], ['fra', 'fr'],
+    ['germany', 'de'], ['deu', 'de'],
+    ['italy', 'it'], ['ita', 'it'],
+    ['spain', 'es'], ['esp', 'es'],
+    ['portugal', 'pt'], ['prt', 'pt'],
+    ['netherlands', 'nl'], ['nld', 'nl'],
+    ['belgium', 'be'], ['bel', 'be'],
+    ['luxembourg', 'lu'], ['lux', 'lu'],
+    ['switzerland', 'ch'], ['che', 'ch'],
+    ['austria', 'at'], ['aut', 'at'],
+    ['poland', 'pl'], ['pol', 'pl'],
+    ['czech republic', 'cz'], ['czechia', 'cz'], ['cze', 'cz'],
+    ['slovakia', 'sk'], ['svk', 'sk'],
+    ['hungary', 'hu'], ['hun', 'hu'],
+    ['romania', 'ro'], ['rou', 'ro'],
+    ['bulgaria', 'bg'], ['bgr', 'bg'],
+    ['serbia', 'rs'], ['srb', 'rs'],
+    ['croatia', 'hr'], ['hrv', 'hr'],
+    ['slovenia', 'si'], ['svn', 'si'],
+    ['bosnia and herzegovina', 'ba'], ['bih', 'ba'],
+    ['montenegro', 'me'], ['mne', 'me'],
+    ['north macedonia', 'mk'], ['mkd', 'mk'],
+    ['albania', 'al'], ['alb', 'al'],
+    ['greece', 'gr'], ['grc', 'gr'],
+    ['turkey', 'tr'], ['turkiye', 'tr'], ['tur', 'tr'],
+    ['russia', 'ru'], ['rus', 'ru'],
+    ['ukraine', 'ua'], ['ukr', 'ua'],
+    ['belarus', 'by'], ['blr', 'by'],
+    ['moldova', 'md'], ['mda', 'md'],
+    ['georgia', 'ge'], ['geo', 'ge'],
+    ['armenia', 'am'], ['arm', 'am'],
+    ['azerbaijan', 'az'], ['aze', 'az'],
+    ['cyprus', 'cy'], ['cyp', 'cy'],
+    ['malta', 'mt'], ['mlt', 'mt'],
+    ['iceland', 'is'], ['isl', 'is'],
+    ['norway', 'no'], ['nor', 'no'],
+    ['sweden', 'se'], ['swe', 'se'],
+    ['denmark', 'dk'], ['dnk', 'dk'],
+    ['finland', 'fi'], ['fin', 'fi'],
+    ['estonia', 'ee'], ['est', 'ee'],
+    ['latvia', 'lv'], ['lva', 'lv'],
+    ['lithuania', 'lt'], ['ltu', 'lt'],
+    ['kosovo', 'xk'],
+    ['kazakhstan', 'kz'], ['kaz', 'kz'],
+    ['uzbekistan', 'uz'], ['uzb', 'uz'],
+    ['turkmenistan', 'tm'], ['tkm', 'tm'],
+    ['tajikistan', 'tj'], ['tjk', 'tj'],
+    ['kyrgyzstan', 'kg'], ['kgz', 'kg'],
+    ['mongolia', 'mn'], ['mng', 'mn'],
+    ['china', 'cn'], ['chn', 'cn'],
+    ['japan', 'jp'], ['jpn', 'jp'],
+    ['south korea', 'kr'], ['korea', 'kr'], ['kor', 'kr'],
+    ['north korea', 'kp'], ['prk', 'kp'],
+    ['philippines', 'ph'], ['phl', 'ph'],
+    ['thailand', 'th'], ['tha', 'th'],
+    ['vietnam', 'vn'], ['vnm', 'vn'],
+    ['indonesia', 'id'], ['idn', 'id'],
+    ['malaysia', 'my'], ['mys', 'my'],
+    ['singapore', 'sg'], ['sgp', 'sg'],
+    ['myanmar', 'mm'], ['mmr', 'mm'],
+    ['cambodia', 'kh'], ['khm', 'kh'],
+    ['laos', 'la'], ['lao', 'la'],
+    ['india', 'in'], ['ind', 'in'],
+    ['pakistan', 'pk'], ['pak', 'pk'],
+    ['bangladesh', 'bd'], ['bgd', 'bd'],
+    ['sri lanka', 'lk'], ['lka', 'lk'],
+    ['nepal', 'np'], ['npl', 'np'],
+    ['afghanistan', 'af'], ['afg', 'af'],
+    ['iran', 'ir'], ['irn', 'ir'],
+    ['iraq', 'iq'], ['irq', 'iq'],
+    ['syria', 'sy'], ['syr', 'sy'],
+    ['lebanon', 'lb'], ['lbn', 'lb'],
+    ['jordan', 'jo'], ['jor', 'jo'],
+    ['israel', 'il'], ['isr', 'il'],
+    ['palestine', 'ps'], ['pse', 'ps'],
+    ['saudi arabia', 'sa'], ['sau', 'sa'],
+    ['united arab emirates', 'ae'], ['uae', 'ae'], ['are', 'ae'],
+    ['qatar', 'qa'], ['qat', 'qa'],
+    ['kuwait', 'kw'], ['kwt', 'kw'],
+    ['bahrain', 'bh'], ['bhr', 'bh'],
+    ['oman', 'om'], ['omn', 'om'],
+    ['yemen', 'ye'], ['yem', 'ye'],
+    ['australia', 'au'], ['aus', 'au'],
+    ['new zealand', 'nz'], ['nzl', 'nz'],
+    ['fiji', 'fj'], ['fji', 'fj'],
+    ['samoa', 'ws'], ['wsm', 'ws'],
+    ['tonga', 'to'], ['ton', 'to'],
+    ['papua new guinea', 'pg'], ['png', 'pg'],
+  ]
+  return pairs.reduce((acc, [name, iso]) => {
+    acc[name] = iso
+    return acc
+  }, {})
+})()
+
+function iso2From(value = '') {
+  const key = String(value || '').trim().toLowerCase().replace(/\./g, '')
+  if (!key) return ''
+  if (/^[a-z]{2}$/.test(key)) return key
+  return COUNTRY_ISO2[key] || ''
+}
+
+function proCornerInfo(reg) {
+  const boxer = reg?.boxerId || {}
+  const pro = boxer.professional || {}
+  const rec = pro.record || boxer.boxingRecord || {}
+  const wins = Number(rec.wins) || 0
+  const losses = Number(rec.losses) || 0
+  const draws = Number(rec.draws) || 0
+  const kos = Number(rec.koWins) || 0
+  const country = pro.country || boxer.country || boxer.nationality || ''
+  const code = pro.countryCode || boxer.countryCode || ''
+  const nickname = pro.nickname || pro.ringName || ''
+  return {
+    name: boxer.fullName || '',
+    nickname: nickname && nickname !== boxer.fullName ? nickname : '',
+    club: reg?.clubName || boxer.clubName || '',
+    country,
+    code,
+    iso2: iso2From(code) || iso2From(country),
+    flagUrl: pro.photos?.countryFlagUrl || '',
+    division: pro.division || boxer.weightCategory || '',
+    stance: pro.stance || '',
+    record: wins + losses + draws > 0 ? `${wins}-${losses}-${draws}` : '',
+    ko: kos,
+  }
+}
+
+// Flags are embedded at their natural aspect ratio so they never look squashed.
+async function loadFlag(url) {
+  if (!url || typeof document === 'undefined') return Promise.resolve(null)
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(value)
+    }
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.referrerPolicy = 'no-referrer'
+    const timer = setTimeout(() => finish(null), 8000)
+
+    img.onload = () => {
+      try {
+        if (!img.width || !img.height) {
+          finish(null)
+          return
+        }
+        const h = 64
+        const w = Math.max(1, Math.round(h * (img.width / img.height)))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        finish({
+          dataUrl: canvas.toDataURL('image/png'),
+          format: 'PNG',
+          ratio: img.width / img.height,
+        })
+      } catch {
+        finish(null)
+      }
+    }
+    img.onerror = () => finish(null)
+    img.src = url
+  })
+}
+
+function drawFlag(doc, flag, { x, y, w, h }) {
+  if (!flag) return
+  const ratio = flag.ratio || 1.5
+  let fw = w
+  let fh = fw / ratio
+  if (fh > h) {
+    fh = h
+    fw = h * ratio
+  }
+  const fx = x + (w - fw) / 2
+  const fy = y + (h - fh) / 2
+  doc.addImage(flag.dataUrl, flag.format, fx, fy, fw, fh)
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.15)
+  doc.rect(fx, fy, fw, fh, 'S')
+}
+
+function drawFlagFallback(doc, { x, y, w, h, code }) {
+  doc.setFillColor(...SLATE_SOFT)
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.2)
+  doc.roundedRect(x, y, w, h, 0.8, 0.8, 'FD')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(4.2)
+  doc.setTextColor(...GRAY)
+  doc.text(String(code || '—').toUpperCase().slice(0, 3), x + w / 2, y + h / 2 + 1.3, {
+    align: 'center',
+  })
+}
+
+function drawProCorner(doc, { x, y, w, h, info, flag, side, isWinner }) {
+  const isRed = side === 'A'
+  const pad = 3
+  const flagW = 9
+  const flagH = 6
+  const gap = 2.2
+  const align = isRed ? 'left' : 'right'
+  const textX = isRed ? x + pad + flagW + gap : x + w - pad - flagW - gap
+  const textW = w - pad * 2 - flagW - gap
+  const flagX = isRed ? x + pad : x + w - pad - flagW
+
+  if (flag) drawFlag(doc, flag, { x: flagX, y: y + 2.6, w: flagW, h: flagH })
+  else drawFlagFallback(doc, { x: flagX, y: y + 2.6, w: flagW, h: flagH, code: info.code || info.iso2 })
+
+  // Name
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.1)
+  const nameMax = textW - (isWinner ? 5 : 0)
+  const name = fitText(doc, info.name || 'TBA', nameMax)
+  doc.setTextColor(...(info.name ? INK : LIGHT_GRAY))
+  doc.text(name, textX, y + 6.4, { align })
+
+  if (isWinner) {
+    const nw = Math.min(doc.getTextWidth(name), nameMax)
+    const bx = isRed ? textX + nw + 1.5 : textX - nw - 1.5 - 3.2
+    doc.setFillColor(...EMERALD)
+    doc.circle(bx + 1.6, y + 4.9, 1.6, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.2)
+    doc.setTextColor(...WHITE)
+    doc.text('W', bx + 1.6, y + 5.9, { align: 'center' })
+  }
+
+  // Nickname / ring name
+  if (info.nickname) {
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(5)
+    doc.setTextColor(...GRAY)
+    doc.text(fitText(doc, info.nickname, textW), textX, y + 9.6, { align })
+  }
+
+  // Record · KO wins · stance
+  const record = [info.record, info.ko ? `${info.ko} KO` : '', info.stance]
+    .filter(Boolean)
+    .join(' · ')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(5)
+  doc.setTextColor(...SLATE_700)
+  doc.text(fitText(doc, record || 'Professional debut', textW), textX, y + 13, { align })
+
+  // Country · club
+  const meta = [info.country, info.club].filter(Boolean).join(' · ')
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(4.7)
+  doc.setTextColor(...LIGHT_GRAY)
+  doc.text(fitText(doc, meta || '—', textW), textX, y + 16.2, { align })
+}
+
+function proResultLine(bout) {
+  const result = bout.result || {}
+  const method = result.proMethod || result.method || ''
+  const round = result.round ? `R${result.round}` : ''
+  return [method, round].filter(Boolean).join(' · ')
+}
+
+function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, winA, winB, zebra }) {
+  const { num, corner, vs, weight, rounds, status, rowH } = PRO
+  const numX = x
+  const redX = numX + num
+  const vsX = redX + corner
+  const blueX = vsX + vs
+  const weightX = blueX + corner
+  const rdsX = weightX + weight
+  const statusX = rdsX + rounds
+
+  doc.setFillColor(...(zebra ? SOFT : WHITE))
+  doc.rect(x, y, w, rowH, 'F')
+  doc.setFillColor(...RED)
+  doc.rect(x, y, 0.9, rowH, 'F')
+  doc.setFillColor(...BLUE)
+  doc.rect(x + w - 0.9, y, 0.9, rowH, 'F')
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.25)
+  doc.line(x, y + rowH, x + w, y + rowH)
+
+  // Bout number badge
+  const badge = 7
+  const badgeX = numX + (num - badge) / 2
+  const badgeY = y + 3.6
+  const isMain = bout.boutType === 'main_event'
+  doc.setFillColor(...(isMain ? GOLD : INK))
+  doc.roundedRect(badgeX, badgeY, badge, badge, 1.8, 1.8, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.4)
+  doc.setTextColor(...(isMain ? INK : WHITE))
+  doc.text(String(number), badgeX + badge / 2, badgeY + 4.9, { align: 'center' })
+
+  const billing = PRO_BILLING[bout.boutType] || ''
+  if (billing) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(3.7)
+    doc.setTextColor(...GRAY)
+    doc.text(fitText(doc, billing, num - 1), numX + num / 2, badgeY + badge + 3.6, {
+      align: 'center',
+    })
+  }
+
+  drawProCorner(doc, {
+    x: redX,
+    y,
+    w: corner,
+    h: rowH,
+    info: infoA,
+    flag: flagA,
+    side: 'A',
+    isWinner: winA,
+  })
+  drawProCorner(doc, {
+    x: blueX,
+    y,
+    w: corner,
+    h: rowH,
+    info: infoB,
+    flag: flagB,
+    side: 'B',
+    isWinner: winB,
+  })
+
+  // VS medallion
+  const vsCx = vsX + vs / 2
+  const vsCy = y + rowH / 2
+  doc.setFillColor(...WHITE)
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.25)
+  doc.circle(vsCx, vsCy, 3.2, 'FD')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(4.4)
+  doc.setTextColor(...INK)
+  doc.text('VS', vsCx, vsCy + 1.5, { align: 'center' })
+
+  // Division / contracted weight / title
+  const division = bout.division || infoA.division || infoB.division || bout.category?.weight || ''
+  const contract = bout.contractWeightKg ? `${bout.contractWeightKg} kg` : ''
+  const weightCx = weightX + weight / 2
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(6.2)
+  doc.setTextColor(...INK)
+  doc.text(fitText(doc, division || '—', weight - 2.4), weightCx, y + 7.2, { align: 'center' })
+
+  let weightLineY = 10.8
+  if (contract) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(4.9)
+    doc.setTextColor(...GRAY)
+    doc.text(contract, weightCx, y + weightLineY, { align: 'center' })
+    weightLineY += 3.4
+  }
+  if (bout.titleFight) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.2)
+    doc.setTextColor(...AMBER)
+    doc.text(
+      fitText(doc, bout.titleName || 'TITLE FIGHT', weight - 2),
+      weightCx,
+      y + weightLineY,
+      { align: 'center' }
+    )
+  }
+
+  // Rounds
+  const rdsCx = rdsX + rounds / 2
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(...INK)
+  doc.text(bout.numberOfRounds ? String(bout.numberOfRounds) : '—', rdsCx, y + 9.4, {
+    align: 'center',
+  })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(3.8)
+  doc.setTextColor(...LIGHT_GRAY)
+  doc.text('RDS', rdsCx, y + 13, { align: 'center' })
+
+  // Status pill + result
+  const meta = STATUS[bout.status] || STATUS.scheduled
+  const label = PRO_STATUS[bout.status] || 'SCHEDULED'
+  const pillW = chipWidth(doc, label, 4.5, 1.5)
+  drawChip(doc, {
+    text: label,
+    x: statusX + (status - pillW) / 2,
+    y: y + 4.2,
+    bg: meta.bg,
+    fg: meta.fg,
+    size: 4.5,
+    height: 4.4,
+    padX: 1.5,
+  })
+
+  const result = proResultLine(bout)
+  if (result) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.5)
+    doc.setTextColor(...SLATE_600)
+    doc.text(fitText(doc, result, status - 2), statusX + status / 2, y + 12.4, {
+      align: 'center',
+    })
+  }
+}
+
 export async function buildFightCardPdf({ event, bouts }) {
-  // Professional fight nights keep the designed card; amateur events use a
-  // plain information table.
+  // Professional fight nights use the data-rich table below; amateur events
+  // use a plain information table.
   if ((event?.eventType || 'amateur') !== 'professional') {
     return buildSimpleFightCardPdf({ event, bouts })
   }
@@ -1098,190 +1623,294 @@ export async function buildFightCardPdf({ event, bouts }) {
   const pageH = doc.internal.pageSize.getHeight()
   const contentW = pageW - M * 2
 
-  // Brand logo for the document header and footer.
   const logo = await loadLogo('/logo.png')
-
-  // Preload boxer photos once per URL; failures fall back to initials.
-  const urls = [
-    ...new Set(
-      bouts
-        .flatMap((b) => [b.boxerAId?.boxerId?.photoUrl, b.boxerBId?.boxerId?.photoUrl])
-        .filter(Boolean)
-    ),
-  ]
-  const photos = new Map(await Promise.all(urls.map(async (url) => [url, await loadPhoto(url)])))
-
   const date = fmtLongDate(event?.eventDate)
   const metaLine = [date, event?.venue, event?.location].filter(Boolean).join(' · ')
+  const totalRounds = bouts.reduce((sum, b) => sum + (Number(b.numberOfRounds) || 0), 0)
+  const titleBouts = bouts.filter((b) => b.titleFight).length
 
-  const drawPageHeader = (continued = false) => {
+  // Resolve each corner once, then preload every candidate flag (uploaded flag
+  // first, flagcdn fallback) so rows can be drawn synchronously.
+  const corners = new Map()
+  const flagUrls = new Set()
+  const flagCandidates = (info) =>
+    [info.flagUrl, info.iso2 ? `https://flagcdn.com/w80/${info.iso2}.png` : ''].filter(Boolean)
+
+  bouts.forEach((bout) => {
+    ;['boxerAId', 'boxerBId'].forEach((key) => {
+      const reg = bout[key]
+      if (!reg) return
+      const id = String(reg._id || '')
+      if (corners.has(id)) return
+      const info = proCornerInfo(reg)
+      corners.set(id, info)
+      flagCandidates(info).forEach((url) => flagUrls.add(url))
+    })
+  })
+
+  const flags = new Map(
+    await Promise.all([...flagUrls].map(async (url) => [url, await loadFlag(url)]))
+  )
+
+  const flagFor = (reg) => {
+    const info = corners.get(String(reg?._id || ''))
+    if (!info) return null
+    for (const url of flagCandidates(info)) {
+      const flag = flags.get(url)
+      if (flag) return flag
+    }
+    return null
+  }
+
+  const drawCover = (continued = false) => {
     if (continued) {
       doc.setFillColor(...INK)
-      doc.rect(0, 0, pageW, 20, 'F')
+      doc.rect(0, 0, pageW, 17, 'F')
       doc.setFillColor(...RED)
-      doc.rect(0, 20, pageW, 1, 'F')
+      doc.rect(0, 17, pageW, 0.9, 'F')
 
-      if (logo) drawLogoBadge(doc, logo, { x: M, y: 4.6, w: 14, h: 10.8, radius: 1.8 })
+      if (logo) drawLogoBadge(doc, logo, { x: M, y: 3.7, w: 12.5, h: 9.6, radius: 1.6 })
 
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9.5)
+      doc.setFontSize(8.8)
       doc.setTextColor(...WHITE)
-      doc.text('BODYMAX', M + 17.4, 9.4)
+      doc.text('BODYMAX', M + 15.4, 8.5)
 
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6)
+      doc.setFontSize(5.4)
       doc.setTextColor(...BLUE_LIGHT)
-      doc.text('OFFICIAL FIGHT CARD', M + 17.4, 13.3)
+      doc.text('OFFICIAL FIGHT CARD', M + 15.4, 11.9)
 
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(7.6)
+      doc.setFontSize(7)
       doc.setTextColor(...WHITE)
-      doc.text(fitText(doc, event?.name || 'Event', contentW * 0.55), pageW - M, 9.4, { align: 'right' })
+      doc.text(fitText(doc, event?.name || 'Event', contentW * 0.5), pageW - M, 8.5, {
+        align: 'right',
+      })
 
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.2)
+      doc.setFontSize(5.6)
       doc.setTextColor(...LIGHT_GRAY)
-      doc.text(fitText(doc, date || '', contentW * 0.55), pageW - M, 13.4, { align: 'right' })
-      return 27
+      doc.text(fitText(doc, date || '', contentW * 0.5), pageW - M, 12.1, { align: 'right' })
+      return 21
     }
 
-    // Cover band.
+    // Dark cover band.
     doc.setFillColor(...INK)
-    doc.rect(0, 0, pageW, 44, 'F')
+    doc.rect(0, 0, pageW, 40, 'F')
 
-    // Decorative circles clipped to the band.
     doc.saveGraphicsState()
-    doc.rect(0, 0, pageW, 44, null)
+    doc.rect(0, 0, pageW, 40, null)
     doc.clip()
     doc.discardPath()
     doc.setFillColor(...SLATE_800)
-    doc.circle(pageW - 8, -8, 34, 'F')
+    doc.circle(pageW - 10, -10, 32, 'F')
     doc.setFillColor(24, 34, 53)
-    doc.circle(pageW - 52, 48, 26, 'F')
+    doc.circle(pageW - 58, 44, 24, 'F')
     doc.restoreGraphicsState()
 
     doc.setFillColor(...RED)
-    doc.rect(0, 44, pageW, 1.2, 'F')
+    doc.rect(0, 40, pageW, 1, 'F')
 
-    drawLogoBadge(doc, logo, { x: M, y: 6, w: 18.5, h: 13.5, radius: 2.2 })
+    drawLogoBadge(doc, logo, { x: M, y: 5.5, w: 18.5, h: 13.5, radius: 2.2 })
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.setTextColor(...WHITE)
-    doc.text('BODYMAX', M + 23.4, 12.2)
+    doc.text('BODYMAX', M + 23.4, 11.8)
 
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.2)
+    doc.setFontSize(5.6)
     doc.setTextColor(...BLUE_LIGHT)
-    doc.text('OFFICIAL FIGHT CARD', M + 23.4, 16.6)
+    doc.text('OFFICIAL FIGHT CARD', M + 23.4, 15.9)
 
-    // Tournament-style bout count tile.
-    const tileW = 40
+    drawChip(doc, {
+      text: 'PROFESSIONAL',
+      x: M + 23.4,
+      y: 17.5,
+      bg: SLATE_800,
+      fg: GOLD,
+      border: SLATE_700,
+      size: 4.1,
+      height: 4.2,
+      padX: 1.6,
+    })
+
+    // Bout count tile.
+    const tileW = 42
     const tileH = 17
     const tileX = pageW - M - tileW
     const tileY = 8
     doc.setFillColor(...SLATE_800)
     doc.setDrawColor(...SLATE_700)
     doc.setLineWidth(0.3)
-    doc.roundedRect(tileX, tileY, tileW, tileH, 2.6, 2.6, 'FD')
+    doc.roundedRect(tileX, tileY, tileW, tileH, 2.4, 2.4, 'FD')
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5)
+    doc.setFontSize(4.6)
     doc.setTextColor(...LIGHT_GRAY)
-    doc.text('TOTAL BOUTS', tileX + 4, tileY + 5.6)
+    doc.text('TOTAL BOUTS', tileX + 4.4, tileY + 5.6)
     doc.setFontSize(13)
     doc.setTextColor(...WHITE)
-    doc.text(String(bouts.length), tileX + 4, tileY + 13.6)
+    doc.text(String(bouts.length), tileX + 4.4, tileY + 13.6)
+    doc.setFillColor(...RED)
+    doc.circle(tileX + tileW - 9, tileY + 8.6, 2.2, 'F')
+    doc.setFillColor(...BLUE)
+    doc.circle(tileX + tileW - 5, tileY + 8.6, 2.2, 'F')
 
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(18)
+    doc.setFontSize(17)
     doc.setTextColor(...WHITE)
-    doc.text(fitText(doc, event?.name || 'Event', contentW - 52), M, 28)
+    doc.text(fitText(doc, event?.name || 'Event', contentW - 50), M, 28)
 
     if (metaLine) {
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7.6)
+      doc.setFontSize(7)
       doc.setTextColor(...LIGHT_GRAY)
-      doc.text(fitText(doc, metaLine, contentW - 52), M, 34.6)
+      doc.text(fitText(doc, metaLine, contentW - 50), M, 34.2)
     }
 
-    // Section heading.
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(...INK)
-    doc.text('FIGHT CARD', M, 52)
+    // Summary tiles.
+    const statY = 45
+    const statH = 9.5
+    const statGap = 4
+    const statW = (contentW - statGap * 2) / 3
+    const stats = [
+      { label: 'BOUTS', value: String(bouts.length), accent: INK },
+      { label: 'SCHEDULED ROUNDS', value: totalRounds ? String(totalRounds) : '—', accent: RED },
+      { label: 'TITLE BOUTS', value: String(titleBouts), accent: GOLD },
+    ]
+    stats.forEach((stat, i) => {
+      const sx = M + i * (statW + statGap)
+      doc.setFillColor(...SOFT)
+      doc.setDrawColor(...LINE)
+      doc.setLineWidth(0.25)
+      doc.roundedRect(sx, statY, statW, statH, 1.6, 1.6, 'FD')
+      doc.setFillColor(...stat.accent)
+      doc.roundedRect(sx, statY, 1.4, statH, 0.7, 0.7, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(4.2)
+      doc.setTextColor(...GRAY)
+      doc.text(stat.label, sx + 4.2, statY + 4)
+      doc.setFontSize(9)
+      doc.setTextColor(...INK)
+      doc.text(stat.value, sx + 4.2, statY + 8.4)
+    })
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.4)
-    doc.setTextColor(...GRAY)
-    doc.text(
-      `${bouts.length} BOUT${bouts.length === 1 ? '' : 'S'} · ORDERED BY BOUT NUMBER`,
-      pageW - M,
-      52,
-      { align: 'right' }
-    )
-
-    doc.setDrawColor(...LINE)
-    doc.setLineWidth(0.3)
-    doc.line(M, 54.5, pageW - M, 54.5)
-    return 60
+    return statY + statH + 4
   }
 
-  let y = drawPageHeader(false)
+  const drawTableHeader = (top) => {
+    const { num, corner, vs, weight, rounds, status, headerH } = PRO
+    const redX = M + num
+    const vsX = redX + corner
+    const blueX = vsX + vs
+    const weightX = blueX + corner
+    const rdsX = weightX + weight
+    const statusX = rdsX + rounds
+
+    doc.setFillColor(...INK)
+    doc.rect(M, top, contentW, headerH, 'F')
+    doc.setFillColor(127, 29, 29)
+    doc.rect(redX, top, corner, headerH, 'F')
+    doc.setFillColor(30, 58, 138)
+    doc.rect(blueX, top, corner, headerH, 'F')
+    doc.setFillColor(...SLATE_800)
+    doc.rect(vsX, top, vs, headerH, 'F')
+
+    // Red / blue accent split along the top edge.
+    doc.setFillColor(...RED)
+    doc.rect(M, top, contentW / 2, 0.7, 'F')
+    doc.setFillColor(...BLUE)
+    doc.rect(M + contentW / 2, top, contentW / 2, 0.7, 'F')
+
+    const base = top + 5.9
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.6)
+    doc.setTextColor(...WHITE)
+    doc.text('BOUT', M + num / 2, base, { align: 'center' })
+    doc.text('VS', vsX + vs / 2, base, { align: 'center' })
+    doc.text('WEIGHT', weightX + weight / 2, base, { align: 'center' })
+    doc.text('RDS', rdsX + rounds / 2, base, { align: 'center' })
+    doc.text('STATUS', statusX + status / 2, base, { align: 'center' })
+
+    doc.setFontSize(5.2)
+    doc.text('RED CORNER', redX + 3, base)
+    doc.text('BLUE CORNER', blueX + corner - 3, base, { align: 'right' })
+  }
+
+  let y = drawCover(false)
+  drawTableHeader(y)
+  y += PRO.headerH
+
+  if (bouts.length === 0) {
+    doc.setFillColor(...SOFT)
+    doc.setDrawColor(...LINE)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(M, y + 6, contentW, 22, 2, 2, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...GRAY)
+    doc.text('No bouts have been scheduled yet.', pageW / 2, y + 18.5, { align: 'center' })
+  }
 
   bouts.forEach((bout, index) => {
-    const isMain = index === bouts.length - 1
-    const cardH = cardMetrics(bout, isMain).h
-
-    if (y + cardH > pageH - 18) {
+    if (y + PRO.rowH > pageH - 15) {
       doc.addPage()
-      y = drawPageHeader(true)
+      y = drawCover(true)
+      drawTableHeader(y)
+      y += PRO.headerH
     }
 
-    drawBoutCard(doc, { x: M, y, w: contentW, bout, photos, isMain })
-    y += cardH + CARD_GAP
+    const regA = bout.boxerAId
+    const regB = bout.boxerBId
+    const infoA = corners.get(String(regA?._id || '')) || proCornerInfo(regA)
+    const infoB = corners.get(String(regB?._id || '')) || proCornerInfo(regB)
+    const winner =
+      bout.winnerId && typeof bout.winnerId === 'object' ? bout.winnerId._id : bout.winnerId
+    const winA = !!winner && String(winner) === String(regA?._id)
+    const winB = !!winner && String(winner) === String(regB?._id)
+
+    drawProRow(doc, {
+      x: M,
+      y,
+      w: contentW,
+      bout,
+      number: bout.boutNumber || index + 1,
+      infoA,
+      infoB,
+      flagA: flagFor(regA),
+      flagB: flagFor(regB),
+      winA,
+      winB,
+      zebra: index % 2 === 1,
+    })
+    y += PRO.rowH
   })
 
-  // Summary back-matter, only when it fits on the current page (never alone).
+  // Page footers.
+  const pageCount = doc.getNumberOfPages()
   const generatedOn = new Date().toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   })
-  const closingH = 104
-  if (y + closingH <= pageH - 18) {
-    drawClosing(doc, {
-      x: M,
-      y: y + 1.5,
-      w: contentW,
-      bouts,
-      event,
-      date,
-      generatedOn,
-    })
-  }
-
-  // Page footers.
-  const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setDrawColor(...LINE)
     doc.setLineWidth(0.3)
-    doc.line(M, pageH - 12, pageW - M, pageH - 12)
-
-    if (logo) {
-      const lw = 7.4
-      const lh = lw / (logo.ratio || 1)
-      doc.addImage(logo.dataUrl, logo.format, M, pageH - 8.2 - lh / 2, lw, lh)
-    }
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(...GRAY)
-    doc.text('BODYMAX · OFFICIAL FIGHT CARD', M + 9.4, pageH - 6.4)
+    doc.line(M, pageH - 13, pageW - M, pageH - 13)
 
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.2)
-    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 6.4, { align: 'right' })
+    doc.setFontSize(5.6)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(`Generated ${generatedOn}`, M, pageH - 8.4)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...GRAY)
+    doc.text('BODYMAX · OFFICIAL FIGHT CARD', pageW / 2, pageH - 8.4, { align: 'center' })
+
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 8.4, { align: 'right' })
   }
 
   const safeName = (event?.name || 'event')
