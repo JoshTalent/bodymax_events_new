@@ -82,7 +82,9 @@ export default async (event) => {
       registration = await Registration.create({
         eventId,
         clubName: cleanClub,
-        numberOfBouts: Number(body.numberOfBouts) || 1,
+        numberOfBouts: Number.isFinite(Number(body.numberOfBouts)) && String(body.numberOfBouts ?? '').trim() !== ''
+          ? Math.max(0, Math.trunc(Number(body.numberOfBouts)))
+          : 1,
         boxerId: boxer._id,
         category: { weight, age, gender },
         status: 'eligible',

@@ -7,6 +7,15 @@ import { success, errorResponse } from './_shared/middleware/auth.js'
 import { normalizeRequest } from './_shared/request.js'
 import { getTransport, getFrom, getReplyTo } from './_shared/mailer.js'
 
+// Bouts played may legitimately be 0 (debutants). Only fall back when the
+// value is missing or not a number at all.
+const parseBouts = (value) => {
+  const raw = String(value ?? '').trim()
+  if (raw === '') return 1
+  const n = Number(raw)
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 1
+}
+
 export default async (event) => {
   event = await normalizeRequest(event)
   try {
@@ -125,7 +134,7 @@ export default async (event) => {
           fullName,
           clubId: linkedClub?._id || null,
           clubName: clubName || '',
-          numberOfBouts: Number(b.numberOfBouts) || 1,
+          numberOfBouts: parseBouts(b.numberOfBouts),
           gender: b.gender || null,
           weightCategory: b.weight || '',
           ageCategory: b.age || '',
@@ -143,7 +152,7 @@ export default async (event) => {
         clubName: clubName || '',
         whatsapp: normalizedWhatsapp,
         email: cleanEmail,
-        numberOfBouts: Number(b.numberOfBouts) || 1,
+        numberOfBouts: parseBouts(b.numberOfBouts),
         boxerId: boxer._id,
         category: {
           weight: b.weight || '',
@@ -165,7 +174,9 @@ export default async (event) => {
           if (b.weight) parts.push(`Weight: ${b.weight}`)
           if (b.age) parts.push(`Age: ${b.age}`)
           if (b.gender) parts.push(`Gender: ${b.gender === 'M' ? 'Male' : 'Female'}`)
-          if (Number(b.numberOfBouts) > 1) parts.push(`Bouts: ${b.numberOfBouts}`)
+          if (b.numberOfBouts !== undefined && b.numberOfBouts !== null && String(b.numberOfBouts).trim() !== '') {
+            parts.push(`Bouts: ${parseBouts(b.numberOfBouts)}`)
+          }
           return parts.join(' — ')
         })
         const text = [

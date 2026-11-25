@@ -9,7 +9,7 @@ const BoxerSchema = new mongoose.Schema(
       index: true,
     },
     clubName: { type: String, trim: true, default: '' },
-    numberOfBouts: { type: Number, default: 1, min: 1 },
+    numberOfBouts: { type: Number, default: 1, min: 0 },
     fullName: { type: String, required: true, trim: true },
     dateOfBirth: { type: Date, default: null },
     gender: { type: String, enum: ['M', 'F', null], default: null },

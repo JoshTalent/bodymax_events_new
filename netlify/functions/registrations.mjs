@@ -116,7 +116,9 @@ export default async (event) => {
         clubName,
         whatsapp: body.whatsapp || '',
         email: body.email || '',
-        numberOfBouts: Number(body.numberOfBouts) || 1,
+        numberOfBouts: Number.isFinite(Number(body.numberOfBouts)) && String(body.numberOfBouts ?? '').trim() !== ''
+          ? Math.max(0, Math.trunc(Number(body.numberOfBouts)))
+          : 1,
         boxerId,
         category: {
           weight: cat.weight || boxer.weightCategory || '',

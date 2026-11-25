@@ -21,7 +21,7 @@ function thankYouMessage(r) {
     'Here are the details of the boxer added:',
     `• Name: ${boxer}`,
     ...cat.map((c) => `• ${c}`),
-    `• Bouts: ${r.numberOfBouts || 1}`,
+    `• Bouts: ${r.numberOfBouts ?? 1}`,
     'We will review and confirm the entry. Best regards, Bodymax Events Team',
   ].join('\n')
 }

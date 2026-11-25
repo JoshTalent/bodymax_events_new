@@ -59,8 +59,11 @@ export default async (event) => {
       regUpdates['category.age'] = body.age || ''
     }
     if (body.numberOfBouts !== undefined) {
-      updates.numberOfBouts = Number(body.numberOfBouts) || 1
-      regUpdates.numberOfBouts = Number(body.numberOfBouts) || 1
+      const bouts = Number.isFinite(Number(body.numberOfBouts)) && String(body.numberOfBouts ?? '').trim() !== ''
+        ? Math.max(0, Math.trunc(Number(body.numberOfBouts)))
+        : 1
+      updates.numberOfBouts = bouts
+      regUpdates.numberOfBouts = bouts
     }
 
     if (Object.keys(updates).length) {

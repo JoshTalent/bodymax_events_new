@@ -1245,7 +1245,7 @@ export default function Draws() {
       gender: reg?.boxerId?.gender || reg?.category?.gender || '',
       weight: reg?.category?.weight || reg?.boxerId?.weightCategory || '',
       age: reg?.category?.age || reg?.boxerId?.ageCategory || '',
-      numberOfBouts: reg?.numberOfBouts || 1,
+      numberOfBouts: reg?.numberOfBouts ?? 1,
       numberOfRounds: reg?.numberOfRounds || 3,
       minutesPerRound: reg?.minutesPerRound || 3,
       photoUrl: reg?.boxerId?.photoUrl || '',
@@ -1890,7 +1890,7 @@ export default function Draws() {
                 <option value="F">Female</option>
               </select>
             </div>
-            <Input label="Number of Bouts" type="number" min="1" value={editForm.numberOfBouts} onChange={(e) => setEditForm({ ...editForm, numberOfBouts: e.target.value })} />
+            <Input label="Number of Bouts" type="number" min="0" step="1" value={editForm.numberOfBouts} onChange={(e) => setEditForm({ ...editForm, numberOfBouts: e.target.value })} />
           </div>
           <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
             Changes update the boxer's profile and this event's registration. Use Update Draw to re-pair boxers after changing weights.

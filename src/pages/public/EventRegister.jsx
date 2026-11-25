@@ -11,6 +11,15 @@ import { getSavedLang, persistLang } from '../../utils/language.js'
 
 const EMPTY_BOXER = { fullName: '', weight: '', age: '', gender: '', numberOfBouts: 1 }
 
+// Bouts played may legitimately be 0 (debutants). Only fall back when the
+// field is empty or not a number at all.
+const parseBouts = (value) => {
+  const raw = String(value ?? '').trim()
+  if (raw === '') return 1
+  const n = Number(raw)
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 1
+}
+
 const text = {
   en: {
     eventRegistration: 'Event Registration',
@@ -167,7 +176,8 @@ export default function EventRegister() {
       const filtered = boxers.map((b) => ({
         ...b,
         fullName: (b.fullName || '').trim(),
-        numberOfBouts: Number(b.numberOfBouts) || 1,
+        // Keep 0 — a boxer with no bouts played is a valid entry.
+        numberOfBouts: parseBouts(b.numberOfBouts),
       }))
       const res = await api(`/event-register?token=${token}`, {
         method: 'POST',
@@ -410,7 +420,8 @@ export default function EventRegister() {
                         <Input
                           label={t.numberOfBouts}
                           type="number"
-                          min="1"
+                          min="0"
+                          step="1"
                           required
                           value={b.numberOfBouts}
                           onChange={(e) => updateBoxer(i, 'numberOfBouts', e.target.value)}

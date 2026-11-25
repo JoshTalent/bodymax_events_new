@@ -75,7 +75,7 @@ function thankYouMessage(r) {
     'Here are the details of the boxer added:',
     `• Name: ${boxer}`,
     ...cat.map((c) => `• ${c}`),
-    `• Bouts: ${r.numberOfBouts || 1}`,
+    `• Bouts: ${r.numberOfBouts ?? 1}`,
     'We will review and confirm the entry. Best regards, Bodymax Events Team',
   ].join('\n')
 }
@@ -322,7 +322,7 @@ export default function Registrations() {
 
   const boutsOptions = useMemo(() => {
     const s = new Set()
-    for (const r of regs || []) s.add(r.numberOfBouts || 1)
+    for (const r of regs || []) s.add(r.numberOfBouts ?? 1)
     return [...s].sort((a, b) => a - b)
   }, [regs])
 
@@ -332,7 +332,7 @@ export default function Registrations() {
     if (weightFilter !== 'all') list = list.filter((r) => String(r.category?.weight) === weightFilter)
     if (categoryFilter !== 'all') list = list.filter((r) => String(r.category?.age) === categoryFilter)
     if (genderFilter !== 'all') list = list.filter((r) => normGender(r.category?.gender) === genderFilter)
-    if (boutsFilter !== 'all') list = list.filter((r) => (r.numberOfBouts || 1) === Number(boutsFilter))
+    if (boutsFilter !== 'all') list = list.filter((r) => (r.numberOfBouts ?? 1) === Number(boutsFilter))
     const q = search.trim().toLowerCase()
     if (q) {
       list = list.filter(
@@ -406,7 +406,7 @@ export default function Registrations() {
       r.eventId?.name || '',
       rsolveDate(r.eventId?.eventDate),
       categoryLabel(r).join(' / '),
-      r.numberOfBouts || 1,
+      r.numberOfBouts ?? 1,
       ROW_PILLS[r.status]?.label || r.status,
       r.whatsapp || '',
       r.email || '',
@@ -638,7 +638,7 @@ export default function Registrations() {
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-center">
-                          {(r.numberOfBouts || 1) > 1 ? (
+                          {(r.numberOfBouts ?? 1) > 1 ? (
                             <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
                               ×{r.numberOfBouts}
                             </span>
@@ -740,7 +740,7 @@ export default function Registrations() {
                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Category</p>
                                 <p className="mt-1 text-sm font-medium text-slate-800">
                                   {cat.length ? cat.join(' · ') : '—'}
-                                  {(r.numberOfBouts || 1) > 1 && <span className="ml-1 text-amber-600">×{r.numberOfBouts} bouts</span>}
+                                  {(r.numberOfBouts ?? 1) > 1 && <span className="ml-1 text-amber-600">×{r.numberOfBouts} bouts</span>}
                                 </p>
                               </div>
                               <div className="bg-white p-4">

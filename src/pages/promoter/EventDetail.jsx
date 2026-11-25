@@ -1582,7 +1582,7 @@ export default function EventDetail() {
                               <p className="text-[11px] text-slate-500">
                                 {r.boxerId?.gender === 'F' ? 'Female' : 'Male'}
                                 {r.boxerId?.nationality ? ` · ${r.boxerId.nationality}` : ''}
-                                {r.numberOfBouts > 1 ? ` · ${r.numberOfBouts} bouts` : ''}
+                                {r.numberOfBouts !== undefined && r.numberOfBouts !== null ? ` · ${r.numberOfBouts} bout${r.numberOfBouts === 1 ? '' : 's'}` : ''}
                               </p>
                             </div>
                           </div>
