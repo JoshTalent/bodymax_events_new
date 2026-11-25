@@ -1091,13 +1091,13 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
 
 const PRO = {
   num: 10,
-  corner: 55,
+  corner: 57,
   vs: 9,
-  weight: 21,
+  weight: 19,
   rounds: 10,
-  status: 22,
+  status: 20,
   headerH: 9,
-  rowH: 19.5,
+  rowH: 21,
 }
 
 const PRO_STATUS = {
@@ -1322,6 +1322,7 @@ function proCornerInfo(reg) {
     code,
     iso2: iso2From(code) || iso2From(country),
     flagUrl: pro.photos?.countryFlagUrl || '',
+    photoUrl: boxer.photoUrl || pro.photos?.headshotUrl || '',
     division: pro.division || boxer.weightCategory || '',
     stance: pro.stance || '',
     record: wins + losses + draws > 0 ? `${wins}-${losses}-${draws}` : '',
@@ -1402,19 +1403,30 @@ function drawFlagFallback(doc, { x, y, w, h, code }) {
   })
 }
 
-function drawProCorner(doc, { x, y, w, h, info, flag, side, isWinner }) {
+function drawProCorner(doc, { x, y, w, h, info, flag, photo, side, isWinner }) {
   const isRed = side === 'A'
   const pad = 3
-  const flagW = 9
-  const flagH = 6
-  const gap = 2.2
+  const avatar = 9.5
+  const gap = 2.4
   const align = isRed ? 'left' : 'right'
-  const textX = isRed ? x + pad + flagW + gap : x + w - pad - flagW - gap
-  const textW = w - pad * 2 - flagW - gap
-  const flagX = isRed ? x + pad : x + w - pad - flagW
+  const avatarX = isRed ? x + pad : x + w - pad - avatar
+  const avatarY = y + (h - avatar) / 2
+  const textX = isRed ? avatarX + avatar + gap : avatarX - gap
+  const textW = isRed ? x + w - pad - textX : textX - (x + pad)
 
-  if (flag) drawFlag(doc, flag, { x: flagX, y: y + 2.6, w: flagW, h: flagH })
-  else drawFlagFallback(doc, { x: flagX, y: y + 2.6, w: flagW, h: flagH, code: info.code || info.iso2 })
+  drawAvatar(doc, { x: avatarX, y: avatarY, size: avatar, radius: 1.8, photo, name: info.name })
+
+  // Small flag badge on the inner-bottom corner of the headshot. When there is
+  // no photo the flag moves next to the country line instead.
+  if (flag && photo) {
+    const bw = 5.6
+    const bh = 3.6
+    const bx = isRed ? avatarX + avatar - bw + 0.4 : avatarX - 0.4
+    const by = avatarY + avatar - bh + 0.4
+    doc.setFillColor(...WHITE)
+    doc.roundedRect(bx - 0.5, by - 0.5, bw + 1, bh + 1, 0.6, 0.6, 'F')
+    drawFlag(doc, flag, { x: bx, y: by, w: bw, h: bh })
+  }
 
   // Name
   doc.setFont('helvetica', 'bold')
@@ -1452,12 +1464,28 @@ function drawProCorner(doc, { x, y, w, h, info, flag, side, isWinner }) {
   doc.setTextColor(...SLATE_700)
   doc.text(fitText(doc, record || 'Professional debut', textW), textX, y + 13, { align })
 
-  // Country · club
-  const meta = [info.country, info.club].filter(Boolean).join(' · ')
+  // Country · club (inline flag when the headshot has no badge)
+  const meta = [info.country, info.club].filter(Boolean).join(' · ') || '—'
+  const inlineFlag = flag && !photo
+  const flagW = 5.6
+  const flagH = 3.6
+  const flagGap = 1.4
+  const metaW = inlineFlag ? textW - flagW - flagGap : textW
+  const metaX = inlineFlag ? (isRed ? textX + flagW + flagGap : textX - flagW - flagGap) : textX
+
+  if (inlineFlag) {
+    drawFlag(doc, flag, {
+      x: isRed ? textX : textX - flagW,
+      y: y + 13.2,
+      w: flagW,
+      h: flagH,
+    })
+  }
+
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(4.7)
   doc.setTextColor(...LIGHT_GRAY)
-  doc.text(fitText(doc, meta || '—', textW), textX, y + 16.2, { align })
+  doc.text(fitText(doc, meta, metaW), metaX, y + 16.2, { align })
 }
 
 function proResultLine(bout) {
@@ -1467,7 +1495,7 @@ function proResultLine(bout) {
   return [method, round].filter(Boolean).join(' · ')
 }
 
-function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, winA, winB, zebra }) {
+function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, photoA, photoB, winA, winB, zebra }) {
   const { num, corner, vs, weight, rounds, status, rowH } = PRO
   const numX = x
   const redX = numX + num
@@ -1516,6 +1544,7 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, wi
     h: rowH,
     info: infoA,
     flag: flagA,
+    photo: photoA,
     side: 'A',
     isWinner: winA,
   })
@@ -1526,6 +1555,7 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, wi
     h: rowH,
     info: infoB,
     flag: flagB,
+    photo: photoB,
     side: 'B',
     isWinner: winB,
   })
@@ -1660,6 +1690,18 @@ export async function buildFightCardPdf({ event, bouts }) {
       if (flag) return flag
     }
     return null
+  }
+
+  // Headshots are preloaded once per URL; failures fall back to initials.
+  const photoUrls = [
+    ...new Set([...corners.values()].map((info) => info.photoUrl).filter(Boolean)),
+  ]
+  const photos = new Map(
+    await Promise.all(photoUrls.map(async (url) => [url, await loadPhoto(url)]))
+  )
+  const photoFor = (reg) => {
+    const info = corners.get(String(reg?._id || ''))
+    return info?.photoUrl ? photos.get(info.photoUrl) || null : null
   }
 
   const drawCover = (continued = false) => {
@@ -1880,6 +1922,8 @@ export async function buildFightCardPdf({ event, bouts }) {
       infoB,
       flagA: flagFor(regA),
       flagB: flagFor(regB),
+      photoA: photoFor(regA),
+      photoB: photoFor(regB),
       winA,
       winB,
       zebra: index % 2 === 1,
