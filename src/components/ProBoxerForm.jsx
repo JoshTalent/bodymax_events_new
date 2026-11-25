@@ -239,7 +239,12 @@ export function proBoxerPayload(form, existingTitles = []) {
   }
 }
 
-export function ProBoxerFields({ form, setForm }) {
+/**
+ * `compact` trims the form to what a promoter needs while building a fight
+ * card (identity, physicals, record, photos, team). The full compliance
+ * sections stay available on the global Pro Boxers page.
+ */
+export function ProBoxerFields({ form, setForm, compact = false }) {
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
   const toggle = (key) => (e) => setForm({ ...form, [key]: e.target.checked })
 
@@ -297,16 +302,18 @@ export function ProBoxerFields({ form, setForm }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Rankings</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Input label="WBC" value={form.wbc} onChange={set('wbc')} placeholder="e.g. #3" />
-          <Input label="WBA" value={form.wba} onChange={set('wba')} placeholder="e.g. #1" />
-          <Input label="IBF" value={form.ibf} onChange={set('ibf')} placeholder="e.g. #2" />
-          <Input label="WBO" value={form.wbo} onChange={set('wbo')} placeholder="e.g. #4" />
-          <Input label="Other" value={form.other} onChange={set('other')} placeholder="e.g. WBC Asia" />
+      {!compact && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Rankings</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Input label="WBC" value={form.wbc} onChange={set('wbc')} placeholder="e.g. #3" />
+            <Input label="WBA" value={form.wba} onChange={set('wba')} placeholder="e.g. #1" />
+            <Input label="IBF" value={form.ibf} onChange={set('ibf')} placeholder="e.g. #2" />
+            <Input label="WBO" value={form.wbo} onChange={set('wbo')} placeholder="e.g. #4" />
+            <Input label="Other" value={form.other} onChange={set('other')} placeholder="e.g. WBC Asia" />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Team & Business</p>
@@ -319,78 +326,86 @@ export function ProBoxerFields({ form, setForm }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Licence</p>
-          <div className="grid gap-3">
-            <Input label="Licence Number" value={form.licenseNumber} onChange={set('licenseNumber')} />
-            <Input label="Licence Commission" value={form.licenseCommission} onChange={set('licenseCommission')} placeholder="e.g. Boxing Commission" />
-            <Input label="Licence Expiry" type="date" value={form.licenseExpiry} onChange={set('licenseExpiry')} />
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Medicals</p>
-          <div className="grid gap-3">
-            <Select label="Status" value={form.medStatus} onChange={set('medStatus')}>
-              <option value="cleared">Cleared</option>
-              <option value="suspended">Suspended</option>
-            </Select>
-            <Input label="Last Exam Date" type="date" value={form.medLastExamDate} onChange={set('medLastExamDate')} />
-            <Input label="Medical Expiry" type="date" value={form.medExpiryDate} onChange={set('medExpiryDate')} />
-            <Input label="Bloodwork Date" type="date" value={form.medBloodworkDate} onChange={set('medBloodworkDate')} />
-            <Input label="MRI Date" type="date" value={form.medMriDate} onChange={set('medMriDate')} />
-            <Input label="Eye Test Date" type="date" value={form.medEyeTestDate} onChange={set('medEyeTestDate')} />
-            <div className="flex flex-wrap gap-3">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
-                <input type="checkbox" checked={form.medHepatitisB} onChange={toggle('medHepatitisB')} className="h-3.5 w-3.5 rounded" />
-                Hep B
-              </label>
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
-                <input type="checkbox" checked={form.medHepatitisC} onChange={toggle('medHepatitisC')} className="h-3.5 w-3.5 rounded" />
-                Hep C
-              </label>
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
-                <input type="checkbox" checked={form.medHiv} onChange={toggle('medHiv')} className="h-3.5 w-3.5 rounded" />
-                HIV
-              </label>
+      {!compact && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Licence</p>
+            <div className="grid gap-3">
+              <Input label="Licence Number" value={form.licenseNumber} onChange={set('licenseNumber')} />
+              <Input label="Licence Commission" value={form.licenseCommission} onChange={set('licenseCommission')} placeholder="e.g. Boxing Commission" />
+              <Input label="Licence Expiry" type="date" value={form.licenseExpiry} onChange={set('licenseExpiry')} />
             </div>
-            <Input label="Suspension / Status" value={form.medSuspension} onChange={set('medSuspension')} placeholder="e.g. Cleared" />
-            <Textarea label="Medical Notes" value={form.medNotes} onChange={set('medNotes')} rows={2} />
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Medicals</p>
+            <div className="grid gap-3">
+              <Select label="Status" value={form.medStatus} onChange={set('medStatus')}>
+                <option value="cleared">Cleared</option>
+                <option value="suspended">Suspended</option>
+              </Select>
+              <Input label="Last Exam Date" type="date" value={form.medLastExamDate} onChange={set('medLastExamDate')} />
+              <Input label="Medical Expiry" type="date" value={form.medExpiryDate} onChange={set('medExpiryDate')} />
+              <Input label="Bloodwork Date" type="date" value={form.medBloodworkDate} onChange={set('medBloodworkDate')} />
+              <Input label="MRI Date" type="date" value={form.medMriDate} onChange={set('medMriDate')} />
+              <Input label="Eye Test Date" type="date" value={form.medEyeTestDate} onChange={set('medEyeTestDate')} />
+              <div className="flex flex-wrap gap-3">
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHepatitisB} onChange={toggle('medHepatitisB')} className="h-3.5 w-3.5 rounded" />
+                  Hep B
+                </label>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHepatitisC} onChange={toggle('medHepatitisC')} className="h-3.5 w-3.5 rounded" />
+                  Hep C
+                </label>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+                  <input type="checkbox" checked={form.medHiv} onChange={toggle('medHiv')} className="h-3.5 w-3.5 rounded" />
+                  HIV
+                </label>
+              </div>
+              <Input label="Suspension / Status" value={form.medSuspension} onChange={set('medSuspension')} placeholder="e.g. Cleared" />
+              <Textarea label="Medical Notes" value={form.medNotes} onChange={set('medNotes')} rows={2} />
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Insurance</p>
+            <div className="grid gap-3">
+              <Input label="Provider" value={form.insuranceProvider} onChange={set('insuranceProvider')} />
+              <Input label="Policy Number" value={form.insurancePolicy} onChange={set('insurancePolicy')} />
+              <Input label="Expiry" type="date" value={form.insuranceExpiry} onChange={set('insuranceExpiry')} />
+            </div>
           </div>
         </div>
+      )}
+
+      {!compact && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Insurance</p>
-          <div className="grid gap-3">
-            <Input label="Provider" value={form.insuranceProvider} onChange={set('insuranceProvider')} />
-            <Input label="Policy Number" value={form.insurancePolicy} onChange={set('insurancePolicy')} />
-            <Input label="Expiry" type="date" value={form.insuranceExpiry} onChange={set('insuranceExpiry')} />
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Socials & Emergency Contact</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Input label="Instagram" value={form.instagram} onChange={set('instagram')} placeholder="@handle" />
+            <Input label="X / Twitter" value={form.x} onChange={set('x')} placeholder="@handle" />
+            <Input label="Facebook" value={form.facebook} onChange={set('facebook')} placeholder="@page" />
+            <Input label="YouTube" value={form.youtube} onChange={set('youtube')} placeholder="@channel" />
+            <Input label="Emergency Contact" value={form.emergencyName} onChange={set('emergencyName')} />
+            <Input label="Emergency Phone" value={form.emergencyPhone} onChange={set('emergencyPhone')} />
+            <Input label="Relation" value={form.emergencyRelation} onChange={set('emergencyRelation')} placeholder="e.g. Spouse" />
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Socials & Emergency Contact</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Input label="Instagram" value={form.instagram} onChange={set('instagram')} placeholder="@handle" />
-          <Input label="X / Twitter" value={form.x} onChange={set('x')} placeholder="@handle" />
-          <Input label="Facebook" value={form.facebook} onChange={set('facebook')} placeholder="@page" />
-          <Input label="YouTube" value={form.youtube} onChange={set('youtube')} placeholder="@channel" />
-          <Input label="Emergency Contact" value={form.emergencyName} onChange={set('emergencyName')} />
-          <Input label="Emergency Phone" value={form.emergencyPhone} onChange={set('emergencyPhone')} />
-          <Input label="Relation" value={form.emergencyRelation} onChange={set('emergencyRelation')} placeholder="e.g. Spouse" />
+      {!compact && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Amateur Background</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Textarea label="Amateur Record" value={form.amateurRecord} onChange={set('amateurRecord')} rows={2} />
+            <Textarea label="Achievements" value={form.amateurAchievements} onChange={set('amateurAchievements')} rows={2} />
+            <Textarea label="Olympics" value={form.olympics} onChange={set('olympics')} rows={2} />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Amateur Background</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Textarea label="Amateur Record" value={form.amateurRecord} onChange={set('amateurRecord')} rows={2} />
-          <Textarea label="Achievements" value={form.amateurAchievements} onChange={set('amateurAchievements')} rows={2} />
-          <Textarea label="Olympics" value={form.olympics} onChange={set('olympics')} rows={2} />
-        </div>
-      </div>
-
-      <Textarea label="Notes" value={form.notes} onChange={set('notes')} rows={2} placeholder="Internal promoter notes…" />
+      {!compact && (
+        <Textarea label="Notes" value={form.notes} onChange={set('notes')} rows={2} placeholder="Internal promoter notes…" />
+      )}
     </div>
   )
 }

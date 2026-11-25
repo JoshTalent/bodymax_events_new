@@ -1002,7 +1002,7 @@ export default function ProEventCockpit({ event, canManage = false }) {
             )}
           </div>
 
-          <ProBoxerFields form={form} setForm={setForm} />
+          <ProBoxerFields form={form} setForm={setForm} compact />
         </form>
       </Modal>
 
