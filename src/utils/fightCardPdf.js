@@ -1091,9 +1091,8 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
 
 const PRO = {
   num: 10,
-  corner: 59.5,
+  corner: 68.5,
   vs: 9,
-  weight: 18,
   rounds: 8,
   time: 18,
   headerH: 9,
@@ -1419,7 +1418,7 @@ function drawFlagFallback(doc, { x, y, w, h, code }) {
   })
 }
 
-function drawProCorner(doc, { x, y, w, h, info, flag, photo, side, isWinner }) {
+function drawProCorner(doc, { x, y, w, h, info, flag, photo, side, isWinner, note }) {
   const isRed = side === 'A'
   const pad = 3
   const avatar = 9.5
@@ -1481,7 +1480,7 @@ function drawProCorner(doc, { x, y, w, h, info, flag, photo, side, isWinner }) {
   doc.text(fitText(doc, record || 'Professional debut', textW), textX, y + 13, { align })
 
   // Country · club (inline flag when the headshot has no badge)
-  const meta = [info.country, info.club].filter(Boolean).join(' · ') || '—'
+  const meta = [info.country, info.club, note].filter(Boolean).join(' · ') || '—'
   const inlineFlag = flag && !photo
   const flagW = 5.6
   const flagH = 3.6
@@ -1512,13 +1511,12 @@ function proResultLine(bout) {
 }
 
 function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, photoA, photoB, winA, winB, zebra }) {
-  const { num, corner, vs, weight, rounds, time, rowH } = PRO
+  const { num, corner, vs, rounds, time, rowH } = PRO
   const numX = x
   const redX = numX + num
   const vsX = redX + corner
   const blueX = vsX + vs
-  const weightX = blueX + corner
-  const rdsX = weightX + weight
+  const rdsX = blueX + corner
   const timeX = rdsX + rounds
 
   doc.setFillColor(...(zebra ? SOFT : WHITE))
@@ -1528,10 +1526,10 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   doc.setFillColor(...BLUE)
   doc.rect(x + w - 0.9, y, 0.9, rowH, 'F')
 
-  // Fine rules keep the compact weight / rounds / time block readable.
+  // Fine rules keep the compact rounds / time block readable.
   doc.setDrawColor(...LINE)
   doc.setLineWidth(0.2)
-  ;[weightX, rdsX, timeX].forEach((rx) => doc.line(rx, y + 2.5, rx, y + rowH - 2.5))
+  ;[rdsX, timeX].forEach((rx) => doc.line(rx, y + 2.5, rx, y + rowH - 2.5))
 
   doc.setDrawColor(...LINE)
   doc.setLineWidth(0.25)
@@ -1564,6 +1562,12 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
     })
   }
 
+  // Division / contracted weight move into the corner meta line now that the
+  // dedicated weight column has gone. The full title name gets a slim ribbon.
+  const division = bout.division || infoA.division || infoB.division || bout.category?.weight || ''
+  const contract = bout.contractWeightKg ? `${bout.contractWeightKg} kg` : ''
+  const cornerNote = contract || division || ''
+
   drawProCorner(doc, {
     x: redX,
     y,
@@ -1574,6 +1578,7 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
     photo: photoA,
     side: 'A',
     isWinner: winA,
+    note: cornerNote,
   })
   drawProCorner(doc, {
     x: blueX,
@@ -1599,32 +1604,21 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   doc.setTextColor(...INK)
   doc.text('VS', vsCx, vsCy + 1.5, { align: 'center' })
 
-  // Division / contracted weight / title — deliberately compact.
-  const division = bout.division || infoA.division || infoB.division || bout.category?.weight || ''
-  const contract = bout.contractWeightKg ? `${bout.contractWeightKg} kg` : ''
-  const weightCx = weightX + weight / 2
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.9)
-  doc.setTextColor(...INK)
-  doc.text(fitText(doc, division || '—', weight - 2.2), weightCx, y + 6.9, { align: 'center' })
-
-  let weightLineY = 10.2
-  if (contract) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(4.6)
-    doc.setTextColor(...GRAY)
-    doc.text(fitText(doc, contract, weight - 2), weightCx, y + weightLineY, { align: 'center' })
-    weightLineY += 3.1
-  }
+  // Title fights keep their full name in a slim ribbon along the row foot —
+  // no dedicated weight column is needed to carry it.
   if (bout.titleFight) {
+    const ribbonY = y + rowH - 3.2
+    doc.setFillColor(...AMBER_SOFT)
+    doc.rect(redX, ribbonY, timeX - redX, 3.2, 'F')
+    doc.setFillColor(...AMBER)
+    doc.rect(redX, ribbonY, 0.65, 3.2, 'F')
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(4)
+    doc.setFontSize(3.9)
     doc.setTextColor(...AMBER)
     doc.text(
-      fitText(doc, bout.titleName || 'TITLE FIGHT', weight - 2),
-      weightCx,
-      y + weightLineY,
-      { align: 'center' }
+      fitText(doc, bout.titleName || 'TITLE FIGHT', timeX - redX - 3),
+      redX + 2,
+      ribbonY + 2.2
     )
   }
 
@@ -1887,12 +1881,11 @@ export async function buildFightCardPdf({ event, bouts }) {
   }
 
   const drawTableHeader = (top) => {
-    const { num, corner, vs, weight, rounds, time, headerH } = PRO
+    const { num, corner, vs, rounds, time, headerH } = PRO
     const redX = M + num
     const vsX = redX + corner
     const blueX = vsX + vs
-    const weightX = blueX + corner
-    const rdsX = weightX + weight
+    const rdsX = blueX + corner
     const timeX = rdsX + rounds
 
     doc.setFillColor(...INK)
@@ -1904,12 +1897,12 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setFillColor(...SLATE_800)
     doc.rect(vsX, top, vs, headerH, 'F')
 
-    // Tiny hairlines and a gold cap define the compact metrics block.
+    // Tiny hairlines and a gold cap define the compact rounds / time block.
     doc.setDrawColor(...SLATE_700)
     doc.setLineWidth(0.2)
-    ;[weightX, rdsX, timeX].forEach((rx) => doc.line(rx, top + 1.8, rx, top + headerH - 1.8))
+    ;[rdsX, timeX].forEach((rx) => doc.line(rx, top + 1.8, rx, top + headerH - 1.8))
     doc.setFillColor(...GOLD)
-    doc.rect(weightX, top, weight + rounds + time, 0.32, 'F')
+    doc.rect(rdsX, top, rounds + time, 0.32, 'F')
 
     // Red / blue accent split along the top edge.
     doc.setFillColor(...RED)
@@ -1923,7 +1916,6 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setTextColor(...SLATE_300)
     letterSpaced(doc, 'BOUT', M + num / 2, base, 0.25, 'center')
     letterSpaced(doc, 'VS', vsX + vs / 2, base, 0.25, 'center')
-    letterSpaced(doc, 'WT', weightX + weight / 2, base, 0.3, 'center')
     letterSpaced(doc, 'RDS', rdsX + rounds / 2, base, 0.25, 'center')
     letterSpaced(doc, 'TIME', timeX + time / 2, base, 0.3, 'center')
 
