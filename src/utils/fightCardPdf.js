@@ -1091,23 +1091,39 @@ async function buildSimpleFightCardPdf({ event, bouts }) {
 
 const PRO = {
   num: 10,
-  corner: 57,
+  corner: 59.5,
   vs: 9,
-  weight: 19,
-  rounds: 10,
-  status: 20,
+  weight: 18,
+  rounds: 8,
+  time: 18,
   headerH: 9,
-  rowH: 21,
+  rowH: 21.5,
 }
 
-const PRO_STATUS = {
-  scheduled: 'SCHEDULED',
-  ready: 'READY',
-  in_progress: 'LIVE',
-  completed: 'FINAL',
-  walkover: 'WALKOVER',
-  postponed: 'POSTPONED',
-  cancelled: 'CANCELLED',
+// Times are stored as 24-hour HH:mm strings. Show exactly what the promoter
+// scheduled, with an em dash when a bout has not been given a time yet.
+const fmtBoutTime = (value) => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const match = raw.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return raw.toUpperCase().slice(0, 8)
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return raw.toUpperCase().slice(0, 8)
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+// jsPDF does not account for character spacing when aligning text, so place it
+// manually. Used for the small, widely-tracked labels across the card.
+function letterSpaced(doc, text, x, y, spacing, align = 'left') {
+  doc.setCharSpace(spacing)
+  const width = doc.getTextWidth(text) + spacing * text.length
+  let startX = x
+  if (align === 'center') startX = x - width / 2
+  if (align === 'right') startX = x - width
+  doc.text(text, startX, y)
+  doc.setCharSpace(0)
+  return width
 }
 
 const PRO_BILLING = {
@@ -1496,14 +1512,14 @@ function proResultLine(bout) {
 }
 
 function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, photoA, photoB, winA, winB, zebra }) {
-  const { num, corner, vs, weight, rounds, status, rowH } = PRO
+  const { num, corner, vs, weight, rounds, time, rowH } = PRO
   const numX = x
   const redX = numX + num
   const vsX = redX + corner
   const blueX = vsX + vs
   const weightX = blueX + corner
   const rdsX = weightX + weight
-  const statusX = rdsX + rounds
+  const timeX = rdsX + rounds
 
   doc.setFillColor(...(zebra ? SOFT : WHITE))
   doc.rect(x, y, w, rowH, 'F')
@@ -1511,6 +1527,12 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   doc.rect(x, y, 0.9, rowH, 'F')
   doc.setFillColor(...BLUE)
   doc.rect(x + w - 0.9, y, 0.9, rowH, 'F')
+
+  // Fine rules keep the compact weight / rounds / time block readable.
+  doc.setDrawColor(...LINE)
+  doc.setLineWidth(0.2)
+  ;[weightX, rdsX, timeX].forEach((rx) => doc.line(rx, y + 2.5, rx, y + rowH - 2.5))
+
   doc.setDrawColor(...LINE)
   doc.setLineWidth(0.25)
   doc.line(x, y + rowH, x + w, y + rowH)
@@ -1526,6 +1548,11 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   doc.setFontSize(7.4)
   doc.setTextColor(...(isMain ? INK : WHITE))
   doc.text(String(number), badgeX + badge / 2, badgeY + 4.9, { align: 'center' })
+
+  // Status is reduced to a single discreet dot — the schedule lives in TIME.
+  const statusMeta = STATUS[bout.status] || STATUS.scheduled
+  doc.setFillColor(...statusMeta.rail)
+  doc.circle(numX + num - 1.5, y + 3.4, 0.95, 'F')
 
   const billing = PRO_BILLING[bout.boutType] || ''
   if (billing) {
@@ -1572,26 +1599,26 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   doc.setTextColor(...INK)
   doc.text('VS', vsCx, vsCy + 1.5, { align: 'center' })
 
-  // Division / contracted weight / title
+  // Division / contracted weight / title — deliberately compact.
   const division = bout.division || infoA.division || infoB.division || bout.category?.weight || ''
   const contract = bout.contractWeightKg ? `${bout.contractWeightKg} kg` : ''
   const weightCx = weightX + weight / 2
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.2)
+  doc.setFontSize(5.9)
   doc.setTextColor(...INK)
-  doc.text(fitText(doc, division || '—', weight - 2.4), weightCx, y + 7.2, { align: 'center' })
+  doc.text(fitText(doc, division || '—', weight - 2.2), weightCx, y + 6.9, { align: 'center' })
 
-  let weightLineY = 10.8
+  let weightLineY = 10.2
   if (contract) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(4.9)
+    doc.setFontSize(4.6)
     doc.setTextColor(...GRAY)
-    doc.text(contract, weightCx, y + weightLineY, { align: 'center' })
-    weightLineY += 3.4
+    doc.text(fitText(doc, contract, weight - 2), weightCx, y + weightLineY, { align: 'center' })
+    weightLineY += 3.1
   }
   if (bout.titleFight) {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(4.2)
+    doc.setFontSize(4)
     doc.setTextColor(...AMBER)
     doc.text(
       fitText(doc, bout.titleName || 'TITLE FIGHT', weight - 2),
@@ -1604,39 +1631,46 @@ function drawProRow(doc, { x, y, w, bout, number, infoA, infoB, flagA, flagB, ph
   // Rounds
   const rdsCx = rdsX + rounds / 2
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
+  doc.setFontSize(7.4)
   doc.setTextColor(...INK)
-  doc.text(bout.numberOfRounds ? String(bout.numberOfRounds) : '—', rdsCx, y + 9.4, {
+  doc.text(bout.numberOfRounds ? String(bout.numberOfRounds) : '—', rdsCx, y + 8.8, {
     align: 'center',
   })
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(3.8)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(3.6)
   doc.setTextColor(...LIGHT_GRAY)
-  doc.text('RDS', rdsCx, y + 13, { align: 'center' })
+  letterSpaced(doc, 'RDS', rdsCx, y + 12.4, 0.3, 'center')
 
-  // Status pill + result
-  const meta = STATUS[bout.status] || STATUS.scheduled
-  const label = PRO_STATUS[bout.status] || 'SCHEDULED'
-  const pillW = chipWidth(doc, label, 4.5, 1.5)
-  drawChip(doc, {
-    text: label,
-    x: statusX + (status - pillW) / 2,
-    y: y + 4.2,
-    bg: meta.bg,
-    fg: meta.fg,
-    size: 4.5,
-    height: 4.4,
-    padX: 1.5,
-  })
+  // Scheduled time replaces the status pill. A discreet dot beside the bout
+  // number still carries live/completed state.
+  const timeCx = timeX + time / 2
+  const scheduled = fmtBoutTime(bout.scheduledTime)
+  if (scheduled) {
+    doc.setFillColor(...BLUE_SOFT)
+    doc.setDrawColor(...BLUE_BORDER)
+    doc.setLineWidth(0.2)
+    doc.roundedRect(timeX + 1.4, y + 4.1, time - 2.8, 6.6, 1.3, 1.3, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.6)
+    doc.setTextColor(29, 78, 216)
+    doc.text(scheduled, timeCx, y + 8.75, { align: 'center' })
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5.6)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text('TBA', timeCx, y + 8.6, { align: 'center' })
+  }
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(3.4)
+  doc.setTextColor(...LIGHT_GRAY)
+  letterSpaced(doc, 'LOCAL', timeCx, y + 12.4, 0.3, 'center')
 
   const result = proResultLine(bout)
   if (result) {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(4.5)
+    doc.setFontSize(4.2)
     doc.setTextColor(...SLATE_600)
-    doc.text(fitText(doc, result, status - 2), statusX + status / 2, y + 12.4, {
-      align: 'center',
-    })
+    doc.text(fitText(doc, result, time - 2), timeCx, y + 16.2, { align: 'center' })
   }
 }
 
@@ -1658,6 +1692,10 @@ export async function buildFightCardPdf({ event, bouts }) {
   const metaLine = [date, event?.venue, event?.location].filter(Boolean).join(' · ')
   const totalRounds = bouts.reduce((sum, b) => sum + (Number(b.numberOfRounds) || 0), 0)
   const titleBouts = bouts.filter((b) => b.titleFight).length
+  const firstBell = bouts
+    .map((b) => fmtBoutTime(b.scheduledTime))
+    .filter(Boolean)
+    .sort()[0] || '—'
 
   // Resolve each corner once, then preload every candidate flag (uploaded flag
   // first, flagcdn fallback) so rows can be drawn synchronously.
@@ -1709,19 +1747,21 @@ export async function buildFightCardPdf({ event, bouts }) {
       doc.setFillColor(...INK)
       doc.rect(0, 0, pageW, 17, 'F')
       doc.setFillColor(...RED)
-      doc.rect(0, 17, pageW, 0.9, 'F')
+      doc.rect(0, 17, pageW / 2, 0.9, 'F')
+      doc.setFillColor(...BLUE)
+      doc.rect(pageW / 2, 17, pageW / 2, 0.9, 'F')
 
       if (logo) drawLogoBadge(doc, logo, { x: M, y: 3.7, w: 12.5, h: 9.6, radius: 1.6 })
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(8.8)
       doc.setTextColor(...WHITE)
-      doc.text('BODYMAX', M + 15.4, 8.5)
+      letterSpaced(doc, 'BODYMAX', M + 15.4, 8.5, 0.6)
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(5.4)
       doc.setTextColor(...BLUE_LIGHT)
-      doc.text('OFFICIAL FIGHT CARD', M + 15.4, 11.9)
+      letterSpaced(doc, 'OFFICIAL FIGHT CARD', M + 15.4, 11.9, 0.7)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7)
@@ -1737,9 +1777,11 @@ export async function buildFightCardPdf({ event, bouts }) {
       return 21
     }
 
-    // Dark cover band.
+    // Dark cover band with a fine gold crown and red/blue corner rule.
     doc.setFillColor(...INK)
     doc.rect(0, 0, pageW, 40, 'F')
+    doc.setFillColor(...GOLD)
+    doc.rect(0, 0, pageW, 0.65, 'F')
 
     doc.saveGraphicsState()
     doc.rect(0, 0, pageW, 40, null)
@@ -1752,19 +1794,21 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.restoreGraphicsState()
 
     doc.setFillColor(...RED)
-    doc.rect(0, 40, pageW, 1, 'F')
+    doc.rect(0, 40, pageW / 2, 1, 'F')
+    doc.setFillColor(...BLUE)
+    doc.rect(pageW / 2, 40, pageW / 2, 1, 'F')
 
     drawLogoBadge(doc, logo, { x: M, y: 5.5, w: 18.5, h: 13.5, radius: 2.2 })
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.setTextColor(...WHITE)
-    doc.text('BODYMAX', M + 23.4, 11.8)
+    letterSpaced(doc, 'BODYMAX', M + 23.4, 11.8, 0.75)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(5.6)
     doc.setTextColor(...BLUE_LIGHT)
-    doc.text('OFFICIAL FIGHT CARD', M + 23.4, 15.9)
+    letterSpaced(doc, 'OFFICIAL FIGHT CARD', M + 23.4, 15.9, 0.65)
 
     drawChip(doc, {
       text: 'PROFESSIONAL',
@@ -1799,8 +1843,8 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setFillColor(...BLUE)
     doc.circle(tileX + tileW - 5, tileY + 8.6, 2.2, 'F')
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(17)
+    doc.setFont('times', 'bold')
+    doc.setFontSize(18.5)
     doc.setTextColor(...WHITE)
     doc.text(fitText(doc, event?.name || 'Event', contentW - 50), M, 28)
 
@@ -1811,15 +1855,16 @@ export async function buildFightCardPdf({ event, bouts }) {
       doc.text(fitText(doc, metaLine, contentW - 50), M, 34.2)
     }
 
-    // Summary tiles.
+    // Summary tiles — the first bell is called out now that times are scheduled.
     const statY = 45
     const statH = 9.5
-    const statGap = 4
-    const statW = (contentW - statGap * 2) / 3
+    const statGap = 3
+    const statW = (contentW - statGap * 3) / 4
     const stats = [
       { label: 'BOUTS', value: String(bouts.length), accent: INK },
-      { label: 'SCHEDULED ROUNDS', value: totalRounds ? String(totalRounds) : '—', accent: RED },
+      { label: 'ROUNDS', value: totalRounds ? String(totalRounds) : '—', accent: RED },
       { label: 'TITLE BOUTS', value: String(titleBouts), accent: GOLD },
+      { label: 'FIRST BELL', value: firstBell, accent: BLUE },
     ]
     stats.forEach((stat, i) => {
       const sx = M + i * (statW + statGap)
@@ -1830,25 +1875,25 @@ export async function buildFightCardPdf({ event, bouts }) {
       doc.setFillColor(...stat.accent)
       doc.roundedRect(sx, statY, 1.4, statH, 0.7, 0.7, 'F')
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(4.2)
+      doc.setFontSize(3.9)
       doc.setTextColor(...GRAY)
-      doc.text(stat.label, sx + 4.2, statY + 4)
-      doc.setFontSize(9)
+      letterSpaced(doc, stat.label, sx + 4.2, statY + 4, 0.15)
+      doc.setFontSize(8.6)
       doc.setTextColor(...INK)
-      doc.text(stat.value, sx + 4.2, statY + 8.4)
+      doc.text(fitText(doc, stat.value, statW - 6), sx + 4.2, statY + 8.4)
     })
 
     return statY + statH + 4
   }
 
   const drawTableHeader = (top) => {
-    const { num, corner, vs, weight, rounds, status, headerH } = PRO
+    const { num, corner, vs, weight, rounds, time, headerH } = PRO
     const redX = M + num
     const vsX = redX + corner
     const blueX = vsX + vs
     const weightX = blueX + corner
     const rdsX = weightX + weight
-    const statusX = rdsX + rounds
+    const timeX = rdsX + rounds
 
     doc.setFillColor(...INK)
     doc.rect(M, top, contentW, headerH, 'F')
@@ -1859,6 +1904,13 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setFillColor(...SLATE_800)
     doc.rect(vsX, top, vs, headerH, 'F')
 
+    // Tiny hairlines and a gold cap define the compact metrics block.
+    doc.setDrawColor(...SLATE_700)
+    doc.setLineWidth(0.2)
+    ;[weightX, rdsX, timeX].forEach((rx) => doc.line(rx, top + 1.8, rx, top + headerH - 1.8))
+    doc.setFillColor(...GOLD)
+    doc.rect(weightX, top, weight + rounds + time, 0.32, 'F')
+
     // Red / blue accent split along the top edge.
     doc.setFillColor(...RED)
     doc.rect(M, top, contentW / 2, 0.7, 'F')
@@ -1867,15 +1919,17 @@ export async function buildFightCardPdf({ event, bouts }) {
 
     const base = top + 5.9
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(4.6)
-    doc.setTextColor(...WHITE)
-    doc.text('BOUT', M + num / 2, base, { align: 'center' })
-    doc.text('VS', vsX + vs / 2, base, { align: 'center' })
-    doc.text('WEIGHT', weightX + weight / 2, base, { align: 'center' })
-    doc.text('RDS', rdsX + rounds / 2, base, { align: 'center' })
-    doc.text('STATUS', statusX + status / 2, base, { align: 'center' })
+    doc.setFontSize(4.1)
+    doc.setTextColor(...SLATE_300)
+    letterSpaced(doc, 'BOUT', M + num / 2, base, 0.25, 'center')
+    letterSpaced(doc, 'VS', vsX + vs / 2, base, 0.25, 'center')
+    letterSpaced(doc, 'WT', weightX + weight / 2, base, 0.3, 'center')
+    letterSpaced(doc, 'RDS', rdsX + rounds / 2, base, 0.25, 'center')
+    letterSpaced(doc, 'TIME', timeX + time / 2, base, 0.3, 'center')
 
+    doc.setFont('helvetica', 'bold')
     doc.setFontSize(5.2)
+    doc.setTextColor(...WHITE)
     doc.text('RED CORNER', redX + 3, base)
     doc.text('BLUE CORNER', blueX + corner - 3, base, { align: 'right' })
   }
@@ -1896,7 +1950,7 @@ export async function buildFightCardPdf({ event, bouts }) {
   }
 
   bouts.forEach((bout, index) => {
-    if (y + PRO.rowH > pageH - 15) {
+    if (y + PRO.rowH > pageH - 18) {
       doc.addPage()
       y = drawCover(true)
       drawTableHeader(y)
@@ -1931,6 +1985,50 @@ export async function buildFightCardPdf({ event, bouts }) {
     y += PRO.rowH
   })
 
+  // Closing sign-off panel: keeps shorter cards from ending abruptly and gives
+  // the document the feel of an official, print-ready record.
+  if (bouts.length > 0 && y + 34 <= pageH - 18) {
+    const panelY = y + 6
+    const panelH = 27
+    doc.setFillColor(...SOFT)
+    doc.setDrawColor(...LINE)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(M, panelY, contentW, panelH, 2, 2, 'FD')
+    doc.setFillColor(...INK)
+    doc.roundedRect(M, panelY, 1.6, panelH, 0.8, 0.8, 'F')
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.9)
+    doc.setTextColor(...INK)
+    letterSpaced(doc, 'OFFICIAL CARD APPROVAL', M + 5.2, panelY + 5.8, 0.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(4.6)
+    doc.setTextColor(...LIGHT_GRAY)
+    letterSpaced(doc, 'BODYMAX BOXING GAMES', M + contentW - 5.2, panelY + 5.8, 0.4, 'right')
+
+    doc.setDrawColor(...SLATE_300)
+    doc.setLineWidth(0.3)
+    const signY = panelY + panelH - 8
+    doc.line(M + 5.2, signY, M + 78, signY)
+    doc.line(M + contentW - 78, signY, M + contentW - 5.2, signY)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(4.1)
+    doc.setTextColor(...GRAY)
+    letterSpaced(doc, 'TOURNAMENT DIRECTOR', M + 5.2, signY + 3.4, 0.3)
+    letterSpaced(doc, 'DATE', M + contentW - 5.2, signY + 3.4, 0.3, 'right')
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(4.4)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(
+      fitText(doc, `First bell ${firstBell} · ${bouts.length} bout${bouts.length === 1 ? '' : 's'} · Subject to change`, contentW - 12),
+      M + contentW / 2,
+      panelY + panelH - 2.4,
+      { align: 'center' }
+    )
+  }
+
   // Page footers.
   const pageCount = doc.getNumberOfPages()
   const generatedOn = new Date().toLocaleDateString('en-GB', {
@@ -1942,19 +2040,32 @@ export async function buildFightCardPdf({ event, bouts }) {
     doc.setPage(i)
     doc.setDrawColor(...LINE)
     doc.setLineWidth(0.3)
-    doc.line(M, pageH - 13, pageW - M, pageH - 13)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(5.6)
-    doc.setTextColor(...LIGHT_GRAY)
-    doc.text(`Generated ${generatedOn}`, M, pageH - 8.4)
+    doc.line(M, pageH - 15, pageW - M, pageH - 15)
+    doc.setDrawColor(...GOLD)
+    doc.setLineWidth(0.5)
+    doc.line(M, pageH - 15, M + 16, pageH - 15)
 
     doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5.2)
+    doc.setTextColor(...SLATE_700)
+    doc.text(fitText(doc, event?.name || 'Bodymax event', 55), M, pageH - 10.2)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5.8)
     doc.setTextColor(...GRAY)
-    doc.text('BODYMAX · OFFICIAL FIGHT CARD', pageW / 2, pageH - 8.4, { align: 'center' })
+    letterSpaced(doc, 'BODYMAX  ·  OFFICIAL FIGHT CARD', pageW / 2, pageH - 10.2, 0.55, 'center')
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5.2)
+    doc.setTextColor(...SLATE_700)
+    doc.text(`Page ${i} / ${pageCount}`, pageW - M, pageH - 10.2, { align: 'right' })
 
     doc.setFont('helvetica', 'normal')
-    doc.text(`Page ${i} of ${pageCount}`, pageW - M, pageH - 8.4, { align: 'right' })
+    doc.setFontSize(4.5)
+    doc.setTextColor(...LIGHT_GRAY)
+    doc.text(`Generated ${generatedOn}`, M, pageH - 5.8)
+    letterSpaced(doc, 'SUBJECT TO CHANGE', pageW / 2, pageH - 5.8, 0.45, 'center')
+    doc.text('BODYMAX BOXING GAMES', pageW - M, pageH - 5.8, { align: 'right' })
   }
 
   const safeName = (event?.name || 'event')
