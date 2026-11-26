@@ -26,6 +26,19 @@ const fmtDate = (iso) => {
   return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Bout times are stored as a simple 24-hour HH:mm string (the shape the
+// boxer/official portal already expects). Returns null for invalid input.
+const normalizeTime = (value) => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 const initials = (name = '') =>
   name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
 
@@ -175,21 +188,24 @@ function Corner({ reg, bout, side, onAddBoxer, onEditBoxer, onRemoveBoxer, disab
   )
 }
 
-function BoutTiming({ bout, disabled, onSave }) {
+function BoutTiming({ bout, disabled, onSave, isPro }) {
   const [rounds, setRounds] = useState(bout.numberOfRounds ?? '')
   const [minutes, setMinutes] = useState(bout.minutesPerRound ?? '')
+  const [scheduledTime, setScheduledTime] = useState(normalizeTime(bout.scheduledTime) ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     setRounds(bout.numberOfRounds ?? '')
     setMinutes(bout.minutesPerRound ?? '')
+    setScheduledTime(normalizeTime(bout.scheduledTime) ?? '')
     setSaved(false)
-  }, [bout._id, bout.numberOfRounds, bout.minutesPerRound])
+  }, [bout._id, bout.numberOfRounds, bout.minutesPerRound, bout.scheduledTime])
 
   const reset = () => {
     setRounds(bout.numberOfRounds ?? '')
     setMinutes(bout.minutesPerRound ?? '')
+    setScheduledTime(normalizeTime(bout.scheduledTime) ?? '')
   }
 
   const commit = async () => {
@@ -202,12 +218,23 @@ function BoutTiming({ bout, disabled, onSave }) {
       reset()
       return
     }
-    if (nextRounds === (bout.numberOfRounds ?? null) && nextMinutes === (bout.minutesPerRound ?? null)) return
+    const patch = {}
+    if (nextRounds !== (bout.numberOfRounds ?? null)) patch.numberOfRounds = nextRounds
+    if (nextMinutes !== (bout.minutesPerRound ?? null)) patch.minutesPerRound = nextMinutes
+    if (isPro) {
+      const nextTime = normalizeTime(scheduledTime)
+      if (nextTime === null) {
+        reset()
+        return
+      }
+      if (nextTime !== (normalizeTime(bout.scheduledTime) ?? '')) patch.scheduledTime = nextTime
+    }
+    if (Object.keys(patch).length === 0) return
 
     setSaving(true)
     setSaved(false)
     try {
-      await onSave(bout._id, { numberOfRounds: nextRounds, minutesPerRound: nextMinutes })
+      await onSave(bout._id, patch)
       setSaved(true)
     } catch {
       // Revert the inputs to the last saved values.
@@ -265,6 +292,24 @@ function BoutTiming({ bout, disabled, onSave }) {
           aria-label={`Minutes per round for bout ${bout.boutNumber}`}
         />
       </label>
+      {isPro && (
+        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+          Scheduled time
+          <input
+            type="time"
+            value={scheduledTime}
+            disabled={disabled || saving}
+            onChange={(e) => {
+              setScheduledTime(e.target.value)
+              setSaved(false)
+            }}
+            onBlur={commit}
+            onKeyDown={onKeyDown}
+            className={cn(fieldClass, 'w-24')}
+            aria-label={`Scheduled time for bout ${bout.boutNumber}`}
+          />
+        </label>
+      )}
       {saving && <Spinner className="h-3.5 w-3.5" />}
       {!saving && saved && (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600">
@@ -273,13 +318,13 @@ function BoutTiming({ bout, disabled, onSave }) {
         </span>
       )}
       <span className="ml-auto hidden text-[10px] font-medium text-slate-400 sm:inline">
-        Saved automatically — shows on the public draw
+        {isPro ? 'Saved automatically — bout time is visible to boxers & officials' : 'Saved automatically — shows on the public draw'}
       </span>
     </div>
   )
 }
 
-function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, onSaveTiming, disabled }) {
+function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMove, onDeleteBout, onAddBoxer, onSaveTiming, disabled, isPro }) {
   const a = bout.boxerAId
   const b = bout.boxerBId
   const isBye = !a || !b
@@ -336,6 +381,12 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
                     Title Fight · {bout.titleName || 'Championship'}
                   </span>
                 )}
+                {isPro && bout.scheduledTime && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
+                    <Icon name="clock" className="h-3 w-3" />
+                    {bout.scheduledTime}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -383,7 +434,7 @@ function BoutCard({ bout, index, total, onEditBoxer, onRemoveBoxer, onSwap, onMo
           </div>
         </div>
 
-        <BoutTiming bout={bout} disabled={disabled} onSave={onSaveTiming} />
+        <BoutTiming bout={bout} disabled={disabled} onSave={onSaveTiming} isPro={isPro} />
 
         <div className="mt-4 grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
           <Corner reg={a} bout={bout} side="A" onAddBoxer={onAddBoxer} onEditBoxer={onEditBoxer} onRemoveBoxer={onRemoveBoxer} disabled={disabled} />
@@ -879,9 +930,9 @@ export default function Draws() {
     const r1 = hasDraw
       ? ordered
           .slice()
-          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '', rounds: b.numberOfRounds ?? 3, minutes: b.minutesPerRound ?? 3 }))
+          .map((b) => ({ a: b.boxerAId?._id || '', b: b.boxerBId?._id || '', rounds: b.numberOfRounds ?? 3, minutes: b.minutesPerRound ?? 3, scheduledTime: normalizeTime(b.scheduledTime) ?? '' }))
       : []
-    setManualPairs(r1.length ? r1 : [{ a: '', b: '', rounds: 3, minutes: 3 }])
+    setManualPairs(r1.length ? r1 : [{ a: '', b: '', rounds: 3, minutes: 3, scheduledTime: '' }])
     setEditMode(hasDraw)
     setAddForm({ fullName: '', clubName: '', gender: '', weight: weight || '', age: age || '' })
     setAddBoxerOpen(false)
@@ -915,7 +966,7 @@ export default function Draws() {
     setManualPairs(next)
   }
 
-  const addPair = () => setManualPairs([...manualPairs, { a: '', b: '', rounds: 3, minutes: 3 }])
+  const addPair = () => setManualPairs([...manualPairs, { a: '', b: '', rounds: 3, minutes: 3, scheduledTime: '' }])
 
   const removePair = (i) => setManualPairs(manualPairs.filter((_, x) => x !== i))
 
@@ -924,8 +975,8 @@ export default function Draws() {
     if (pool.length < 2) return
     const { pairs, unpaired } = generatePairings(pool, rules)
     const rows = [...manualPairs]
-    pairs.forEach((p) => rows.push({ a: p.a.id, b: p.b.id, rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3 }))
-    unpaired.forEach((p) => rows.push({ a: p.id, b: '', rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3 }))
+    pairs.forEach((p) => rows.push({ a: p.a.id, b: p.b.id, rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3, scheduledTime: '' }))
+    unpaired.forEach((p) => rows.push({ a: p.id, b: '', rounds: manualPairs[0]?.rounds || 3, minutes: manualPairs[0]?.minutes || 3, scheduledTime: '' }))
     setManualPairs(rows)
     if (unpaired.length > 0) {
       toast(`${pairs.length} pairing(s) made, ${unpaired.length} boxer(s) left without a valid opponent`, 'info')
@@ -1021,6 +1072,7 @@ export default function Draws() {
         boxerBId: p.b || null,
         numberOfRounds: p.rounds === '' || p.rounds === undefined || p.rounds === null ? null : Number(p.rounds),
         minutesPerRound: p.minutes === '' || p.minutes === undefined || p.minutes === null ? null : Number(p.minutes),
+        scheduledTime: isPro ? (normalizeTime(p.scheduledTime) ?? '') : '',
         boutType: isPro ? (idx === 0 ? 'main_event' : idx === 1 ? 'co_main' : 'undercard') : (p.boutType || ''),
         billingOrder: isPro ? idx + 1 : Number(p.billingOrder) || 0,
         titleFight: isPro ? Boolean(proTitleFight && idx === 0) : Boolean(p.titleFight),
@@ -1535,6 +1587,7 @@ export default function Draws() {
                     onAddBoxer={openAssign}
                     onSaveTiming={saveTiming}
                     disabled={acting}
+                    isPro={isPro}
                   />
                 ))}
               </ol>
@@ -1784,7 +1837,7 @@ export default function Draws() {
                       <SelectedPlayer r={p.b ? allById.get(p.b) : null} />
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:max-w-[280px]">
+                  <div className={cn('mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3', isPro ? 'sm:max-w-[420px] sm:grid-cols-3' : 'sm:max-w-[280px]')}>
                     <Input
                       label="Rounds"
                       type="number"
@@ -1803,6 +1856,14 @@ export default function Draws() {
                       placeholder="3"
                       onChange={(e) => setManualPairs((prev) => prev.map((x, xi) => (xi === i ? { ...x, minutes: e.target.value } : x)))}
                     />
+                    {isPro && (
+                      <Input
+                        label="Scheduled time"
+                        type="time"
+                        value={p.scheduledTime ?? ''}
+                        onChange={setPair(i, 'scheduledTime')}
+                      />
+                    )}
                   </div>
                 </div>
               ))}

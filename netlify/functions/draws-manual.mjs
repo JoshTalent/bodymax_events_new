@@ -14,6 +14,18 @@ const positiveInt = (value) => {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : null
 }
 
+// Store bout times as 24-hour HH:mm strings, matching the boxer/official portal.
+const normalizeTime = (value) => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+  if (!match) return ''
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return ''
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 export default async (event) => {
   event = await normalizeRequest(event)
   try {
@@ -104,6 +116,7 @@ export default async (event) => {
         bracketPosition: lastPosition + 1 + saved.length,
         numberOfRounds: positiveInt(p.numberOfRounds),
         minutesPerRound: positiveInt(p.minutesPerRound),
+        scheduledTime: isProEvent ? normalizeTime(p.scheduledTime) : '',
         boxerAId: a,
         boxerBId: b,
         status: a && b ? 'scheduled' : 'walkover',
